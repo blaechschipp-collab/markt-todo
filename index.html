@@ -233,7 +233,15 @@
 
       <div id="adminDaysBox" style="margin-top:16px;">
         <label>Tage</label>
-        <div class="days"><label><input type="checkbox" class="adminDay" value="Montag"> Montag</label><label><input type="checkbox" class="adminDay" value="Dienstag"> Dienstag</label><label><input type="checkbox" class="adminDay" value="Mittwoch"> Mittwoch</label><label><input type="checkbox" class="adminDay" value="Donnerstag"> Donnerstag</label><label><input type="checkbox" class="adminDay" value="Freitag"> Freitag</label><label><input type="checkbox" class="adminDay" value="Samstag"> Samstag</label></div>
+        <div class="days">
+          <button type="button" class="btn-yellow" onclick="selectAllAdminDays()" style="width:auto; margin-bottom:8px;">Täglich Mo–Sa</button><br>
+          <label><input type="checkbox" class="adminDay" value="Montag"> Montag</label>
+          <label><input type="checkbox" class="adminDay" value="Dienstag"> Dienstag</label>
+          <label><input type="checkbox" class="adminDay" value="Mittwoch"> Mittwoch</label>
+          <label><input type="checkbox" class="adminDay" value="Donnerstag"> Donnerstag</label>
+          <label><input type="checkbox" class="adminDay" value="Freitag"> Freitag</label>
+          <label><input type="checkbox" class="adminDay" value="Samstag"> Samstag</label>
+        </div>
       </div>
 
       <div id="adminMonthBox" style="display:none; margin-top:16px;">
@@ -370,6 +378,10 @@ function handleAreaChange() {
   document.getElementById("dayControl").style.display = isHausmeister ? "none" : "block";
   document.getElementById("monthControl").style.display = isHausmeister ? "block" : "none";
   loadTasks();
+}
+
+function selectAllAdminDays() {
+  document.querySelectorAll(".adminDay").forEach(cb => cb.checked = true);
 }
 
 function toggleAdminPeriodFields() {
