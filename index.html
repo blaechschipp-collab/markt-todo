@@ -227,8 +227,8 @@
         <div><label>Markt</label><select id="adminMarket" onchange="loadAdminTasks(); loadControlTasks();"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
         <div><label>Bereich</label><select id="adminArea" onchange="toggleAdminPeriodFields()"><option>O&G</option><option>MoPro</option><option>Markt</option><option>Hausmeister</option></select><input id="adminCustomArea" placeholder="Neue Abteilung / Bereich" style="margin-top:8px;" /></div>
         <div><label>Wichtigkeit</label><select id="adminPriority"><option>hoch</option><option>mittel</option><option>niedrig</option></select></div>
-        <div><label>Bezeichnung</label><select id="adminTitle"><option>Frischekontrolle</option><option>Warenverräumung Altware FIFO</option><option>Verräumung Neuware</option><option>Ware auf Vollständigkeit prüfen</option><option>Preisauszeichnung prüfen</option><option>Blumen prüfen</option><option>Aufbauten prüfen / umgestalten</option><option>Bestellungen tätigen</option><option>Abschriften erfassen</option><option>QS-Listen</option><option>MHD-Kontrolle durchführen</option><option>Regallücken-Kontrolle</option><option>DL Paket Autodispo bearbeiten</option><option>DoSa Warenverfügbarkeit sicherstellen</option><option>DoSa Aufbau</option><option>Wareneingänge buchen</option><option>Flugblattcheck Folgewoche</option><option>Prüflisten bearbeiten</option><option>Werbeware auffüllen</option><option>Regal vorziehen</option><option>Warenverräumung</option><option>Beleuchtung prüfen</option><option>Heizung kontrollieren</option><option>Außenbereich kontrollieren</option><option>Wasserhähne prüfen</option><option>Mülltonnen bereitstellen</option><option>Notbeleuchtung testen</option></select></div>
-        <div><label>Eigene Bezeichnung</label><input id="adminCustomTitle" placeholder="optional" /></div>
+        <div><label>Bezeichnung</label>
+          <input id="adminCustomTitle" placeholder="Aufgabe eingeben" />
       </div>
 
       <div id="adminDaysBox" style="margin-top:16px;">
@@ -279,6 +279,13 @@ let adminUnlocked = false;
 const DAY_NAMES = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 
 document.getElementById("monthFilter").value = todayISO().slice(0,7);
+
+// Name lokal speichern (pro Gerät)
+const nameInput = document.getElementById("name");
+nameInput.value = localStorage.getItem("employeeName") || "";
+nameInput.addEventListener("input", function () {
+  localStorage.setItem("employeeName", this.value);
+});
 document.getElementById("controlDate").value = todayISO();
 populateAllowedDays();
 
