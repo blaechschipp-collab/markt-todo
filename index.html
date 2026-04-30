@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <title>Markt ToDo</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background:#f4f4f4; }
+    h1 { margin-bottom: 10px; }
+    .box { background:white; padding:15px; margin-bottom:15px; border-radius:8px; }
+    .task { padding:8px; border-bottom:1px solid #ddd; }
+    .done { text-decoration: line-through; color: gray; }
+    select, input, button { padding:8px; margin:4px; }
+  </style>
+</head>
+<body>
+
+<h1>Markt ToDo</h1>
+
+<div class="box">
+  <input id="name" placeholder="Dein Name" />
+  <select id="day" onchange="loadTasks()">
+    <option>Montag</option>
+    <option>Dienstag</option>
+    <option>Mittwoch</option>
+    <option>Donnerstag</option>
+    <option>Freitag</option>
+    <option>Samstag</option>
+  </select>
+  <button onclick="loadTasks()">Aktualisieren</button>
+</div>
+
+<div id="tasks" class="box"></div>
+
+<script>
+const SUPABASE_URL = "https://iexcfyxujdxnwfcdim.supabase.co";
+const SUPABASE_KEY = "sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
+
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+async function loadTasks() {
+  const day = document.getElementById("day").value;
+
+  const { data, error } = await db
+    .from("tasks")
+    .select("*")
+    .eq("day", day)
+    .order("area", { ascending: true });
+
+  const container = document.getElementById("tasks");
+  container.innerHTML = "";
+
+  if (error) {
+    container.innerHTML = "Fehler beim Laden: " + error.message;
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    container.innerHTML = "Keine Aufgaben für diesen Tag.";
+    return;
+  }
+
+  data.forEach(task => {
+    const div = document.createElement("div");
+    div.className = "task";
+
+    const checked = task.done ? "checked" : "";
+    const doneClass = task.done ? "done" : "";
+
+    div.innerHTML = `
+      <label class="${doneClass}">
+        <input type="checkbox" ${checked} onchange="toggleTask('${task.id}', this.checked)">
+        <strong>${task.area || ""}</strong> – ${task.title}
+        ${task.priority ? " | Wichtigkeit: " + task.priority : ""}
+      </label>
+      <br>
+      <small>
+        ${task.done_by ? "Erledigt von: " + task.done_by : ""}
+        ${task.done_at ? " | " + new Date(task.done_at).toLocaleString("de-DE") : ""}
+      </small>
+    `;
+
+    container.appendChild(div);
+  });
+}
+
+async function toggleTask(id, value) {
+  const name = document.getElementById("name").value.trim();
+
+  if (!name) {
+    alert("Bitte zuerst Namen eingeben.");
+    loadTasks();
+    return;
+  }
+
+  await db
+    .from("tasks")
+    .update({
+      done: value,
+      done_by: value ? name : null,
+      done_at: value ? new Date().toISOString() : null
+    })
+    .eq("id", id);
+
+  loadTasks();
+}
+
+loadTasks();
+</script>
+
+</body>
+</html>
