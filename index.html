@@ -8,7 +8,10 @@
     body { font-family: Arial, sans-serif; padding: 20px; background:#f4f4f4; }
     h1 { margin-bottom: 10px; }
     .box { background:white; padding:15px; margin-bottom:15px; border-radius:8px; }
-    .task { padding:8px; border-bottom:1px solid #ddd; }
+    .task { padding:10px; border-bottom:1px solid #ddd; border-radius:6px; margin-bottom:6px; }
+    .high { background:#ffe5e5; }
+    .medium { background:#fff5cc; }
+    .low { background:#e8f5e9; }
     .done { text-decoration: line-through; color: gray; }
     select, input, button { padding:8px; margin:4px; }
   </style>
@@ -19,6 +22,14 @@
 
 <div class="box">
   <input id="name" placeholder="Dein Name" />
+
+  <select id="areaFilter" onchange="loadTasks()">
+    <option value="">Alle Bereiche</option>
+    <option>O&G</option>
+    <option>MoPro</option>
+    <option>Markt</option>
+  </select>
+
   <select id="day" onchange="loadTasks()">
     <option>Montag</option>
     <option>Dienstag</option>
@@ -27,6 +38,7 @@
     <option>Freitag</option>
     <option>Samstag</option>
   </select>
+
   <button onclick="loadTasks()">Aktualisieren</button>
 </div>
 
@@ -38,20 +50,35 @@ const SUPABASE_KEY = "sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+function priorityClass(priority) {
+  if (!priority) return "";
+  if (priority.toLowerCase() === "hoch") return "high";
+  if (priority.toLowerCase() === "mittel") return "medium";
+  return "low";
+}
+
+function prioritySort(a, b) {
+  const order = { hoch: 1, mittel: 2, niedrig: 3 };
+  return (order[a.priority?.toLowerCase()] || 99) - (order[b.priority?.toLowerCase()] || 99);
+}
+
 async function loadTasks() {
   const day = document.getElementById("day").value;
+  const areaFilter = document.getElementById("areaFilter").value;
 
-  const { data, error } = await db
-    .from("tasks")
-    .select("*")
-    .eq("day", day)
-    .order("area", { ascending: true });
+  let query = db.from("tasks").select("*").eq("day", day);
+
+  if (areaFilter) {
+    query = query.eq("area", areaFilter);
+  }
+
+  const { data, error } = await query;
 
   const container = document.getElementById("tasks");
   container.innerHTML = "";
 
   if (error) {
-    container.innerHTML = "Fehler beim Laden: " + error.message;
+    container.innerHTML = "Fehler: " + error.message;
     return;
   }
 
@@ -60,9 +87,11 @@ async function loadTasks() {
     return;
   }
 
+  data.sort(prioritySort);
+
   data.forEach(task => {
     const div = document.createElement("div");
-    div.className = "task";
+    div.className = `task ${priorityClass(task.priority)}`;
 
     const checked = task.done ? "checked" : "";
     const doneClass = task.done ? "done" : "";
@@ -71,7 +100,7 @@ async function loadTasks() {
       <label class="${doneClass}">
         <input type="checkbox" ${checked} onchange="toggleTask('${task.id}', this.checked)">
         <strong>${task.area || ""}</strong> – ${task.title}
-        ${task.priority ? " | Wichtigkeit: " + task.priority : ""}
+        ${task.priority ? " | " + task.priority : ""}
       </label>
       <br>
       <small>
@@ -88,19 +117,16 @@ async function toggleTask(id, value) {
   const name = document.getElementById("name").value.trim();
 
   if (!name) {
-    alert("Bitte zuerst Namen eingeben.");
+    alert("Bitte Namen eingeben.");
     loadTasks();
     return;
   }
 
-  await db
-    .from("tasks")
-    .update({
-      done: value,
-      done_by: value ? name : null,
-      done_at: value ? new Date().toISOString() : null
-    })
-    .eq("id", id);
+  await db.from("tasks").update({
+    done: value,
+    done_by: value ? name : null,
+    done_at: value ? new Date().toISOString() : null
+  }).eq("id", id);
 
   loadTasks();
 }
