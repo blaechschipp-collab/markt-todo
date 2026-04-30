@@ -7,6 +7,7 @@
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; background:#f4f4f4; }
     h1 { margin-bottom: 10px; }
+    h2 { margin-top: 0; }
     .box { background:white; padding:15px; margin-bottom:15px; border-radius:8px; }
     .task { padding:10px; border-bottom:1px solid #ddd; border-radius:6px; margin-bottom:6px; }
     .high { background:#ffe5e5; }
@@ -14,6 +15,13 @@
     .low { background:#e8f5e9; }
     .done { text-decoration: line-through; color: gray; }
     select, input, button { padding:8px; margin:4px; }
+    button { cursor:pointer; }
+    .admin { border:2px solid #ddd; }
+    .days label { display:inline-block; margin-right:12px; margin-bottom:8px; }
+    .danger { background:#c62828; color:white; border:none; border-radius:4px; }
+    .save { background:#2e7d32; color:white; border:none; border-radius:4px; }
+    .adminBtn { background:#263238; color:white; border:none; border-radius:4px; }
+    .small { font-size:12px; color:#555; }
   </style>
 </head>
 <body>
@@ -22,6 +30,13 @@
 
 <div class="box">
   <input id="name" placeholder="Dein Name" />
+
+  <select id="marketFilter" onchange="loadTasks()">
+    <option>Freckenfeld</option>
+    <option>Gossersweiler-Stein</option>
+    <option>Billigheim-Ingenheim</option>
+    <option>Steinfeld</option>
+  </select>
 
   <select id="areaFilter" onchange="loadTasks()">
     <option value="">Alle Bereiche</option>
@@ -40,6 +55,85 @@
   </select>
 
   <button onclick="loadTasks()">Aktualisieren</button>
+  <button class="adminBtn" onclick="openAdminPin()">Adminbereich</button>
+</div>
+
+<div id="adminBox" class="box admin" style="display:none;">
+  <h2>Adminbereich – Aufgabe anlegen</h2>
+
+  <label>Markt</label><br>
+  <select id="adminMarket">
+    <option>Freckenfeld</option>
+    <option>Gossersweiler-Stein</option>
+    <option>Billigheim-Ingenheim</option>
+    <option>Steinfeld</option>
+  </select>
+
+  <br><br>
+
+  <label>Bezeichnung</label><br>
+  <select id="adminTitle">
+    <option>Frischekontrolle</option>
+    <option>Warenverräumung Altware FIFO</option>
+    <option>Verräumung Neuware</option>
+    <option>Ware auf Vollständigkeit prüfen</option>
+    <option>Preisauszeichnung prüfen</option>
+    <option>Blumen prüfen</option>
+    <option>Aufbauten prüfen / umgestalten</option>
+    <option>Bestellungen tätigen</option>
+    <option>Abschriften erfassen</option>
+    <option>QS-Listen</option>
+    <option>MHD-Kontrolle durchführen</option>
+    <option>Regallücken-Kontrolle</option>
+    <option>DL Paket Autodispo bearbeiten</option>
+    <option>DoSa Warenverfügbarkeit sicherstellen</option>
+    <option>DoSa Aufbau</option>
+    <option>Wareneingänge buchen</option>
+    <option>Flugblattcheck Folgewoche</option>
+    <option>Prüflisten bearbeiten</option>
+    <option>Werbeware auffüllen</option>
+    <option>Regal vorziehen</option>
+    <option>Warenverräumung</option>
+  </select>
+
+  <br><br>
+
+  <label>Oder eigene Bezeichnung</label><br>
+  <input id="adminCustomTitle" placeholder="Eigene Aufgabe eingeben" style="width:320px;" />
+
+  <br><br>
+
+  <label>Bereich</label><br>
+  <select id="adminArea">
+    <option>O&G</option>
+    <option>MoPro</option>
+    <option>Markt</option>
+  </select>
+
+  <br><br>
+
+  <label>Wichtigkeit</label><br>
+  <select id="adminPriority">
+    <option>hoch</option>
+    <option>mittel</option>
+    <option>niedrig</option>
+  </select>
+
+  <br><br>
+
+  <label>Tage</label><br>
+  <div class="days">
+    <label><input type="checkbox" class="adminDay" value="Montag"> Montag</label>
+    <label><input type="checkbox" class="adminDay" value="Dienstag"> Dienstag</label>
+    <label><input type="checkbox" class="adminDay" value="Mittwoch"> Mittwoch</label>
+    <label><input type="checkbox" class="adminDay" value="Donnerstag"> Donnerstag</label>
+    <label><input type="checkbox" class="adminDay" value="Freitag"> Freitag</label>
+    <label><input type="checkbox" class="adminDay" value="Samstag"> Samstag</label>
+  </div>
+
+  <button class="save" onclick="createTasks()">Aufgabe speichern</button>
+  <button onclick="logoutAdmin()">Admin schließen</button>
+  <div id="adminMessage" class="small"></div>
 </div>
 
 <div id="tasks" class="box"></div>
@@ -47,8 +141,36 @@
 <script>
 const SUPABASE_URL = "https://iexcjfyxujdxnwfcfdim.supabase.co";
 const SUPABASE_KEY = "sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
+const ADMIN_PIN = "4711"; // Diese PIN kannst du ändern.
 
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let adminUnlocked = false;
+
+function openAdminPin() {
+  if (adminUnlocked) {
+    toggleAdmin();
+    return;
+  }
+
+  const pin = prompt("Admin-PIN eingeben:");
+
+  if (pin === ADMIN_PIN) {
+    adminUnlocked = true;
+    document.getElementById("adminBox").style.display = "block";
+  } else if (pin !== null) {
+    alert("Falsche PIN.");
+  }
+}
+
+function toggleAdmin() {
+  const box = document.getElementById("adminBox");
+  box.style.display = box.style.display === "none" ? "block" : "none";
+}
+
+function logoutAdmin() {
+  adminUnlocked = false;
+  document.getElementById("adminBox").style.display = "none";
+}
 
 function priorityClass(priority) {
   if (!priority) return "";
@@ -63,14 +185,13 @@ function prioritySort(a, b) {
 }
 
 async function loadTasks() {
+  const market = document.getElementById("marketFilter").value;
   const day = document.getElementById("day").value;
   const areaFilter = document.getElementById("areaFilter").value;
 
-  let query = db.from("tasks").select("*").eq("day", day);
+  let query = db.from("tasks").select("*").eq("market", market).eq("day", day);
 
-  if (areaFilter) {
-    query = query.eq("area", areaFilter);
-  }
+  if (areaFilter) query = query.eq("area", areaFilter);
 
   const { data, error } = await query;
 
@@ -83,7 +204,7 @@ async function loadTasks() {
   }
 
   if (!data || data.length === 0) {
-    container.innerHTML = "Keine Aufgaben für diesen Tag.";
+    container.innerHTML = "Keine Aufgaben für diesen Markt / Tag.";
     return;
   }
 
@@ -99,7 +220,7 @@ async function loadTasks() {
     div.innerHTML = `
       <label class="${doneClass}">
         <input type="checkbox" ${checked} onchange="toggleTask('${task.id}', this.checked)">
-        <strong>${task.area || ""}</strong> – ${task.title}
+        <strong>${task.market || ""}</strong> | <strong>${task.area || ""}</strong> – ${task.title}
         ${task.priority ? " | " + task.priority : ""}
       </label>
       <br>
@@ -107,6 +228,8 @@ async function loadTasks() {
         ${task.done_by ? "Erledigt von: " + task.done_by : ""}
         ${task.done_at ? " | " + new Date(task.done_at).toLocaleString("de-DE") : ""}
       </small>
+      <br>
+      ${adminUnlocked ? `<button class="danger" onclick="deleteTask('${task.id}')">Löschen</button>` : ""}
     `;
 
     container.appendChild(div);
@@ -128,6 +251,67 @@ async function toggleTask(id, value) {
     done_at: value ? new Date().toISOString() : null
   }).eq("id", id);
 
+  loadTasks();
+}
+
+async function createTasks() {
+  if (!adminUnlocked) {
+    alert("Admin-PIN erforderlich.");
+    return;
+  }
+
+  const market = document.getElementById("adminMarket").value;
+  const selectedTitle = document.getElementById("adminTitle").value;
+  const customTitle = document.getElementById("adminCustomTitle").value.trim();
+  const title = customTitle || selectedTitle;
+  const area = document.getElementById("adminArea").value;
+  const priority = document.getElementById("adminPriority").value;
+  const selectedDays = Array.from(document.querySelectorAll(".adminDay:checked")).map(cb => cb.value);
+  const message = document.getElementById("adminMessage");
+
+  if (!title) {
+    alert("Bitte Bezeichnung eingeben.");
+    return;
+  }
+
+  if (selectedDays.length === 0) {
+    alert("Bitte mindestens einen Tag auswählen.");
+    return;
+  }
+
+  const rows = selectedDays.map(day => ({
+    market,
+    title,
+    area,
+    day,
+    priority,
+    done: false,
+    done_by: null,
+    done_at: null
+  }));
+
+  const { error } = await db.from("tasks").insert(rows);
+
+  if (error) {
+    message.innerHTML = "Fehler: " + error.message;
+    return;
+  }
+
+  message.innerHTML = "Aufgabe wurde gespeichert.";
+  document.getElementById("adminCustomTitle").value = "";
+  document.querySelectorAll(".adminDay").forEach(cb => cb.checked = false);
+  document.getElementById("marketFilter").value = market;
+  loadTasks();
+}
+
+async function deleteTask(id) {
+  if (!adminUnlocked) {
+    alert("Admin-PIN erforderlich.");
+    return;
+  }
+
+  if (!confirm("Diese Aufgabe wirklich löschen?")) return;
+  await db.from("tasks").delete().eq("id", id);
   loadTasks();
 }
 
