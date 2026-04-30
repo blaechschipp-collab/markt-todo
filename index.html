@@ -488,14 +488,18 @@ async function createTasks() {
   if (!adminUnlocked) return alert("Admin-PIN erforderlich.");
 
   const market = document.getElementById("adminMarket").value;
-  const selectedTitle = document.getElementById("adminTitle").value;
-  const customTitle = document.getElementById("adminCustomTitle").value.trim();
-  const title = customTitle || selectedTitle;
+  const title = document.getElementById("adminCustomTitle").value.trim();
   const selectedArea = document.getElementById("adminArea").value;
   const customArea = document.getElementById("adminCustomArea").value.trim();
   const area = customArea || selectedArea;
   const priority = document.getElementById("adminPriority").value;
   const message = document.getElementById("adminMessage");
+
+  if (!title) {
+    alert("Bitte eine Bezeichnung eingeben.");
+    return;
+  }
+
   let rows = [];
 
   if (area === "Hausmeister") {
