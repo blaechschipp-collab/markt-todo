@@ -209,7 +209,7 @@
       <div class="control-grid">
         <div><label>Dein Name</label><input id="name" placeholder="Dein Name" /></div>
         <div><label>Markt</label><select id="marketFilter" onchange="loadTasks()"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
-        <div><label>Bereich</label><select id="areaFilter" onchange="handleAreaChange()"><option value="">Alle Bereiche außer Hausmeister</option><option>O&G</option><option>MoPro</option><option>Markt</option><option>Hausmeister</option></select></div>
+        <div><label>Bereich</label><select id="areaFilter" onchange="handleAreaChange()"><option value="">Alle Bereiche außer Hausmeister</option></select></div>
         <div id="dayControl"><label>Tag</label><select id="day" onchange="loadTasks()"></select></div>
         <div id="monthControl" style="display:none;"><label>Monat</label><input id="monthFilter" type="month" onchange="loadTasks()" /></div>
         <div><label>&nbsp;</label><button class="btn-yellow" onclick="loadTasks()">Aktualisieren</button></div>
@@ -225,7 +225,7 @@
 
       <div class="control-grid">
         <div><label>Markt</label><select id="adminMarket" onchange="loadAdminTasks(); loadControlTasks();"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
-        <div><label>Bereich</label><select id="adminArea" onchange="toggleAdminPeriodFields()"><option>O&G</option><option>MoPro</option><option>Markt</option><option>Hausmeister</option></select><input id="adminCustomArea" placeholder="Neue Abteilung / Bereich" style="margin-top:8px;" /></div>
+        <div><label>Bereich</label><select id="adminArea" onchange="toggleAdminPeriodFields()"></select><input id="adminCustomArea" placeholder="Neue Abteilung / Bereich" style="margin-top:8px;" /></div>
         <div><label>Wichtigkeit</label><select id="adminPriority"><option>hoch</option><option>mittel</option><option>niedrig</option></select></div>
         <div><label>Bezeichnung</label>
           <input id="adminCustomTitle" placeholder="Aufgabe eingeben" />
@@ -265,7 +265,7 @@
       <div class="small">Hier prüfst du rückwirkend, was an einem konkreten Datum offen oder erledigt war.</div>
       <div class="control-grid" style="margin-top:14px;">
         <div><label>Markt</label><select id="controlMarket" onchange="loadControlTasks()"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
-        <div><label>Bereich</label><select id="controlArea" onchange="loadControlTasks()"><option value="">Alle Bereiche</option><option>O&G</option><option>MoPro</option><option>Markt</option><option>Hausmeister</option></select></div>
+        <div><label>Bereich</label><select id="controlArea" onchange="loadControlTasks()"><option value="">Alle Bereiche</option></select></div>
         <div><label>Von</label><input id="controlDateFrom" type="date" onchange="loadControlTasks()" /></div>
         <div><label>Bis</label><input id="controlDateTo" type="date" onchange="loadControlTasks()" /></div>
         <div><label>Status</label><select id="controlStatus" onchange="loadControlTasks()"><option value="all">Alle</option><option value="open">Offen</option><option value="done">Erledigt</option><option value="late">Fehler: verspätet bestätigt</option></select></div>
@@ -351,6 +351,46 @@ function populateAllowedDays() {
   } else if (select.options.length > 0) {
     select.selectedIndex = 0;
   }
+}
+
+async function loadAreas() {
+  const { data, error } = await db.from("tasks").select("area");
+  if (error) return;
+
+  const standardAreas = ["O&G", "MoPro", "Markt", "Hausmeister"];
+  const dbAreas = [...new Set((data || []).map(t => t.area).filter(Boolean))];
+  const areas = [...new Set([...standardAreas, ...dbAreas])].sort((a, b) => a.localeCompare(b, "de"));
+
+  const savedArea = localStorage.getItem("selectedArea") || "";
+  const areaFilter = document.getElementById("areaFilter");
+  const adminArea = document.getElementById("adminArea");
+  const controlArea = document.getElementById("controlArea");
+
+  areaFilter.innerHTML = `<option value="">Alle Bereiche außer Hausmeister</option>`;
+  controlArea.innerHTML = `<option value="">Alle Bereiche</option>`;
+  adminArea.innerHTML = "";
+
+  areas.forEach(area => {
+    const opt1 = document.createElement("option");
+    opt1.value = area;
+    opt1.textContent = area;
+    areaFilter.appendChild(opt1);
+
+    const opt2 = document.createElement("option");
+    opt2.value = area;
+    opt2.textContent = area;
+    adminArea.appendChild(opt2);
+
+    const opt3 = document.createElement("option");
+    opt3.value = area;
+    opt3.textContent = area;
+    controlArea.appendChild(opt3);
+  });
+
+  if ([...areaFilter.options].some(o => o.value === savedArea)) areaFilter.value = savedArea;
+  if (adminArea.options.length > 0 && !adminArea.value) adminArea.value = areas[0];
+
+  toggleAdminPeriodFields();
 }
 
 function showTab(tab) {
@@ -551,6 +591,7 @@ async function createTasks() {
   document.getElementById("adminCustomArea").value = "";
   document.querySelectorAll(".adminDay,.adminMonth").forEach(cb => cb.checked = false);
   document.getElementById("marketFilter").value = market;
+  await loadAreas();
   loadTasks(); loadAdminTasks(); loadControlTasks();
 }
 
@@ -676,8 +717,10 @@ async function deleteTask(id) {
   loadTasks(); loadAdminTasks(); loadControlTasks();
 }
 
-toggleAdminPeriodFields();
-handleAreaChange();
+loadAreas().then(() => {
+  toggleAdminPeriodFields();
+  handleAreaChange();
+});
 </script>
 </body>
 </html>
