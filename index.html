@@ -430,36 +430,40 @@ async function loadMonthlyTasks(market) {
   const container = document.getElementById("tasks");
   container.innerHTML = "";
 
-  const { data, error } = await db.from("tasks").select("*").eq("market", market).eq("area", "Hausmeister").eq("month", month);
+  const { data, error } = await db
+    .from("tasks")
+    .select("*")
+    .eq("market", market)
+    .eq("area", "Hausmeister")
+    .eq("month", month);
+
   if (error) return container.innerHTML = "Fehler: " + error.message;
   if (!data || data.length === 0) return container.innerHTML = "Keine Hausmeister-Aufgaben für diesen Markt / Monat.";
 
-  const [year, monthNum] = month.split("-").map(Number);
-  const days = daysInMonth(month);
+  const monthDate = `${month}-01`;
+  const logs = await fetchLogs(data.map(t => t.id), monthDate);
   data.sort(prioritySort);
 
-  const { data: logs, error: logError } = await db.from("task_logs").select("*").in("task_id", data.map(t => t.id)).gte("done_date", `${month}-01`).lte("done_date", `${month}-${String(days).padStart(2,"0")}`);
-  if (logError) return container.innerHTML = "Fehler: " + logError.message;
-  const logMap = {};
-  (logs || []).forEach(log => { logMap[`${log.task_id}_${log.done_date}`] = log; });
-
-  let html = `<h2>Hausmeister Aufgaben – ${new Date(year, monthNum - 1).toLocaleDateString("de-DE", { month:"long", year:"numeric" })}</h2>`;
-  html += `<div class="month-table-wrapper"><table class="month-table"><thead><tr><th>Aufgabe</th>`;
-  for (let d = 1; d <= days; d++) html += `<th class="${isSunday(year, monthNum, d) ? "sunday" : ""}">${d}<br>${weekdayShort(year, monthNum, d)}</th>`;
-  html += `</tr></thead><tbody>`;
+  container.innerHTML = `<h2>Hausmeister Aufgaben – ${new Date(month + "-01T00:00:00").toLocaleDateString("de-DE", { month:"long", year:"numeric" })}</h2>`;
 
   data.forEach(task => {
-    html += `<tr><td><strong>${task.title}</strong> ${priorityPill(task.priority)}</td>`;
-    for (let d = 1; d <= days; d++) {
-      const dateISO = `${month}-${String(d).padStart(2,"0")}`;
-      const checked = logMap[`${task.id}_${dateISO}`] ? "checked" : "";
-      html += `<td class="${isSunday(year, monthNum, d) ? "sunday" : ""}"><input class="month-check" type="checkbox" ${checked} onchange="toggleTask('${task.id}', '${dateISO}', this.checked)"></td>`;
-    }
-    html += `</tr>`;
+    const log = logs[task.id];
+    const checked = log ? "checked" : "";
+    const doneClass = log ? "done" : "";
+    const div = document.createElement("div");
+    div.className = `task ${priorityClass(task.priority)}`;
+    div.innerHTML = `
+      <input type="checkbox" ${checked} onchange="toggleTask('${task.id}', '${monthDate}', this.checked)">
+      <div>
+        <div class="${doneClass}"><strong>${task.market || ""}</strong> | <strong>${task.area || ""}</strong> – ${task.title} ${priorityPill(task.priority)}</div>
+        <div class="small">
+          Monat: ${month.split("-")[1]}.${month.split("-")[0]}
+          ${log ? " | Erledigt von: " + log.done_by + " | " + formatDateTimeDE(log.done_at) : ""}
+        </div>
+      </div>
+    `;
+    container.appendChild(div);
   });
-
-  html += `</tbody></table></div>`;
-  container.innerHTML = html;
 }
 
 async function toggleTask(taskId, dateISO, value) {
