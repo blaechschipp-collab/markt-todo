@@ -2,174 +2,502 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Markt ToDo</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; background:#f4f4f4; }
-    h1 { margin-bottom: 10px; }
-    h2 { margin-top: 0; }
-    .box { background:white; padding:15px; margin-bottom:15px; border-radius:8px; }
-    .task { padding:10px; border-bottom:1px solid #ddd; border-radius:6px; margin-bottom:6px; }
-    .high { background:#ffe5e5; }
-    .medium { background:#fff5cc; }
-    .low { background:#e8f5e9; }
-    .done { text-decoration: line-through; color: gray; }
-    select, input, button { padding:8px; margin:4px; }
-    button { cursor:pointer; }
-    .admin { border:2px solid #ddd; }
-    .days label { display:inline-block; margin-right:12px; margin-bottom:8px; }
-    .danger { background:#c62828; color:white; border:none; border-radius:4px; }
-    .save { background:#2e7d32; color:white; border:none; border-radius:4px; }
-    .adminBtn { background:#263238; color:white; border:none; border-radius:4px; }
-    .small { font-size:12px; color:#555; }
+    :root {
+      --blue:#004f9e;
+      --blue-dark:#00315f;
+      --yellow:#ffdd00;
+      --yellow-dark:#f5c400;
+      --red:#ef4444;
+      --orange:#f59e0b;
+      --green:#22c55e;
+      --white:#ffffff;
+      --light:#f4f7fb;
+      --border:#d8e2ef;
+      --text:#08213f;
+    }
+
+    * { box-sizing:border-box; }
+
+    body {
+      margin:0;
+      font-family: Arial, Helvetica, sans-serif;
+      background:linear-gradient(180deg, var(--blue-dark), var(--blue));
+      color:var(--text);
+      min-height:100vh;
+    }
+
+    .header {
+      background:linear-gradient(135deg, #002b55, #0059ad);
+      color:white;
+      padding:22px 26px 18px;
+      border-bottom:6px solid var(--yellow);
+    }
+
+    .brand {
+      display:flex;
+      align-items:center;
+      gap:18px;
+      max-width:1300px;
+      margin:0 auto;
+    }
+
+    .edeka-box {
+      width:68px;
+      height:68px;
+      background:var(--yellow);
+      border:4px solid var(--blue);
+      color:var(--blue);
+      font-weight:900;
+      font-size:44px;
+      line-height:58px;
+      text-align:center;
+      box-shadow:0 2px 8px rgba(0,0,0,.25);
+    }
+
+    .brand-title {
+      font-size:44px;
+      font-weight:900;
+      font-style:italic;
+      letter-spacing:.5px;
+    }
+
+    .brand-subtitle {
+      font-size:18px;
+      color:#d9ecff;
+      margin-top:-4px;
+    }
+
+    .apple {
+      width:48px;
+      height:48px;
+      background:var(--yellow);
+      border:5px solid var(--blue);
+      border-radius:46% 54% 52% 48%;
+      margin-left:auto;
+      position:relative;
+    }
+
+    .apple:before {
+      content:"";
+      position:absolute;
+      width:24px;
+      height:14px;
+      background:var(--blue);
+      border-radius:50% 0 50% 0;
+      top:-20px;
+      left:17px;
+      transform:rotate(-22deg);
+    }
+
+    .main {
+      max-width:1300px;
+      margin:0 auto;
+      padding:24px;
+    }
+
+    .tabs {
+      display:flex;
+      gap:10px;
+      margin-bottom:18px;
+    }
+
+    .tab {
+      border:2px solid var(--yellow);
+      background:transparent;
+      color:white;
+      padding:14px 24px;
+      border-radius:12px 12px 0 0;
+      font-weight:bold;
+      cursor:pointer;
+    }
+
+    .tab.active {
+      background:var(--yellow);
+      color:var(--blue-dark);
+    }
+
+    .box {
+      background:white;
+      border-radius:14px;
+      padding:18px;
+      margin-bottom:18px;
+      box-shadow:0 8px 24px rgba(0,0,0,.14);
+      border:1px solid rgba(255,255,255,.55);
+    }
+
+    .control-grid {
+      display:grid;
+      grid-template-columns:repeat(5, minmax(160px, 1fr));
+      gap:14px;
+      align-items:end;
+    }
+
+    label { font-weight:bold; font-size:14px; display:block; margin-bottom:6px; }
+
+    input, select, button {
+      padding:12px;
+      border-radius:8px;
+      border:1px solid #b8c7d9;
+      font-size:15px;
+      width:100%;
+    }
+
+    button {
+      cursor:pointer;
+      font-weight:bold;
+      border:none;
+    }
+
+    .btn-yellow { background:var(--yellow); color:var(--blue-dark); }
+    .btn-blue { background:var(--blue); color:white; }
+    .btn-dark { background:var(--blue-dark); color:white; }
+    .btn-red { background:#c62828; color:white; }
+    .btn-green { background:#2e7d32; color:white; }
+
+    .task {
+      padding:14px;
+      border-radius:10px;
+      margin-bottom:10px;
+      border:1px solid var(--border);
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+    }
+
+    .high { background:#ffe5e5; border-color:#ffb3b3; }
+    .medium { background:#fff5cc; border-color:#ffe480; }
+    .low { background:#e8f5e9; border-color:#bde8c3; }
+    .done { text-decoration:line-through; color:#6b7280; }
+
+    .pill {
+      display:inline-block;
+      padding:3px 8px;
+      border-radius:999px;
+      color:white;
+      font-size:12px;
+      font-weight:bold;
+      margin-left:6px;
+    }
+
+    .pill.high-p { background:var(--red); }
+    .pill.medium-p { background:var(--orange); }
+    .pill.low-p { background:var(--green); }
+
+    .small { font-size:13px; color:#64748b; margin-top:4px; }
+
+    .admin { border:3px solid var(--yellow); }
+
+    .days label, .months label {
+      display:inline-flex;
+      align-items:center;
+      gap:6px;
+      margin:6px 12px 6px 0;
+      font-weight:normal;
+    }
+
+    .days input, .months input { width:auto; }
+
+    .adminTask {
+      background:#f8fafc;
+      border:1px solid #d8e2ef;
+      padding:12px;
+      border-radius:10px;
+      margin-bottom:10px;
+    }
+
+    .admin-actions {
+      display:flex;
+      gap:8px;
+      margin-top:10px;
+    }
+
+    .admin-actions button { width:auto; }
+
+    .month-table-wrapper {
+      overflow-x:auto;
+      border:1px solid var(--border);
+      border-radius:12px;
+    }
+
+    table.month-table {
+      border-collapse:collapse;
+      min-width:950px;
+      width:100%;
+      background:white;
+    }
+
+    .month-table th, .month-table td {
+      border:1px solid #e1e8f0;
+      padding:7px;
+      text-align:center;
+      font-size:13px;
+    }
+
+    .month-table th:first-child, .month-table td:first-child {
+      text-align:left;
+      min-width:260px;
+      position:sticky;
+      left:0;
+      background:white;
+      z-index:1;
+    }
+
+    .sunday { background:#fff1f1 !important; color:#b91c1c; }
+
+    .month-check {
+      width:20px;
+      height:20px;
+      cursor:pointer;
+    }
+
+    .footer {
+      background:var(--yellow);
+      color:var(--blue-dark);
+      text-align:center;
+      padding:18px;
+      font-weight:bold;
+      margin-top:30px;
+    }
+
+    @media (max-width:900px) {
+      .control-grid { grid-template-columns:1fr; }
+      .brand-title { font-size:32px; }
+      .apple { display:none; }
+    }
   </style>
 </head>
 <body>
 
-<h1>Markt ToDo</h1>
+<header class="header">
+  <div class="brand">
+    <div class="edeka-box">E</div>
+    <div>
+      <div class="brand-title">Paul.</div>
+      <div class="brand-subtitle">Regional. Frisch. Freundlich.</div>
+    </div>
+    <div class="apple"></div>
+  </div>
+</header>
 
-<div class="box">
-  <input id="name" placeholder="Dein Name" />
-
-  <select id="marketFilter" onchange="loadTasks()">
-    <option>Freckenfeld</option>
-    <option>Gossersweiler-Stein</option>
-    <option>Billigheim-Ingenheim</option>
-    <option>Steinfeld</option>
-  </select>
-
-  <select id="areaFilter" onchange="loadTasks()">
-    <option value="">Alle Bereiche</option>
-    <option>O&G</option>
-    <option>MoPro</option>
-    <option>Markt</option>
-  </select>
-
-  <select id="day" onchange="loadTasks()">
-    <option>Montag</option>
-    <option>Dienstag</option>
-    <option>Mittwoch</option>
-    <option>Donnerstag</option>
-    <option>Freitag</option>
-    <option>Samstag</option>
-  </select>
-
-  <button onclick="loadTasks()">Aktualisieren</button>
-  <button class="adminBtn" onclick="openAdminPin()">Adminbereich</button>
-</div>
-
-<div id="adminBox" class="box admin" style="display:none;">
-  <h2>Adminbereich – Aufgabe anlegen</h2>
-
-  <label>Markt</label><br>
-  <select id="adminMarket">
-    <option>Freckenfeld</option>
-    <option>Gossersweiler-Stein</option>
-    <option>Billigheim-Ingenheim</option>
-    <option>Steinfeld</option>
-  </select>
-
-  <br><br>
-
-  <label>Bezeichnung</label><br>
-  <select id="adminTitle">
-    <option>Frischekontrolle</option>
-    <option>Warenverräumung Altware FIFO</option>
-    <option>Verräumung Neuware</option>
-    <option>Ware auf Vollständigkeit prüfen</option>
-    <option>Preisauszeichnung prüfen</option>
-    <option>Blumen prüfen</option>
-    <option>Aufbauten prüfen / umgestalten</option>
-    <option>Bestellungen tätigen</option>
-    <option>Abschriften erfassen</option>
-    <option>QS-Listen</option>
-    <option>MHD-Kontrolle durchführen</option>
-    <option>Regallücken-Kontrolle</option>
-    <option>DL Paket Autodispo bearbeiten</option>
-    <option>DoSa Warenverfügbarkeit sicherstellen</option>
-    <option>DoSa Aufbau</option>
-    <option>Wareneingänge buchen</option>
-    <option>Flugblattcheck Folgewoche</option>
-    <option>Prüflisten bearbeiten</option>
-    <option>Werbeware auffüllen</option>
-    <option>Regal vorziehen</option>
-    <option>Warenverräumung</option>
-  </select>
-
-  <br><br>
-
-  <label>Oder eigene Bezeichnung</label><br>
-  <input id="adminCustomTitle" placeholder="Eigene Aufgabe eingeben" style="width:320px;" />
-
-  <br><br>
-
-  <label>Bereich</label><br>
-  <select id="adminArea">
-    <option>O&G</option>
-    <option>MoPro</option>
-    <option>Markt</option>
-  </select>
-
-  <br><br>
-
-  <label>Wichtigkeit</label><br>
-  <select id="adminPriority">
-    <option>hoch</option>
-    <option>mittel</option>
-    <option>niedrig</option>
-  </select>
-
-  <br><br>
-
-  <label>Tage</label><br>
-  <div class="days">
-    <label><input type="checkbox" class="adminDay" value="Montag"> Montag</label>
-    <label><input type="checkbox" class="adminDay" value="Dienstag"> Dienstag</label>
-    <label><input type="checkbox" class="adminDay" value="Mittwoch"> Mittwoch</label>
-    <label><input type="checkbox" class="adminDay" value="Donnerstag"> Donnerstag</label>
-    <label><input type="checkbox" class="adminDay" value="Freitag"> Freitag</label>
-    <label><input type="checkbox" class="adminDay" value="Samstag"> Samstag</label>
+<main class="main">
+  <div class="tabs">
+    <button id="todoTab" class="tab active" onclick="showTab('todo')">☑ ToDo</button>
+    <button id="adminTab" class="tab" onclick="openAdminPin()">🔒 Adminbereich</button>
   </div>
 
-  <button class="save" onclick="createTasks()">Aufgabe speichern</button>
-  <button onclick="logoutAdmin()">Admin schließen</button>
-  <div id="adminMessage" class="small"></div>
-</div>
+  <section id="todoSection">
+    <div class="box">
+      <div class="control-grid">
+        <div>
+          <label>Dein Name</label>
+          <input id="name" placeholder="Dein Name" />
+        </div>
+        <div>
+          <label>Markt</label>
+          <select id="marketFilter" onchange="loadTasks()">
+            <option>Freckenfeld</option>
+            <option>Gossersweiler-Stein</option>
+            <option>Billigheim-Ingenheim</option>
+            <option>Steinfeld</option>
+          </select>
+        </div>
+        <div>
+          <label>Bereich</label>
+          <select id="areaFilter" onchange="handleAreaChange()">
+            <option value="">Alle Bereiche</option>
+            <option>O&G</option>
+            <option>MoPro</option>
+            <option>Markt</option>
+            <option>Hausmeister</option>
+          </select>
+        </div>
+        <div id="dayControl">
+          <label>Tag</label>
+          <select id="day" onchange="loadTasks()">
+            <option>Montag</option>
+            <option>Dienstag</option>
+            <option>Mittwoch</option>
+            <option>Donnerstag</option>
+            <option>Freitag</option>
+            <option>Samstag</option>
+          </select>
+        </div>
+        <div id="monthControl" style="display:none;">
+          <label>Monat</label>
+          <input id="monthFilter" type="month" onchange="loadTasks()" />
+        </div>
+        <div>
+          <label>&nbsp;</label>
+          <button class="btn-yellow" onclick="loadTasks()">Aktualisieren</button>
+        </div>
+      </div>
+    </div>
 
-<div id="tasks" class="box"></div>
+    <div id="tasks" class="box"></div>
+  </section>
+
+  <section id="adminSection" style="display:none;">
+    <div class="box admin">
+      <h2>Adminbereich – Aufgabe anlegen</h2>
+
+      <div class="control-grid">
+        <div>
+          <label>Markt</label>
+          <select id="adminMarket" onchange="loadAdminTasks()">
+            <option>Freckenfeld</option>
+            <option>Gossersweiler-Stein</option>
+            <option>Billigheim-Ingenheim</option>
+            <option>Steinfeld</option>
+          </select>
+        </div>
+        <div>
+          <label>Bereich</label>
+          <select id="adminArea" onchange="toggleAdminPeriodFields()">
+            <option>O&G</option>
+            <option>MoPro</option>
+            <option>Markt</option>
+            <option>Hausmeister</option>
+          </select>
+        </div>
+        <div>
+          <label>Wichtigkeit</label>
+          <select id="adminPriority">
+            <option>hoch</option>
+            <option>mittel</option>
+            <option>niedrig</option>
+          </select>
+        </div>
+        <div>
+          <label>Bezeichnung</label>
+          <select id="adminTitle">
+            <option>Frischekontrolle</option>
+            <option>Warenverräumung Altware FIFO</option>
+            <option>Verräumung Neuware</option>
+            <option>Ware auf Vollständigkeit prüfen</option>
+            <option>Preisauszeichnung prüfen</option>
+            <option>Blumen prüfen</option>
+            <option>Aufbauten prüfen / umgestalten</option>
+            <option>Bestellungen tätigen</option>
+            <option>Abschriften erfassen</option>
+            <option>QS-Listen</option>
+            <option>MHD-Kontrolle durchführen</option>
+            <option>Regallücken-Kontrolle</option>
+            <option>DL Paket Autodispo bearbeiten</option>
+            <option>DoSa Warenverfügbarkeit sicherstellen</option>
+            <option>DoSa Aufbau</option>
+            <option>Wareneingänge buchen</option>
+            <option>Flugblattcheck Folgewoche</option>
+            <option>Prüflisten bearbeiten</option>
+            <option>Werbeware auffüllen</option>
+            <option>Regal vorziehen</option>
+            <option>Warenverräumung</option>
+            <option>Beleuchtung prüfen</option>
+            <option>Heizung kontrollieren</option>
+            <option>Außenbereich kontrollieren</option>
+            <option>Wasserhähne prüfen</option>
+            <option>Mülltonnen bereitstellen</option>
+            <option>Notbeleuchtung testen</option>
+          </select>
+        </div>
+        <div>
+          <label>Eigene Bezeichnung</label>
+          <input id="adminCustomTitle" placeholder="optional" />
+        </div>
+      </div>
+
+      <div id="adminDaysBox" style="margin-top:16px;">
+        <label>Tage</label>
+        <div class="days">
+          <label><input type="checkbox" class="adminDay" value="Montag"> Montag</label>
+          <label><input type="checkbox" class="adminDay" value="Dienstag"> Dienstag</label>
+          <label><input type="checkbox" class="adminDay" value="Mittwoch"> Mittwoch</label>
+          <label><input type="checkbox" class="adminDay" value="Donnerstag"> Donnerstag</label>
+          <label><input type="checkbox" class="adminDay" value="Freitag"> Freitag</label>
+          <label><input type="checkbox" class="adminDay" value="Samstag"> Samstag</label>
+        </div>
+      </div>
+
+      <div id="adminMonthBox" style="display:none; margin-top:16px;">
+        <label>Monate für Hausmeister</label>
+        <div class="months">
+          <label><input type="checkbox" class="adminMonth" value="2026-01"> Jan</label>
+          <label><input type="checkbox" class="adminMonth" value="2026-02"> Feb</label>
+          <label><input type="checkbox" class="adminMonth" value="2026-03"> Mär</label>
+          <label><input type="checkbox" class="adminMonth" value="2026-04"> Apr</label>
+          <label><input type="checkbox" class="adminMonth" value="2026-05"> Mai</label>
+          <label><input type="checkbox" class="adminMonth" value="2026-06"> Jun</label>
+          <label><input type="checkbox" class="adminMonth" value="2026-07"> Jul</label>
+          <label><input type="checkbox" class="adminMonth" value="2026-08"> Aug</label>
+          <label><input type="checkbox" class="adminMonth" value="2026-09"> Sep</label>
+          <label><input type="checkbox" class="adminMonth" value="2026-10"> Okt</label>
+          <label><input type="checkbox" class="adminMonth" value="2026-11"> Nov</label>
+          <label><input type="checkbox" class="adminMonth" value="2026-12"> Dez</label>
+        </div>
+      </div>
+
+      <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn-green" onclick="createTasks()" style="width:auto;">Aufgabe speichern</button>
+        <button class="btn-dark" onclick="showTab('todo')" style="width:auto;">Zurück zur ToDo</button>
+      </div>
+      <div id="adminMessage" class="small"></div>
+    </div>
+
+    <div class="box admin">
+      <h2>Adminbereich – bestehende Aufgaben</h2>
+      <div class="small">Löschen und Anpassen ist nur hier möglich.</div>
+      <button class="btn-yellow" onclick="loadAdminTasks()" style="width:auto; margin-top:10px;">Adminliste aktualisieren</button>
+      <div id="adminTasks" style="margin-top:14px;"></div>
+    </div>
+  </section>
+</main>
+
+<div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 
 <script>
 const SUPABASE_URL = "https://iexcjfyxujdxnwfcfdim.supabase.co";
 const SUPABASE_KEY = "sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
-const ADMIN_PIN = "4711"; // Diese PIN kannst du ändern.
+const ADMIN_PIN = "4711";
 
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let adminUnlocked = false;
 
+document.getElementById("monthFilter").value = new Date().toISOString().slice(0,7);
+
+function showTab(tab) {
+  document.getElementById("todoSection").style.display = tab === "todo" ? "block" : "none";
+  document.getElementById("adminSection").style.display = tab === "admin" ? "block" : "none";
+  document.getElementById("todoTab").classList.toggle("active", tab === "todo");
+  document.getElementById("adminTab").classList.toggle("active", tab === "admin");
+  if (tab === "admin") loadAdminTasks();
+  if (tab === "todo") loadTasks();
+}
+
 function openAdminPin() {
-  if (adminUnlocked) {
-    toggleAdmin();
-    return;
+  if (!adminUnlocked) {
+    const pin = prompt("Admin-PIN eingeben:");
+    if (pin === ADMIN_PIN) adminUnlocked = true;
+    else if (pin !== null) return alert("Falsche PIN.");
+    else return;
   }
-
-  const pin = prompt("Admin-PIN eingeben:");
-
-  if (pin === ADMIN_PIN) {
-    adminUnlocked = true;
-    document.getElementById("adminBox").style.display = "block";
-  } else if (pin !== null) {
-    alert("Falsche PIN.");
-  }
+  showTab("admin");
 }
 
-function toggleAdmin() {
-  const box = document.getElementById("adminBox");
-  box.style.display = box.style.display === "none" ? "block" : "none";
+function handleAreaChange() {
+  const area = document.getElementById("areaFilter").value;
+  const isHausmeister = area === "Hausmeister";
+  document.getElementById("dayControl").style.display = isHausmeister ? "none" : "block";
+  document.getElementById("monthControl").style.display = isHausmeister ? "block" : "none";
+  loadTasks();
 }
 
-function logoutAdmin() {
-  adminUnlocked = false;
-  document.getElementById("adminBox").style.display = "none";
+function toggleAdminPeriodFields() {
+  const isHausmeister = document.getElementById("adminArea").value === "Hausmeister";
+  document.getElementById("adminDaysBox").style.display = isHausmeister ? "none" : "block";
+  document.getElementById("adminMonthBox").style.display = isHausmeister ? "block" : "none";
 }
 
 function priorityClass(priority) {
@@ -179,66 +507,111 @@ function priorityClass(priority) {
   return "low";
 }
 
+function priorityPill(priority) {
+  if (!priority) return "";
+  const p = priority.toLowerCase();
+  return `<span class="pill ${p}-p">${priority}</span>`;
+}
+
 function prioritySort(a, b) {
   const order = { hoch: 1, mittel: 2, niedrig: 3 };
   return (order[a.priority?.toLowerCase()] || 99) - (order[b.priority?.toLowerCase()] || 99);
 }
 
+function daySort(a, b) {
+  const order = { Montag: 1, Dienstag: 2, Mittwoch: 3, Donnerstag: 4, Freitag: 5, Samstag: 6 };
+  return (order[a.day] || 99) - (order[b.day] || 99);
+}
+
+function daysInMonth(month) {
+  const [y, m] = month.split("-").map(Number);
+  return new Date(y, m, 0).getDate();
+}
+
+function weekdayShort(year, month, day) {
+  return new Date(year, month - 1, day).toLocaleDateString("de-DE", { weekday:"short" }).replace(".", "");
+}
+
+function isSunday(year, month, day) {
+  return new Date(year, month - 1, day).getDay() === 0;
+}
+
 async function loadTasks() {
   const market = document.getElementById("marketFilter").value;
-  const day = document.getElementById("day").value;
   const areaFilter = document.getElementById("areaFilter").value;
 
-  let query = db.from("tasks").select("*").eq("market", market).eq("day", day);
+  if (areaFilter === "Hausmeister") {
+    await loadMonthlyTasks(market);
+    return;
+  }
 
+  const day = document.getElementById("day").value;
+  let query = db.from("tasks").select("*").eq("market", market).eq("day", day);
   if (areaFilter) query = query.eq("area", areaFilter);
 
   const { data, error } = await query;
-
   const container = document.getElementById("tasks");
   container.innerHTML = "";
 
-  if (error) {
-    container.innerHTML = "Fehler: " + error.message;
-    return;
-  }
-
-  if (!data || data.length === 0) {
-    container.innerHTML = "Keine Aufgaben für diesen Markt / Tag.";
-    return;
-  }
+  if (error) return container.innerHTML = "Fehler: " + error.message;
+  if (!data || data.length === 0) return container.innerHTML = "Keine Aufgaben für diesen Markt / Tag.";
 
   data.sort(prioritySort);
 
   data.forEach(task => {
     const div = document.createElement("div");
     div.className = `task ${priorityClass(task.priority)}`;
-
     const checked = task.done ? "checked" : "";
     const doneClass = task.done ? "done" : "";
 
     div.innerHTML = `
-      <label class="${doneClass}">
-        <input type="checkbox" ${checked} onchange="toggleTask('${task.id}', this.checked)">
-        <strong>${task.market || ""}</strong> | <strong>${task.area || ""}</strong> – ${task.title}
-        ${task.priority ? " | " + task.priority : ""}
-      </label>
-      <br>
-      <small>
-        ${task.done_by ? "Erledigt von: " + task.done_by : ""}
-        ${task.done_at ? " | " + new Date(task.done_at).toLocaleString("de-DE") : ""}
-      </small>
-      <br>
-      ${adminUnlocked ? `<button class="danger" onclick="deleteTask('${task.id}')">Löschen</button>` : ""}
+      <input type="checkbox" ${checked} onchange="toggleTask('${task.id}', this.checked)">
+      <div>
+        <div class="${doneClass}"><strong>${task.market || ""}</strong> | <strong>${task.area || ""}</strong> – ${task.title} ${priorityPill(task.priority)}</div>
+        <div class="small">${task.done_by ? "Erledigt von: " + task.done_by : ""}${task.done_at ? " | " + new Date(task.done_at).toLocaleString("de-DE") : ""}</div>
+      </div>
     `;
-
     container.appendChild(div);
   });
 }
 
+async function loadMonthlyTasks(market) {
+  const month = document.getElementById("monthFilter").value;
+  const container = document.getElementById("tasks");
+  container.innerHTML = "";
+
+  const { data, error } = await db.from("tasks").select("*").eq("market", market).eq("area", "Hausmeister").eq("month", month);
+  if (error) return container.innerHTML = "Fehler: " + error.message;
+  if (!data || data.length === 0) return container.innerHTML = "Keine Hausmeister-Aufgaben für diesen Markt / Monat.";
+
+  const [year, monthNum] = month.split("-").map(Number);
+  const days = daysInMonth(month);
+  data.sort(prioritySort);
+
+  let html = `<h2>Hausmeister Aufgaben – ${new Date(year, monthNum - 1).toLocaleDateString("de-DE", { month:"long", year:"numeric" })}</h2>`;
+  html += `<div class="month-table-wrapper"><table class="month-table"><thead><tr><th>Aufgabe</th>`;
+
+  for (let d = 1; d <= days; d++) {
+    html += `<th class="${isSunday(year, monthNum, d) ? "sunday" : ""}">${d}<br>${weekdayShort(year, monthNum, d)}</th>`;
+  }
+
+  html += `</tr></thead><tbody>`;
+
+  data.forEach(task => {
+    html += `<tr><td><strong>${task.title}</strong> ${priorityPill(task.priority)}<br><span class="small">${task.done ? "Erledigt: " + (task.done_by || "") + " | " + new Date(task.done_at).toLocaleString("de-DE") : "offen"}</span></td>`;
+    for (let d = 1; d <= days; d++) {
+      const checkedDay = task.done_day == d ? "checked" : "";
+      html += `<td class="${isSunday(year, monthNum, d) ? "sunday" : ""}"><input class="month-check" type="checkbox" ${checkedDay} onchange="toggleMonthlyTask('${task.id}', ${d}, this.checked)"></td>`;
+    }
+    html += `</tr>`;
+  });
+
+  html += `</tbody></table></div>`;
+  container.innerHTML = html;
+}
+
 async function toggleTask(id, value) {
   const name = document.getElementById("name").value.trim();
-
   if (!name) {
     alert("Bitte Namen eingeben.");
     loadTasks();
@@ -252,13 +625,30 @@ async function toggleTask(id, value) {
   }).eq("id", id);
 
   loadTasks();
+  if (adminUnlocked) loadAdminTasks();
+}
+
+async function toggleMonthlyTask(id, dayNumber, value) {
+  const name = document.getElementById("name").value.trim();
+  if (!name) {
+    alert("Bitte Namen eingeben.");
+    loadTasks();
+    return;
+  }
+
+  await db.from("tasks").update({
+    done: value,
+    done_day: value ? dayNumber : null,
+    done_by: value ? name : null,
+    done_at: value ? new Date().toISOString() : null
+  }).eq("id", id);
+
+  loadTasks();
+  if (adminUnlocked) loadAdminTasks();
 }
 
 async function createTasks() {
-  if (!adminUnlocked) {
-    alert("Admin-PIN erforderlich.");
-    return;
-  }
+  if (!adminUnlocked) return alert("Admin-PIN erforderlich.");
 
   const market = document.getElementById("adminMarket").value;
   const selectedTitle = document.getElementById("adminTitle").value;
@@ -266,57 +656,108 @@ async function createTasks() {
   const title = customTitle || selectedTitle;
   const area = document.getElementById("adminArea").value;
   const priority = document.getElementById("adminPriority").value;
-  const selectedDays = Array.from(document.querySelectorAll(".adminDay:checked")).map(cb => cb.value);
   const message = document.getElementById("adminMessage");
 
-  if (!title) {
-    alert("Bitte Bezeichnung eingeben.");
-    return;
-  }
+  let rows = [];
 
-  if (selectedDays.length === 0) {
-    alert("Bitte mindestens einen Tag auswählen.");
-    return;
+  if (area === "Hausmeister") {
+    const selectedMonths = Array.from(document.querySelectorAll(".adminMonth:checked")).map(cb => cb.value);
+    if (selectedMonths.length === 0) return alert("Bitte mindestens einen Monat auswählen.");
+    rows = selectedMonths.map(month => ({ market, title, area, month, day: null, priority, done:false, done_day:null, done_by:null, done_at:null }));
+  } else {
+    const selectedDays = Array.from(document.querySelectorAll(".adminDay:checked")).map(cb => cb.value);
+    if (selectedDays.length === 0) return alert("Bitte mindestens einen Tag auswählen.");
+    rows = selectedDays.map(day => ({ market, title, area, day, month:null, priority, done:false, done_day:null, done_by:null, done_at:null }));
   }
-
-  const rows = selectedDays.map(day => ({
-    market,
-    title,
-    area,
-    day,
-    priority,
-    done: false,
-    done_by: null,
-    done_at: null
-  }));
 
   const { error } = await db.from("tasks").insert(rows);
-
-  if (error) {
-    message.innerHTML = "Fehler: " + error.message;
-    return;
-  }
+  if (error) return message.innerHTML = "Fehler: " + error.message;
 
   message.innerHTML = "Aufgabe wurde gespeichert.";
   document.getElementById("adminCustomTitle").value = "";
-  document.querySelectorAll(".adminDay").forEach(cb => cb.checked = false);
+  document.querySelectorAll(".adminDay,.adminMonth").forEach(cb => cb.checked = false);
   document.getElementById("marketFilter").value = market;
   loadTasks();
+  loadAdminTasks();
+}
+
+async function loadAdminTasks() {
+  if (!adminUnlocked) return;
+
+  const market = document.getElementById("adminMarket").value;
+  const { data, error } = await db.from("tasks").select("*").eq("market", market);
+  const container = document.getElementById("adminTasks");
+  container.innerHTML = "";
+
+  if (error) return container.innerHTML = "Fehler: " + error.message;
+  if (!data || data.length === 0) return container.innerHTML = "Keine Aufgaben für diesen Markt angelegt.";
+
+  data.sort((a,b) => (a.area || "").localeCompare(b.area || "") || (a.month || "").localeCompare(b.month || "") || daySort(a,b) || prioritySort(a,b));
+
+  data.forEach(task => {
+    const div = document.createElement("div");
+    div.className = `adminTask ${priorityClass(task.priority)}`;
+    div.innerHTML = `
+      <strong>${task.market}</strong> | <strong>${task.area}</strong> – ${task.title} ${priorityPill(task.priority)}<br>
+      <span class="small">${task.area === "Hausmeister" ? "Monat: " + (task.month || "") : "Tag: " + (task.day || "")} | Status: ${task.done ? "erledigt" : "offen"}${task.done_by ? " | von " + task.done_by : ""}</span>
+      <div class="admin-actions">
+        <button class="btn-blue" onclick="editTask('${task.id}')">Anpassen</button>
+        <button class="btn-red" onclick="deleteTask('${task.id}')">Löschen</button>
+      </div>
+    `;
+    container.appendChild(div);
+  });
+}
+
+async function editTask(id) {
+  if (!adminUnlocked) return alert("Admin-PIN erforderlich.");
+
+  const { data, error } = await db.from("tasks").select("*").eq("id", id).single();
+  if (error) return alert("Fehler: " + error.message);
+
+  const title = prompt("Bezeichnung:", data.title || "");
+  if (title === null) return;
+  const area = prompt("Bereich (O&G, MoPro, Markt, Hausmeister):", data.area || "");
+  if (area === null) return;
+  const priority = prompt("Wichtigkeit (hoch, mittel, niedrig):", data.priority || "");
+  if (priority === null) return;
+  const period = prompt(area === "Hausmeister" ? "Monat (YYYY-MM):" : "Tag:", area === "Hausmeister" ? (data.month || "") : (data.day || ""));
+  if (period === null) return;
+
+  const update = {
+    title:title.trim(),
+    area:area.trim(),
+    priority:priority.trim(),
+    done:false,
+    done_day:null,
+    done_by:null,
+    done_at:null
+  };
+
+  if (area === "Hausmeister") {
+    update.month = period.trim();
+    update.day = null;
+  } else {
+    update.day = period.trim();
+    update.month = null;
+  }
+
+  const result = await db.from("tasks").update(update).eq("id", id);
+  if (result.error) return alert("Fehler: " + result.error.message);
+  loadTasks();
+  loadAdminTasks();
 }
 
 async function deleteTask(id) {
-  if (!adminUnlocked) {
-    alert("Admin-PIN erforderlich.");
-    return;
-  }
-
+  if (!adminUnlocked) return alert("Admin-PIN erforderlich.");
   if (!confirm("Diese Aufgabe wirklich löschen?")) return;
   await db.from("tasks").delete().eq("id", id);
   loadTasks();
+  loadAdminTasks();
 }
 
-loadTasks();
+toggleAdminPeriodFields();
+handleAreaChange();
 </script>
-
 </body>
 </html>
