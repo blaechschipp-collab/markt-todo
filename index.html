@@ -209,7 +209,7 @@
       <div class="control-grid">
         <div><label>Dein Name</label><input id="name" placeholder="Dein Name" /></div>
         <div><label>Markt</label><select id="marketFilter" onchange="loadTasks()"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
-        <div><label>Bereich</label><select id="areaFilter" onchange="handleAreaChange()"><option value="">Alle Bereiche</option><option>O&G</option><option>MoPro</option><option>Markt</option><option>Hausmeister</option></select></div>
+        <div><label>Bereich</label><select id="areaFilter" onchange="handleAreaChange()"><option value="">Alle Bereiche außer Hausmeister</option><option>O&G</option><option>MoPro</option><option>Markt</option><option>Hausmeister</option></select></div>
         <div id="dayControl"><label>Tag</label><select id="day" onchange="loadTasks()"></select></div>
         <div id="monthControl" style="display:none;"><label>Monat</label><input id="monthFilter" type="month" onchange="loadTasks()" /></div>
         <div><label>&nbsp;</label><button class="btn-yellow" onclick="loadTasks()">Aktualisieren</button></div>
@@ -286,6 +286,21 @@ const nameInput = document.getElementById("name");
 nameInput.value = localStorage.getItem("employeeName") || "";
 nameInput.addEventListener("input", function () {
   localStorage.setItem("employeeName", this.value);
+});
+
+// Markt und Bereich lokal speichern (pro Gerät)
+const marketFilterInput = document.getElementById("marketFilter");
+const areaFilterInput = document.getElementById("areaFilter");
+
+marketFilterInput.value = localStorage.getItem("selectedMarket") || marketFilterInput.value;
+areaFilterInput.value = localStorage.getItem("selectedArea") || areaFilterInput.value;
+
+marketFilterInput.addEventListener("change", function () {
+  localStorage.setItem("selectedMarket", this.value);
+});
+
+areaFilterInput.addEventListener("change", function () {
+  localStorage.setItem("selectedArea", this.value);
 });
 document.getElementById("controlDateFrom").value = todayISO();
 document.getElementById("controlDateTo").value = todayISO();
