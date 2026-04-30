@@ -10,7 +10,6 @@
       --blue:#004f9e;
       --blue-dark:#00315f;
       --yellow:#ffdd00;
-      --yellow-dark:#f5c400;
       --red:#ef4444;
       --orange:#f59e0b;
       --green:#22c55e;
@@ -45,38 +44,14 @@
       margin:0 auto;
     }
 
-    .logo {
-      max-width:520px;
-      width:100%;
-      height:auto;
-      display:block;
-    }
+    .logo { max-width:520px; width:100%; height:auto; display:block; }
 
-    .brand-title {
-      font-size:44px;
-      font-weight:900;
-      font-style:italic;
-      letter-spacing:.5px;
-    }
+    .brand-title { font-size:44px; font-weight:900; font-style:italic; letter-spacing:.5px; }
+    .brand-subtitle { font-size:18px; color:#d9ecff; margin-top:-4px; }
 
-    .brand-subtitle {
-      font-size:18px;
-      color:#d9ecff;
-      margin-top:-4px;
-    }
+    .main { max-width:1300px; margin:0 auto; padding:24px; }
 
-
-    .main {
-      max-width:1300px;
-      margin:0 auto;
-      padding:24px;
-    }
-
-    .tabs {
-      display:flex;
-      gap:10px;
-      margin-bottom:18px;
-    }
+    .tabs { display:flex; gap:10px; margin-bottom:18px; }
 
     .tab {
       border:2px solid var(--yellow);
@@ -88,10 +63,7 @@
       cursor:pointer;
     }
 
-    .tab.active {
-      background:var(--yellow);
-      color:var(--blue-dark);
-    }
+    .tab.active { background:var(--yellow); color:var(--blue-dark); }
 
     .box {
       background:white;
@@ -119,11 +91,7 @@
       width:100%;
     }
 
-    button {
-      cursor:pointer;
-      font-weight:bold;
-      border:none;
-    }
+    button { cursor:pointer; font-weight:bold; border:none; }
 
     .btn-yellow { background:var(--yellow); color:var(--blue-dark); }
     .btn-blue { background:var(--blue); color:white; }
@@ -145,6 +113,7 @@
     .medium { background:#fff5cc; border-color:#ffe480; }
     .low { background:#e8f5e9; border-color:#bde8c3; }
     .done { text-decoration:line-through; color:#6b7280; }
+    .overdueText { color:#b91c1c; font-weight:bold; }
 
     .pill {
       display:inline-block;
@@ -159,6 +128,8 @@
     .pill.high-p { background:var(--red); }
     .pill.medium-p { background:var(--orange); }
     .pill.low-p { background:var(--green); }
+    .pill.open-p { background:#64748b; }
+    .pill.done-p { background:var(--green); }
 
     .small { font-size:13px; color:#64748b; margin-top:4px; }
 
@@ -182,64 +153,36 @@
       margin-bottom:10px;
     }
 
-    .admin-actions {
-      display:flex;
-      gap:8px;
-      margin-top:10px;
-    }
-
+    .admin-actions { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }
     .admin-actions button { width:auto; }
 
-    .month-table-wrapper {
-      overflow-x:auto;
-      border:1px solid var(--border);
-      border-radius:12px;
-    }
-
-    table.month-table {
-      border-collapse:collapse;
-      min-width:950px;
-      width:100%;
-      background:white;
-    }
-
-    .month-table th, .month-table td {
-      border:1px solid #e1e8f0;
-      padding:7px;
-      text-align:center;
-      font-size:13px;
-    }
-
-    .month-table th:first-child, .month-table td:first-child {
-      text-align:left;
-      min-width:260px;
-      position:sticky;
-      left:0;
-      background:white;
-      z-index:1;
-    }
-
+    .month-table-wrapper { overflow-x:auto; border:1px solid var(--border); border-radius:12px; }
+    table.month-table { border-collapse:collapse; min-width:950px; width:100%; background:white; }
+    .month-table th, .month-table td { border:1px solid #e1e8f0; padding:7px; text-align:center; font-size:13px; }
+    .month-table th:first-child, .month-table td:first-child { text-align:left; min-width:260px; position:sticky; left:0; background:white; z-index:1; }
     .sunday { background:#fff1f1 !important; color:#b91c1c; }
+    .month-check { width:20px; height:20px; cursor:pointer; }
 
-    .month-check {
-      width:20px;
-      height:20px;
-      cursor:pointer;
-    }
-
-    .footer {
-      background:var(--yellow);
-      color:var(--blue-dark);
-      text-align:center;
-      padding:18px;
-      font-weight:bold;
-      margin-top:30px;
-    }
+    .footer { background:var(--yellow); color:var(--blue-dark); text-align:center; padding:18px; font-weight:bold; margin-top:30px; }
 
     @media (max-width:900px) {
-      .control-grid { grid-template-columns:1fr; }
-      .brand-title { font-size:32px; }
-      .apple { display:none; }
+      body { background:var(--blue-dark); }
+      .header { padding:14px 12px 12px; }
+      .main { padding:12px; }
+      .logo { max-width:280px; }
+      .tabs { position:sticky; top:0; z-index:10; background:var(--blue-dark); padding-top:8px; }
+      .tab { flex:1; padding:12px 8px; font-size:14px; }
+      .box { padding:12px; border-radius:12px; margin-bottom:12px; }
+      .control-grid { grid-template-columns:1fr; gap:10px; }
+      input, select, button { font-size:16px; padding:13px; }
+      .task { padding:12px; gap:10px; align-items:flex-start; }
+      .task input[type="checkbox"] { width:24px; height:24px; flex:0 0 24px; }
+      .admin-actions { display:grid; grid-template-columns:1fr 1fr; }
+      .admin-actions button { width:100%; }
+      .month-table-wrapper { max-height:70vh; overflow:auto; }
+      table.month-table { min-width:900px; }
+      .month-table th, .month-table td { padding:6px; font-size:12px; }
+      .footer { font-size:13px; padding:12px; }
     }
   </style>
 </head>
@@ -264,48 +207,12 @@
   <section id="todoSection">
     <div class="box">
       <div class="control-grid">
-        <div>
-          <label>Dein Name</label>
-          <input id="name" placeholder="Dein Name" />
-        </div>
-        <div>
-          <label>Markt</label>
-          <select id="marketFilter" onchange="loadTasks()">
-            <option>Freckenfeld</option>
-            <option>Gossersweiler-Stein</option>
-            <option>Billigheim-Ingenheim</option>
-            <option>Steinfeld</option>
-          </select>
-        </div>
-        <div>
-          <label>Bereich</label>
-          <select id="areaFilter" onchange="handleAreaChange()">
-            <option value="">Alle Bereiche</option>
-            <option>O&G</option>
-            <option>MoPro</option>
-            <option>Markt</option>
-            <option>Hausmeister</option>
-          </select>
-        </div>
-        <div id="dayControl">
-          <label>Tag</label>
-          <select id="day" onchange="loadTasks()">
-            <option>Montag</option>
-            <option>Dienstag</option>
-            <option>Mittwoch</option>
-            <option>Donnerstag</option>
-            <option>Freitag</option>
-            <option>Samstag</option>
-          </select>
-        </div>
-        <div id="monthControl" style="display:none;">
-          <label>Monat</label>
-          <input id="monthFilter" type="month" onchange="loadTasks()" />
-        </div>
-        <div>
-          <label>&nbsp;</label>
-          <button class="btn-yellow" onclick="loadTasks()">Aktualisieren</button>
-        </div>
+        <div><label>Dein Name</label><input id="name" placeholder="Dein Name" /></div>
+        <div><label>Markt</label><select id="marketFilter" onchange="loadTasks()"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
+        <div><label>Bereich</label><select id="areaFilter" onchange="handleAreaChange()"><option value="">Alle Bereiche</option><option>O&G</option><option>MoPro</option><option>Markt</option><option>Hausmeister</option></select></div>
+        <div id="dayControl"><label>Tag</label><select id="day" onchange="loadTasks()"></select></div>
+        <div id="monthControl" style="display:none;"><label>Monat</label><input id="monthFilter" type="month" onchange="loadTasks()" /></div>
+        <div><label>&nbsp;</label><button class="btn-yellow" onclick="loadTasks()">Aktualisieren</button></div>
       </div>
     </div>
 
@@ -317,113 +224,45 @@
       <h2>Adminbereich – Aufgabe anlegen</h2>
 
       <div class="control-grid">
-        <div>
-          <label>Markt</label>
-          <select id="adminMarket" onchange="loadAdminTasks()">
-            <option>Freckenfeld</option>
-            <option>Gossersweiler-Stein</option>
-            <option>Billigheim-Ingenheim</option>
-            <option>Steinfeld</option>
-          </select>
-        </div>
-        <div>
-          <label>Bereich</label>
-          <select id="adminArea" onchange="toggleAdminPeriodFields()">
-            <option>O&G</option>
-            <option>MoPro</option>
-            <option>Markt</option>
-            <option>Hausmeister</option>
-          </select>
-          <input id="adminCustomArea" placeholder="Neue Abteilung / Bereich" style="margin-top:8px;" />
-        </div>
-        <div>
-          <label>Wichtigkeit</label>
-          <select id="adminPriority">
-            <option>hoch</option>
-            <option>mittel</option>
-            <option>niedrig</option>
-          </select>
-        </div>
-        <div>
-          <label>Bezeichnung</label>
-          <select id="adminTitle">
-            <option>Frischekontrolle</option>
-            <option>Warenverräumung Altware FIFO</option>
-            <option>Verräumung Neuware</option>
-            <option>Ware auf Vollständigkeit prüfen</option>
-            <option>Preisauszeichnung prüfen</option>
-            <option>Blumen prüfen</option>
-            <option>Aufbauten prüfen / umgestalten</option>
-            <option>Bestellungen tätigen</option>
-            <option>Abschriften erfassen</option>
-            <option>QS-Listen</option>
-            <option>MHD-Kontrolle durchführen</option>
-            <option>Regallücken-Kontrolle</option>
-            <option>DL Paket Autodispo bearbeiten</option>
-            <option>DoSa Warenverfügbarkeit sicherstellen</option>
-            <option>DoSa Aufbau</option>
-            <option>Wareneingänge buchen</option>
-            <option>Flugblattcheck Folgewoche</option>
-            <option>Prüflisten bearbeiten</option>
-            <option>Werbeware auffüllen</option>
-            <option>Regal vorziehen</option>
-            <option>Warenverräumung</option>
-            <option>Beleuchtung prüfen</option>
-            <option>Heizung kontrollieren</option>
-            <option>Außenbereich kontrollieren</option>
-            <option>Wasserhähne prüfen</option>
-            <option>Mülltonnen bereitstellen</option>
-            <option>Notbeleuchtung testen</option>
-          </select>
-        </div>
-        <div>
-          <label>Eigene Bezeichnung</label>
-          <input id="adminCustomTitle" placeholder="optional" />
-        </div>
+        <div><label>Markt</label><select id="adminMarket" onchange="loadAdminTasks(); loadControlTasks();"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
+        <div><label>Bereich</label><select id="adminArea" onchange="toggleAdminPeriodFields()"><option>O&G</option><option>MoPro</option><option>Markt</option><option>Hausmeister</option></select><input id="adminCustomArea" placeholder="Neue Abteilung / Bereich" style="margin-top:8px;" /></div>
+        <div><label>Wichtigkeit</label><select id="adminPriority"><option>hoch</option><option>mittel</option><option>niedrig</option></select></div>
+        <div><label>Bezeichnung</label><select id="adminTitle"><option>Frischekontrolle</option><option>Warenverräumung Altware FIFO</option><option>Verräumung Neuware</option><option>Ware auf Vollständigkeit prüfen</option><option>Preisauszeichnung prüfen</option><option>Blumen prüfen</option><option>Aufbauten prüfen / umgestalten</option><option>Bestellungen tätigen</option><option>Abschriften erfassen</option><option>QS-Listen</option><option>MHD-Kontrolle durchführen</option><option>Regallücken-Kontrolle</option><option>DL Paket Autodispo bearbeiten</option><option>DoSa Warenverfügbarkeit sicherstellen</option><option>DoSa Aufbau</option><option>Wareneingänge buchen</option><option>Flugblattcheck Folgewoche</option><option>Prüflisten bearbeiten</option><option>Werbeware auffüllen</option><option>Regal vorziehen</option><option>Warenverräumung</option><option>Beleuchtung prüfen</option><option>Heizung kontrollieren</option><option>Außenbereich kontrollieren</option><option>Wasserhähne prüfen</option><option>Mülltonnen bereitstellen</option><option>Notbeleuchtung testen</option></select></div>
+        <div><label>Eigene Bezeichnung</label><input id="adminCustomTitle" placeholder="optional" /></div>
       </div>
 
       <div id="adminDaysBox" style="margin-top:16px;">
         <label>Tage</label>
-        <div class="days">
-          <label><input type="checkbox" class="adminDay" value="Montag"> Montag</label>
-          <label><input type="checkbox" class="adminDay" value="Dienstag"> Dienstag</label>
-          <label><input type="checkbox" class="adminDay" value="Mittwoch"> Mittwoch</label>
-          <label><input type="checkbox" class="adminDay" value="Donnerstag"> Donnerstag</label>
-          <label><input type="checkbox" class="adminDay" value="Freitag"> Freitag</label>
-          <label><input type="checkbox" class="adminDay" value="Samstag"> Samstag</label>
-        </div>
+        <div class="days"><label><input type="checkbox" class="adminDay" value="Montag"> Montag</label><label><input type="checkbox" class="adminDay" value="Dienstag"> Dienstag</label><label><input type="checkbox" class="adminDay" value="Mittwoch"> Mittwoch</label><label><input type="checkbox" class="adminDay" value="Donnerstag"> Donnerstag</label><label><input type="checkbox" class="adminDay" value="Freitag"> Freitag</label><label><input type="checkbox" class="adminDay" value="Samstag"> Samstag</label></div>
       </div>
 
       <div id="adminMonthBox" style="display:none; margin-top:16px;">
         <label>Monate für Hausmeister</label>
-        <div class="months">
-          <label><input type="checkbox" class="adminMonth" value="2026-01"> Jan</label>
-          <label><input type="checkbox" class="adminMonth" value="2026-02"> Feb</label>
-          <label><input type="checkbox" class="adminMonth" value="2026-03"> Mär</label>
-          <label><input type="checkbox" class="adminMonth" value="2026-04"> Apr</label>
-          <label><input type="checkbox" class="adminMonth" value="2026-05"> Mai</label>
-          <label><input type="checkbox" class="adminMonth" value="2026-06"> Jun</label>
-          <label><input type="checkbox" class="adminMonth" value="2026-07"> Jul</label>
-          <label><input type="checkbox" class="adminMonth" value="2026-08"> Aug</label>
-          <label><input type="checkbox" class="adminMonth" value="2026-09"> Sep</label>
-          <label><input type="checkbox" class="adminMonth" value="2026-10"> Okt</label>
-          <label><input type="checkbox" class="adminMonth" value="2026-11"> Nov</label>
-          <label><input type="checkbox" class="adminMonth" value="2026-12"> Dez</label>
-        </div>
+        <div class="months"><label><input type="checkbox" class="adminMonth" value="2026-01"> Jan</label><label><input type="checkbox" class="adminMonth" value="2026-02"> Feb</label><label><input type="checkbox" class="adminMonth" value="2026-03"> Mär</label><label><input type="checkbox" class="adminMonth" value="2026-04"> Apr</label><label><input type="checkbox" class="adminMonth" value="2026-05"> Mai</label><label><input type="checkbox" class="adminMonth" value="2026-06"> Jun</label><label><input type="checkbox" class="adminMonth" value="2026-07"> Jul</label><label><input type="checkbox" class="adminMonth" value="2026-08"> Aug</label><label><input type="checkbox" class="adminMonth" value="2026-09"> Sep</label><label><input type="checkbox" class="adminMonth" value="2026-10"> Okt</label><label><input type="checkbox" class="adminMonth" value="2026-11"> Nov</label><label><input type="checkbox" class="adminMonth" value="2026-12"> Dez</label></div>
       </div>
 
-      <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;">
-        <button class="btn-green" onclick="createTasks()" style="width:auto;">Aufgabe speichern</button>
-        <button class="btn-dark" onclick="showTab('todo')" style="width:auto;">Zurück zur ToDo</button>
-      </div>
+      <div style="margin-top:16px; display:flex; gap:10px; flex-wrap:wrap;"><button class="btn-green" onclick="createTasks()" style="width:auto;">Aufgabe speichern</button><button class="btn-dark" onclick="showTab('todo')" style="width:auto;">Zurück zur ToDo</button></div>
       <div id="adminMessage" class="small"></div>
     </div>
 
     <div class="box admin">
       <h2>Adminbereich – bestehende Aufgaben</h2>
-      <div class="small">Löschen und Anpassen ist nur hier möglich.</div>
+      <div class="small">Löschen und Anpassen ist nur hier möglich. Dies sind die wiederkehrenden Aufgaben-Vorlagen.</div>
       <button class="btn-yellow" onclick="loadAdminTasks()" style="width:auto; margin-top:10px;">Adminliste aktualisieren</button>
       <div id="adminTasks" style="margin-top:14px;"></div>
+    </div>
+
+    <div class="box admin">
+      <h2>Kontrolle / Historie</h2>
+      <div class="small">Hier prüfst du rückwirkend, was an einem konkreten Datum offen oder erledigt war.</div>
+      <div class="control-grid" style="margin-top:14px;">
+        <div><label>Markt</label><select id="controlMarket" onchange="loadControlTasks()"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
+        <div><label>Bereich</label><select id="controlArea" onchange="loadControlTasks()"><option value="">Alle Bereiche</option><option>O&G</option><option>MoPro</option><option>Markt</option><option>Hausmeister</option></select></div>
+        <div><label>Datum</label><input id="controlDate" type="date" onchange="loadControlTasks()" /></div>
+        <div><label>Status</label><select id="controlStatus" onchange="loadControlTasks()"><option value="all">Alle</option><option value="open">Offen</option><option value="done">Erledigt</option></select></div>
+        <div><label>&nbsp;</label><button class="btn-yellow" onclick="loadControlTasks()">Kontrolle laden</button></div>
+      </div>
+      <div id="controlTasks" style="margin-top:14px;"></div>
     </div>
   </section>
 </main>
@@ -437,15 +276,53 @@ const ADMIN_PIN = "4711";
 
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let adminUnlocked = false;
+const DAY_NAMES = ["Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
 
-document.getElementById("monthFilter").value = new Date().toISOString().slice(0,7);
+document.getElementById("monthFilter").value = todayISO().slice(0,7);
+document.getElementById("controlDate").value = todayISO();
+populateAllowedDays();
+
+function todayISO() { return formatDate(new Date()); }
+function formatDate(date) { const y = date.getFullYear(); const m = String(date.getMonth()+1).padStart(2,"0"); const d = String(date.getDate()).padStart(2,"0"); return `${y}-${m}-${d}`; }
+function addDays(date, days) { const d = new Date(date); d.setDate(d.getDate()+days); return d; }
+function getMonday(date) { const d = new Date(date); const day = d.getDay(); const diff = day === 0 ? -6 : 1 - day; d.setDate(d.getDate()+diff); d.setHours(0,0,0,0); return d; }
+function dateForDayName(dayName) { const monday = getMonday(new Date()); return formatDate(addDays(monday, DAY_NAMES.indexOf(dayName))); }
+function dayNameFromISO(dateISO) { const d = new Date(dateISO + "T00:00:00"); const idx = d.getDay(); if (idx === 0) return "Sonntag"; return DAY_NAMES[idx - 1]; }
+function monthFromISO(dateISO) { return dateISO.slice(0,7); }
+
+function populateAllowedDays() {
+  const select = document.getElementById("day");
+  select.innerHTML = "";
+
+  const now = new Date();
+  const todayDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = addDays(todayDate, -1);
+  const monday = getMonday(todayDate);
+
+  DAY_NAMES.forEach((day, index) => {
+    const date = addDays(monday, index);
+    if (date >= yesterday) {
+      const option = document.createElement("option");
+      option.value = day;
+      option.textContent = `${day} (${formatDate(date)})`;
+      select.appendChild(option);
+    }
+  });
+
+  const todayIndex = todayDate.getDay() - 1;
+  if (todayIndex >= 0 && todayIndex <= 5) {
+    select.value = DAY_NAMES[todayIndex];
+  } else if (select.options.length > 0) {
+    select.selectedIndex = 0;
+  }
+}
 
 function showTab(tab) {
   document.getElementById("todoSection").style.display = tab === "todo" ? "block" : "none";
   document.getElementById("adminSection").style.display = tab === "admin" ? "block" : "none";
   document.getElementById("todoTab").classList.toggle("active", tab === "todo");
   document.getElementById("adminTab").classList.toggle("active", tab === "admin");
-  if (tab === "admin") loadAdminTasks();
+  if (tab === "admin") { loadAdminTasks(); loadControlTasks(); }
   if (tab === "todo") loadTasks();
 }
 
@@ -468,84 +345,71 @@ function handleAreaChange() {
 }
 
 function toggleAdminPeriodFields() {
-  const isHausmeister = document.getElementById("adminArea").value === "Hausmeister";
+  const selectedArea = document.getElementById("adminCustomArea").value.trim() || document.getElementById("adminArea").value;
+  const isHausmeister = selectedArea === "Hausmeister";
   document.getElementById("adminDaysBox").style.display = isHausmeister ? "none" : "block";
   document.getElementById("adminMonthBox").style.display = isHausmeister ? "block" : "none";
 }
 
-function priorityClass(priority) {
-  if (!priority) return "";
-  if (priority.toLowerCase() === "hoch") return "high";
-  if (priority.toLowerCase() === "mittel") return "medium";
-  return "low";
-}
+function priorityClass(priority) { if (!priority) return ""; if (priority.toLowerCase() === "hoch") return "high"; if (priority.toLowerCase() === "mittel") return "medium"; return "low"; }
+function priorityPill(priority) { if (!priority) return ""; const p = priority.toLowerCase(); return `<span class="pill ${p}-p">${priority}</span>`; }
+function statusPill(done) { return done ? `<span class="pill done-p">erledigt</span>` : `<span class="pill open-p">offen</span>`; }
+function prioritySort(a, b) { const order = { hoch: 1, mittel: 2, niedrig: 3 }; return (order[a.priority?.toLowerCase()] || 99) - (order[b.priority?.toLowerCase()] || 99); }
+function daySort(a, b) { const order = { Montag: 1, Dienstag: 2, Mittwoch: 3, Donnerstag: 4, Freitag: 5, Samstag: 6 }; return (order[a.day] || 99) - (order[b.day] || 99); }
 
-function priorityPill(priority) {
-  if (!priority) return "";
-  const p = priority.toLowerCase();
-  return `<span class="pill ${p}-p">${priority}</span>`;
-}
+function daysInMonth(month) { const [y, m] = month.split("-").map(Number); return new Date(y, m, 0).getDate(); }
+function weekdayShort(year, month, day) { return new Date(year, month - 1, day).toLocaleDateString("de-DE", { weekday:"short" }).replace(".", ""); }
+function isSunday(year, month, day) { return new Date(year, month - 1, day).getDay() === 0; }
 
-function prioritySort(a, b) {
-  const order = { hoch: 1, mittel: 2, niedrig: 3 };
-  return (order[a.priority?.toLowerCase()] || 99) - (order[b.priority?.toLowerCase()] || 99);
-}
-
-function daySort(a, b) {
-  const order = { Montag: 1, Dienstag: 2, Mittwoch: 3, Donnerstag: 4, Freitag: 5, Samstag: 6 };
-  return (order[a.day] || 99) - (order[b.day] || 99);
-}
-
-function daysInMonth(month) {
-  const [y, m] = month.split("-").map(Number);
-  return new Date(y, m, 0).getDate();
-}
-
-function weekdayShort(year, month, day) {
-  return new Date(year, month - 1, day).toLocaleDateString("de-DE", { weekday:"short" }).replace(".", "");
-}
-
-function isSunday(year, month, day) {
-  return new Date(year, month - 1, day).getDay() === 0;
+async function fetchLogs(taskIds, dateISO) {
+  if (!taskIds.length) return {};
+  const { data, error } = await db.from("task_logs").select("*").in("task_id", taskIds).eq("done_date", dateISO);
+  if (error) throw error;
+  const map = {};
+  (data || []).forEach(log => { map[log.task_id] = log; });
+  return map;
 }
 
 async function loadTasks() {
   const market = document.getElementById("marketFilter").value;
   const areaFilter = document.getElementById("areaFilter").value;
 
-  if (areaFilter === "Hausmeister") {
-    await loadMonthlyTasks(market);
-    return;
-  }
+  if (areaFilter === "Hausmeister") return loadMonthlyTasks(market);
 
-  const day = document.getElementById("day").value;
-  let query = db.from("tasks").select("*").eq("market", market).eq("day", day);
+  const day = document.getElementById("day").value || DAY_NAMES[0];
+  const dateISO = dateForDayName(day);
+  let query = db.from("tasks").select("*").eq("market", market).eq("day", day).neq("area", "Hausmeister");
   if (areaFilter) query = query.eq("area", areaFilter);
 
-  const { data, error } = await query;
   const container = document.getElementById("tasks");
   container.innerHTML = "";
 
+  const { data, error } = await query;
   if (error) return container.innerHTML = "Fehler: " + error.message;
   if (!data || data.length === 0) return container.innerHTML = "Keine Aufgaben für diesen Markt / Tag.";
 
-  data.sort(prioritySort);
+  try {
+    const logs = await fetchLogs(data.map(t => t.id), dateISO);
+    data.sort(prioritySort);
 
-  data.forEach(task => {
-    const div = document.createElement("div");
-    div.className = `task ${priorityClass(task.priority)}`;
-    const checked = task.done ? "checked" : "";
-    const doneClass = task.done ? "done" : "";
-
-    div.innerHTML = `
-      <input type="checkbox" ${checked} onchange="toggleTask('${task.id}', this.checked)">
-      <div>
-        <div class="${doneClass}"><strong>${task.market || ""}</strong> | <strong>${task.area || ""}</strong> – ${task.title} ${priorityPill(task.priority)}</div>
-        <div class="small">${task.done_by ? "Erledigt von: " + task.done_by : ""}${task.done_at ? " | " + new Date(task.done_at).toLocaleString("de-DE") : ""}</div>
-      </div>
-    `;
-    container.appendChild(div);
-  });
+    container.innerHTML = `<h2>${day} – ${dateISO}</h2>`;
+    data.forEach(task => {
+      const log = logs[task.id];
+      const checked = log ? "checked" : "";
+      const doneClass = log ? "done" : "";
+      const div = document.createElement("div");
+      div.className = `task ${priorityClass(task.priority)}`;
+      div.innerHTML = `
+        <input type="checkbox" ${checked} onchange="toggleTask('${task.id}', '${dateISO}', this.checked)">
+        <div>
+          <div class="${doneClass}"><strong>${task.market || ""}</strong> | <strong>${task.area || ""}</strong> – ${task.title} ${priorityPill(task.priority)}</div>
+          <div class="small">Soll-Datum: ${dateISO}${log ? " | Erledigt von: " + log.done_by + " | " + new Date(log.done_at).toLocaleString("de-DE") : ""}</div>
+        </div>`;
+      container.appendChild(div);
+    });
+  } catch (err) {
+    container.innerHTML = "Fehler: " + err.message;
+  }
 }
 
 async function loadMonthlyTasks(market) {
@@ -561,20 +425,22 @@ async function loadMonthlyTasks(market) {
   const days = daysInMonth(month);
   data.sort(prioritySort);
 
+  const { data: logs, error: logError } = await db.from("task_logs").select("*").in("task_id", data.map(t => t.id)).gte("done_date", `${month}-01`).lte("done_date", `${month}-${String(days).padStart(2,"0")}`);
+  if (logError) return container.innerHTML = "Fehler: " + logError.message;
+  const logMap = {};
+  (logs || []).forEach(log => { logMap[`${log.task_id}_${log.done_date}`] = log; });
+
   let html = `<h2>Hausmeister Aufgaben – ${new Date(year, monthNum - 1).toLocaleDateString("de-DE", { month:"long", year:"numeric" })}</h2>`;
   html += `<div class="month-table-wrapper"><table class="month-table"><thead><tr><th>Aufgabe</th>`;
-
-  for (let d = 1; d <= days; d++) {
-    html += `<th class="${isSunday(year, monthNum, d) ? "sunday" : ""}">${d}<br>${weekdayShort(year, monthNum, d)}</th>`;
-  }
-
+  for (let d = 1; d <= days; d++) html += `<th class="${isSunday(year, monthNum, d) ? "sunday" : ""}">${d}<br>${weekdayShort(year, monthNum, d)}</th>`;
   html += `</tr></thead><tbody>`;
 
   data.forEach(task => {
-    html += `<tr><td><strong>${task.title}</strong> ${priorityPill(task.priority)}<br><span class="small">${task.done ? "Erledigt: " + (task.done_by || "") + " | " + new Date(task.done_at).toLocaleString("de-DE") : "offen"}</span></td>`;
+    html += `<tr><td><strong>${task.title}</strong> ${priorityPill(task.priority)}</td>`;
     for (let d = 1; d <= days; d++) {
-      const checkedDay = task.done_day == d ? "checked" : "";
-      html += `<td class="${isSunday(year, monthNum, d) ? "sunday" : ""}"><input class="month-check" type="checkbox" ${checkedDay} onchange="toggleMonthlyTask('${task.id}', ${d}, this.checked)"></td>`;
+      const dateISO = `${month}-${String(d).padStart(2,"0")}`;
+      const checked = logMap[`${task.id}_${dateISO}`] ? "checked" : "";
+      html += `<td class="${isSunday(year, monthNum, d) ? "sunday" : ""}"><input class="month-check" type="checkbox" ${checked} onchange="toggleTask('${task.id}', '${dateISO}', this.checked)"></td>`;
     }
     html += `</tr>`;
   });
@@ -583,41 +449,21 @@ async function loadMonthlyTasks(market) {
   container.innerHTML = html;
 }
 
-async function toggleTask(id, value) {
+async function toggleTask(taskId, dateISO, value) {
   const name = document.getElementById("name").value.trim();
-  if (!name) {
-    alert("Bitte Namen eingeben.");
-    loadTasks();
-    return;
+  if (!name) { alert("Bitte Namen eingeben."); loadTasks(); return; }
+
+  if (value) {
+    await db.from("task_logs").delete().eq("task_id", taskId).eq("done_date", dateISO);
+    const { error } = await db.from("task_logs").insert({ task_id: taskId, done_date: dateISO, done_by: name, done_at: new Date().toISOString() });
+    if (error) alert("Fehler: " + error.message);
+  } else {
+    const { error } = await db.from("task_logs").delete().eq("task_id", taskId).eq("done_date", dateISO);
+    if (error) alert("Fehler: " + error.message);
   }
 
-  await db.from("tasks").update({
-    done: value,
-    done_by: value ? name : null,
-    done_at: value ? new Date().toISOString() : null
-  }).eq("id", id);
-
   loadTasks();
-  if (adminUnlocked) loadAdminTasks();
-}
-
-async function toggleMonthlyTask(id, dayNumber, value) {
-  const name = document.getElementById("name").value.trim();
-  if (!name) {
-    alert("Bitte Namen eingeben.");
-    loadTasks();
-    return;
-  }
-
-  await db.from("tasks").update({
-    done: value,
-    done_day: value ? dayNumber : null,
-    done_by: value ? name : null,
-    done_at: value ? new Date().toISOString() : null
-  }).eq("id", id);
-
-  loadTasks();
-  if (adminUnlocked) loadAdminTasks();
+  if (adminUnlocked) loadControlTasks();
 }
 
 async function createTasks() {
@@ -632,7 +478,6 @@ async function createTasks() {
   const area = customArea || selectedArea;
   const priority = document.getElementById("adminPriority").value;
   const message = document.getElementById("adminMessage");
-
   let rows = [];
 
   if (area === "Hausmeister") {
@@ -653,83 +498,90 @@ async function createTasks() {
   document.getElementById("adminCustomArea").value = "";
   document.querySelectorAll(".adminDay,.adminMonth").forEach(cb => cb.checked = false);
   document.getElementById("marketFilter").value = market;
-  loadTasks();
-  loadAdminTasks();
+  loadTasks(); loadAdminTasks(); loadControlTasks();
 }
 
 async function loadAdminTasks() {
   if (!adminUnlocked) return;
-
   const market = document.getElementById("adminMarket").value;
   const { data, error } = await db.from("tasks").select("*").eq("market", market);
   const container = document.getElementById("adminTasks");
   container.innerHTML = "";
-
   if (error) return container.innerHTML = "Fehler: " + error.message;
   if (!data || data.length === 0) return container.innerHTML = "Keine Aufgaben für diesen Markt angelegt.";
 
   data.sort((a,b) => (a.area || "").localeCompare(b.area || "") || (a.month || "").localeCompare(b.month || "") || daySort(a,b) || prioritySort(a,b));
-
   data.forEach(task => {
     const div = document.createElement("div");
     div.className = `adminTask ${priorityClass(task.priority)}`;
-    div.innerHTML = `
-      <strong>${task.market}</strong> | <strong>${task.area}</strong> – ${task.title} ${priorityPill(task.priority)}<br>
-      <span class="small">${task.area === "Hausmeister" ? "Monat: " + (task.month || "") : "Tag: " + (task.day || "")} | Status: ${task.done ? "erledigt" : "offen"}${task.done_by ? " | von " + task.done_by : ""}</span>
-      <div class="admin-actions">
-        <button class="btn-blue" onclick="editTask('${task.id}')">Anpassen</button>
-        <button class="btn-red" onclick="deleteTask('${task.id}')">Löschen</button>
-      </div>
-    `;
+    div.innerHTML = `<strong>${task.market}</strong> | <strong>${task.area}</strong> – ${task.title} ${priorityPill(task.priority)}<br><span class="small">${task.area === "Hausmeister" ? "Monat: " + (task.month || "") : "Tag: " + (task.day || "")}</span><div class="admin-actions"><button class="btn-blue" onclick="editTask('${task.id}')">Anpassen</button><button class="btn-red" onclick="deleteTask('${task.id}')">Löschen</button></div>`;
     container.appendChild(div);
   });
 }
 
-async function editTask(id) {
-  if (!adminUnlocked) return alert("Admin-PIN erforderlich.");
+async function loadControlTasks() {
+  if (!adminUnlocked) return;
+  const market = document.getElementById("controlMarket").value;
+  const area = document.getElementById("controlArea").value;
+  const dateISO = document.getElementById("controlDate").value;
+  const status = document.getElementById("controlStatus").value;
+  const container = document.getElementById("controlTasks");
+  container.innerHTML = "";
 
-  const { data, error } = await db.from("tasks").select("*").eq("id", id).single();
-  if (error) return alert("Fehler: " + error.message);
+  const weekday = dayNameFromISO(dateISO);
+  let query = db.from("tasks").select("*").eq("market", market);
 
-  const title = prompt("Bezeichnung:", data.title || "");
-  if (title === null) return;
-  const area = prompt("Bereich (O&G, MoPro, Markt, Hausmeister):", data.area || "");
-  if (area === null) return;
-  const priority = prompt("Wichtigkeit (hoch, mittel, niedrig):", data.priority || "");
-  if (priority === null) return;
-  const period = prompt(area === "Hausmeister" ? "Monat (YYYY-MM):" : "Tag:", area === "Hausmeister" ? (data.month || "") : (data.day || ""));
-  if (period === null) return;
-
-  const update = {
-    title:title.trim(),
-    area:area.trim(),
-    priority:priority.trim(),
-    done:false,
-    done_day:null,
-    done_by:null,
-    done_at:null
-  };
-
-  if (area === "Hausmeister") {
-    update.month = period.trim();
-    update.day = null;
-  } else {
-    update.day = period.trim();
-    update.month = null;
+  if (area === "Hausmeister") query = query.eq("area", "Hausmeister").eq("month", monthFromISO(dateISO));
+  else {
+    query = query.eq("day", weekday).neq("area", "Hausmeister");
+    if (area) query = query.eq("area", area);
   }
 
+  const { data, error } = await query;
+  if (error) return container.innerHTML = "Fehler: " + error.message;
+  if (!data || data.length === 0) return container.innerHTML = "Keine Soll-Aufgaben für dieses Datum.";
+
+  try {
+    const logs = await fetchLogs(data.map(t => t.id), dateISO);
+    const rows = data.map(task => ({ task, log: logs[task.id] })).filter(row => {
+      if (status === "done") return Boolean(row.log);
+      if (status === "open") return !row.log;
+      return true;
+    });
+
+    if (rows.length === 0) return container.innerHTML = "Keine Treffer für diesen Filter.";
+
+    rows.sort((a,b) => (a.task.area || "").localeCompare(b.task.area || "") || prioritySort(a.task,b.task));
+    rows.forEach(({ task, log }) => {
+      const div = document.createElement("div");
+      div.className = `adminTask ${priorityClass(task.priority)}`;
+      div.innerHTML = `<strong>${task.area}</strong> – ${task.title} ${priorityPill(task.priority)} ${statusPill(Boolean(log))}<br><span class="small">Soll-Datum: ${dateISO}${log ? " | Erledigt von: " + log.done_by + " | " + new Date(log.done_at).toLocaleString("de-DE") : " | nicht erledigt"}</span>`;
+      container.appendChild(div);
+    });
+  } catch (err) { container.innerHTML = "Fehler: " + err.message; }
+}
+
+async function editTask(id) {
+  if (!adminUnlocked) return alert("Admin-PIN erforderlich.");
+  const { data, error } = await db.from("tasks").select("*").eq("id", id).single();
+  if (error) return alert("Fehler: " + error.message);
+  const title = prompt("Bezeichnung:", data.title || ""); if (title === null) return;
+  const area = prompt("Bereich (O&G, MoPro, Markt, Hausmeister):", data.area || ""); if (area === null) return;
+  const priority = prompt("Wichtigkeit (hoch, mittel, niedrig):", data.priority || ""); if (priority === null) return;
+  const period = prompt(area === "Hausmeister" ? "Monat (YYYY-MM):" : "Tag:", area === "Hausmeister" ? (data.month || "") : (data.day || "")); if (period === null) return;
+  const update = { title:title.trim(), area:area.trim(), priority:priority.trim() };
+  if (area === "Hausmeister") { update.month = period.trim(); update.day = null; } else { update.day = period.trim(); update.month = null; }
   const result = await db.from("tasks").update(update).eq("id", id);
   if (result.error) return alert("Fehler: " + result.error.message);
-  loadTasks();
-  loadAdminTasks();
+  loadTasks(); loadAdminTasks(); loadControlTasks();
 }
 
 async function deleteTask(id) {
   if (!adminUnlocked) return alert("Admin-PIN erforderlich.");
   if (!confirm("Diese Aufgabe wirklich löschen?")) return;
+  await db.from("task_logs").delete().eq("task_id", id);
   await db.from("tasks").delete().eq("id", id);
-  loadTasks();
-  loadAdminTasks();
+  loadTasks(); loadAdminTasks(); loadControlTasks();
 }
 
 toggleAdminPeriodFields();
