@@ -258,8 +258,9 @@
       <div class="control-grid" style="margin-top:14px;">
         <div><label>Markt</label><select id="controlMarket" onchange="loadControlTasks()"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
         <div><label>Bereich</label><select id="controlArea" onchange="loadControlTasks()"><option value="">Alle Bereiche</option><option>O&G</option><option>MoPro</option><option>Markt</option><option>Hausmeister</option></select></div>
-        <div><label>Datum</label><input id="controlDate" type="date" onchange="loadControlTasks()" /></div>
-        <div><label>Status</label><select id="controlStatus" onchange="loadControlTasks()"><option value="all">Alle</option><option value="open">Offen</option><option value="done">Erledigt</option></select></div>
+        <div><label>Von</label><input id="controlDateFrom" type="date" onchange="loadControlTasks()" /></div>
+        <div><label>Bis</label><input id="controlDateTo" type="date" onchange="loadControlTasks()" /></div>
+        <div><label>Status</label><select id="controlStatus" onchange="loadControlTasks()"><option value="all">Alle</option><option value="open">Offen</option><option value="done">Erledigt</option><option value="late">Fehler: verspätet bestätigt</option></select></div>
         <div><label>&nbsp;</label><button class="btn-yellow" onclick="loadControlTasks()">Kontrolle laden</button></div>
       </div>
       <div id="controlTasks" style="margin-top:14px;"></div>
@@ -286,11 +287,16 @@ nameInput.value = localStorage.getItem("employeeName") || "";
 nameInput.addEventListener("input", function () {
   localStorage.setItem("employeeName", this.value);
 });
-document.getElementById("controlDate").value = todayISO();
+document.getElementById("controlDateFrom").value = todayISO();
+document.getElementById("controlDateTo").value = todayISO();
 populateAllowedDays();
 
 function todayISO() { return formatDate(new Date()); }
 function formatDate(date) { const y = date.getFullYear(); const m = String(date.getMonth()+1).padStart(2,"0"); const d = String(date.getDate()).padStart(2,"0"); return `${y}-${m}-${d}`; }
+function formatDateDE(dateISO) { if (!dateISO) return ""; const [y,m,d] = dateISO.split("-"); return `${d}.${m}.${y}`; }
+function formatDateTimeDE(value) { if (!value) return ""; return new Date(value).toLocaleString("de-DE", { timeZone:"Europe/Berlin", day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit", second:"2-digit" }); }
+function berlinDateISO(value) { return new Intl.DateTimeFormat("sv-SE", { timeZone:"Europe/Berlin", year:"numeric", month:"2-digit", day:"2-digit" }).format(new Date(value)); }
+function isLateLog(log) { return Boolean(log && log.done_at && log.done_date && berlinDateISO(log.done_at) > log.done_date); }
 function addDays(date, days) { const d = new Date(date); d.setDate(d.getDate()+days); return d; }
 function getMonday(date) { const d = new Date(date); const day = d.getDay(); const diff = day === 0 ? -6 : 1 - day; d.setDate(d.getDate()+diff); d.setHours(0,0,0,0); return d; }
 function dateForDayName(dayName) { const monday = getMonday(new Date()); return formatDate(addDays(monday, DAY_NAMES.indexOf(dayName))); }
@@ -399,7 +405,7 @@ async function loadTasks() {
     const logs = await fetchLogs(data.map(t => t.id), dateISO);
     data.sort(prioritySort);
 
-    container.innerHTML = `<h2>${day} – ${dateISO}</h2>`;
+    container.innerHTML = `<h2>${day} – ${formatDateDE(dateISO)}</h2>`;
     data.forEach(task => {
       const log = logs[task.id];
       const checked = log ? "checked" : "";
@@ -410,7 +416,7 @@ async function loadTasks() {
         <input type="checkbox" ${checked} onchange="toggleTask('${task.id}', '${dateISO}', this.checked)">
         <div>
           <div class="${doneClass}"><strong>${task.market || ""}</strong> | <strong>${task.area || ""}</strong> – ${task.title} ${priorityPill(task.priority)}</div>
-          <div class="small">Soll-Datum: ${dateISO}${log ? " | Erledigt von: " + log.done_by + " | " + new Date(log.done_at).toLocaleString("de-DE") : ""}</div>
+          <div class="small">Soll-Datum: ${formatDateDE(dateISO)}${log ? " | Erledigt von: " + log.done_by + " | " + formatDateTimeDE(log.done_at) : ""}</div>
         </div>`;
       container.appendChild(div);
     });
@@ -459,6 +465,11 @@ async function loadMonthlyTasks(market) {
 async function toggleTask(taskId, dateISO, value) {
   const name = document.getElementById("name").value.trim();
   if (!name) { alert("Bitte Namen eingeben."); loadTasks(); return; }
+
+  if (value && dateISO < todayISO()) {
+    const ok = confirm("Sind Sie sicher, eine Aufgabe von gestern zu bestätigen?");
+    if (!ok) { loadTasks(); return; }
+  }
 
   if (value) {
     await db.from("task_logs").delete().eq("task_id", taskId).eq("done_date", dateISO);
@@ -528,44 +539,83 @@ async function loadAdminTasks() {
 
 async function loadControlTasks() {
   if (!adminUnlocked) return;
+
   const market = document.getElementById("controlMarket").value;
   const area = document.getElementById("controlArea").value;
-  const dateISO = document.getElementById("controlDate").value;
+  const dateFrom = document.getElementById("controlDateFrom").value;
+  const dateTo = document.getElementById("controlDateTo").value;
   const status = document.getElementById("controlStatus").value;
   const container = document.getElementById("controlTasks");
   container.innerHTML = "";
 
-  const weekday = dayNameFromISO(dateISO);
-  let query = db.from("tasks").select("*").eq("market", market);
-
-  if (area === "Hausmeister") query = query.eq("area", "Hausmeister").eq("month", monthFromISO(dateISO));
-  else {
-    query = query.eq("day", weekday).neq("area", "Hausmeister");
-    if (area) query = query.eq("area", area);
+  if (!dateFrom || !dateTo) {
+    container.innerHTML = "Bitte Zeitraum auswählen.";
+    return;
   }
 
-  const { data, error } = await query;
-  if (error) return container.innerHTML = "Fehler: " + error.message;
-  if (!data || data.length === 0) return container.innerHTML = "Keine Soll-Aufgaben für dieses Datum.";
+  if (dateFrom > dateTo) {
+    container.innerHTML = "Der Zeitraum ist ungültig.";
+    return;
+  }
 
-  try {
+  const allRows = [];
+  const start = new Date(dateFrom + "T00:00:00");
+  const end = new Date(dateTo + "T00:00:00");
+
+  for (let d = new Date(start); d <= end; d = addDays(d, 1)) {
+    const dateISO = formatDate(d);
+    const weekday = dayNameFromISO(dateISO);
+    let query = db.from("tasks").select("*").eq("market", market);
+
+    if (area === "Hausmeister") {
+      query = query.eq("area", "Hausmeister").eq("month", monthFromISO(dateISO));
+    } else {
+      query = query.eq("day", weekday).neq("area", "Hausmeister");
+      if (area) query = query.eq("area", area);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      container.innerHTML = "Fehler: " + error.message;
+      return;
+    }
+
+    if (!data || data.length === 0) continue;
+
     const logs = await fetchLogs(data.map(t => t.id), dateISO);
-    const rows = data.map(task => ({ task, log: logs[task.id] })).filter(row => {
-      if (status === "done") return Boolean(row.log);
-      if (status === "open") return !row.log;
-      return true;
-    });
 
-    if (rows.length === 0) return container.innerHTML = "Keine Treffer für diesen Filter.";
+    data.forEach(task => {
+      const log = logs[task.id];
+      const late = isLateLog(log);
 
-    rows.sort((a,b) => (a.task.area || "").localeCompare(b.task.area || "") || prioritySort(a.task,b.task));
-    rows.forEach(({ task, log }) => {
-      const div = document.createElement("div");
-      div.className = `adminTask ${priorityClass(task.priority)}`;
-      div.innerHTML = `<strong>${task.area}</strong> – ${task.title} ${priorityPill(task.priority)} ${statusPill(Boolean(log))}<br><span class="small">Soll-Datum: ${dateISO}${log ? " | Erledigt von: " + log.done_by + " | " + new Date(log.done_at).toLocaleString("de-DE") : " | nicht erledigt"}</span>`;
-      container.appendChild(div);
+      if (status === "done" && !log) return;
+      if (status === "open" && log) return;
+      if (status === "late" && !late) return;
+
+      allRows.push({ task, log, dateISO, late });
     });
-  } catch (err) { container.innerHTML = "Fehler: " + err.message; }
+  }
+
+  if (allRows.length === 0) {
+    container.innerHTML = "Keine Treffer für diesen Filter.";
+    return;
+  }
+
+  allRows.sort((a,b) => a.dateISO.localeCompare(b.dateISO) || (a.task.area || "").localeCompare(b.task.area || "") || prioritySort(a.task,b.task));
+
+  allRows.forEach(({ task, log, dateISO, late }) => {
+    const div = document.createElement("div");
+    div.className = `adminTask ${late ? "high" : priorityClass(task.priority)}`;
+    div.innerHTML = `
+      <strong>${formatDateDE(dateISO)}</strong> | <strong>${task.area}</strong> – ${task.title} ${priorityPill(task.priority)} ${statusPill(Boolean(log))}
+      ${late ? '<span class="pill high-p">verspätet bestätigt</span>' : ''}
+      <br>
+      <span class="small">
+        Soll-Datum: ${formatDateDE(dateISO)}
+        ${log ? " | Erledigt von: " + log.done_by + " | " + formatDateTimeDE(log.done_at) : " | nicht erledigt"}
+      </span>`;
+    container.appendChild(div);
+  });
 }
 
 async function editTask(id) {
@@ -596,4 +646,5 @@ handleAreaChange();
 </script>
 </body>
 </html>
+
 
