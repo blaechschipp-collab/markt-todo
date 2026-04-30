@@ -534,6 +534,11 @@ async function loadMonthlyTasks(market) {
 }
 
 async function toggleTask(taskId, dateISO, value) {
+  const confirmAction = confirm(value ? "Möchten Sie diese Aufgabe wirklich abhaken?" : "Möchten Sie das Häkchen wirklich entfernen?");
+  if (!confirmAction) {
+    loadTasks();
+    return;
+  }
   const name = document.getElementById("name").value.trim();
   if (!name) { alert("Bitte Namen eingeben."); loadTasks(); return; }
 
@@ -724,5 +729,6 @@ loadAreas().then(() => {
 </script>
 </body>
 </html>
+
 
 
