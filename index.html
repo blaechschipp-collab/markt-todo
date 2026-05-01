@@ -49,7 +49,100 @@ async function loadMonthlyTasks(market){const month=document.getElementById("mon
 async function toggleTask(taskId,dateISO,value){const ok=confirm(value?"Möchten Sie diese Aufgabe wirklich abhaken?":"Möchten Sie das Häkchen wirklich entfernen?");if(!ok){loadTasks();return}const name=document.getElementById("name").value.trim();if(!name){alert("Bitte Namen eingeben.");loadTasks();return}if(value&&dateISO<todayISO()){const lateOk=confirm("Sind Sie sicher, eine Aufgabe von gestern zu bestätigen?");if(!lateOk){loadTasks();return}}if(value){await db.from("task_logs").delete().eq("task_id",taskId).eq("done_date",dateISO);const{error}=await db.from("task_logs").insert({task_id:taskId,done_date:dateISO,done_by:name,done_at:berlinNowForDB()});if(error)alert("Fehler: "+error.message)}else{const{error}=await db.from("task_logs").delete().eq("task_id",taskId).eq("done_date",dateISO);if(error)alert("Fehler: "+error.message)}loadTasks();if(adminUnlocked)loadControlTasks()}
 async function createHandover(){const name=document.getElementById("name").value.trim(),market=document.getElementById("marketFilter").value,area=document.getElementById("areaFilter").value,text=document.getElementById("handoverText").value.trim(),msg=document.getElementById("handoverMsg");if(!name)return alert("Bitte Namen eingeben.");if(!area||area==="Hausmeister")return alert("Bitte einen konkreten Bereich auswählen.");if(!text)return alert("Bitte eine Info eingeben.");const date=tomorrowISO();const{error}=await db.from("tasks").insert({market,area,title:`Übergabe: ${text}`,priority:"info",task_type:"handover",start_date:date,end_date:date,day:tomorrowDayName(),month:null,done:false,done_by:null,done_at:null});if(error)return msg.innerHTML="Fehler: "+error.message;document.getElementById("handoverText").value="";msg.innerHTML=`Info wurde für morgen (${formatDateDE(date)}) gespeichert.`;await loadAreas();loadTasks()}
 async function createTasks(){if(!adminUnlocked)return alert("Admin-PIN erforderlich.");const market=document.getElementById("adminMarket").value,title=document.getElementById("adminCustomTitle").value.trim(),selectedArea=document.getElementById("adminArea").value,customArea=document.getElementById("adminCustomArea").value.trim(),area=customArea||selectedArea,priority=document.getElementById("adminPriority").value,mode=document.getElementById("adminTaskMode").value,msg=document.getElementById("adminMessage");if(!title)return alert("Bitte eine Bezeichnung eingeben.");let rows=[];if(area==="Hausmeister"){const months=[...document.querySelectorAll(".adminMonth:checked")].map(cb=>cb.value);if(!months.length)return alert("Bitte mindestens einen Monat auswählen.");rows=months.map(month=>({market,title,area,month,day:null,priority,task_type:"monthly",start_date:null,end_date:null,done:false,done_by:null,done_at:null}))}else if(mode==="single"){const start=document.getElementById("adminStartDate").value,end=document.getElementById("adminEndDate").value||start;if(!start)return alert("Bitte Startdatum auswählen.");if(end<start)return alert("Bis-Datum darf nicht vor Von-Datum liegen.");rows=[{market,title,area,day:null,month:null,priority,task_type:"single",start_date:start,end_date:end,done:false,done_by:null,done_at:null}]}else{const days=[...document.querySelectorAll(".adminDay:checked")].map(cb=>cb.value);if(!days.length)return alert("Bitte mindestens einen Tag auswählen.");rows=days.map(day=>({market,title,area,day,month:null,priority,task_type:"recurring",start_date:null,end_date:null,done:false,done_by:null,done_at:null}))}const{error}=await db.from("tasks").insert(rows);if(error)return msg.innerHTML="Fehler: "+error.message;msg.innerHTML="Aufgabe wurde gespeichert.";document.getElementById("adminCustomTitle").value="";document.getElementById("adminCustomArea").value="";document.querySelectorAll(".adminDay,.adminMonth").forEach(cb=>cb.checked=false);await loadAreas();loadTasks();loadAdminTasks();loadControlTasks()}
-async function loadAdminTasks(){if(!adminUnlocked)return;const market=document.getElementById("adminMarket").value,{data,error}=await db.from("tasks").select("*").eq("market",market),c=document.getElementById("adminTasks");c.innerHTML="";if(error)return c.innerHTML="Fehler: "+error.message;if(!data||!data.length)return c.innerHTML="Keine Aufgaben für diesen Markt angelegt.";data.sort((a,b)=>(a.area||"").localeCompare(b.area||"")||(a.day||"").localeCompare(b.day||"")||(a.start_date||"").localeCompare(b.start_date||"")||prioritySort(a,b));let html=`<div class="table-wrap"><table><thead><tr><th>Markt</th><th>Bereich</th><th>Aufgabe / Info</th><th>Art</th><th>Tag/Monat/Datum</th><th>Wichtigkeit</th><th>Aktion</th></tr></thead><tbody>`;data.forEach(t=>{const period=t.area==="Hausmeister"?(t.month||""):(t.task_type==="single"||t.task_type==="handover"?`${formatDateDE(t.start_date)}${t.end_date&&t.end_date!==t.start_date?" – "+formatDateDE(t.end_date):""}`:(t.day||""));const type=t.task_type==="handover"?"Übergabe/Info":t.task_type==="single"?"Einmalig":t.area==="Hausmeister"?"Monatlich":"Wiederholend";html+=`<tr><td>${t.market||""}</td><td>${t.area||""}</td><td>${t.title||""}</td><td>${type}</td><td>${period}</td><td>${t.priority||""}</td><td><div class="admin-actions"><button class="btn-blue" onclick="editTask('${t.id}')">Anpassen</button><button class="btn-red" onclick="deleteTask('${t.id}')">Löschen</button></div></td></tr>`});html+=`</tbody></table></div>`;c.innerHTML=html}
+async function loadAdminTasks(){
+  if(!adminUnlocked)return;
+
+  const market=document.getElementById("adminMarket").value;
+  const {data,error}=await db.from("tasks").select("*").eq("market",market);
+  const c=document.getElementById("adminTasks");
+  c.innerHTML="";
+
+  if(error)return c.innerHTML="Fehler: "+error.message;
+  if(!data||!data.length)return c.innerHTML="Keine Aufgaben für diesen Markt angelegt.";
+
+  const groups={};
+
+  data.forEach(t=>{
+    const type=t.task_type==="handover"?"Übergabe/Info":t.task_type==="single"?"Einmalig":t.area==="Hausmeister"?"Monatlich":"Wiederholend";
+    const key=[t.market||"",t.area||"",t.title||"",type,t.priority||""].join("||");
+
+    if(!groups[key]){
+      groups[key]={
+        market:t.market||"",
+        area:t.area||"",
+        title:t.title||"",
+        type,
+        priority:t.priority||"",
+        ids:[],
+        days:[],
+        months:[],
+        dates:[]
+      };
+    }
+
+    groups[key].ids.push(t.id);
+
+    if(t.area==="Hausmeister" && t.month){
+      groups[key].months.push(t.month);
+    }else if(t.task_type==="single"||t.task_type==="handover"){
+      const dateText=`${formatDateDE(t.start_date)}${t.end_date&&t.end_date!==t.start_date?" – "+formatDateDE(t.end_date):""}`;
+      groups[key].dates.push(dateText);
+    }else if(t.day){
+      groups[key].days.push(t.day);
+    }
+  });
+
+  const rows=Object.values(groups).sort((a,b)=>
+    a.area.localeCompare(b.area,"de")||
+    a.title.localeCompare(b.title,"de")||
+    a.type.localeCompare(b.type,"de")
+  );
+
+  let html=`<div class="table-wrap"><table><thead><tr><th>Markt</th><th>Bereich</th><th>Aufgabe / Info</th><th>Art</th><th>Tage / Zeitraum</th><th>Wichtigkeit</th><th>Aktion</th></tr></thead><tbody>`;
+
+  rows.forEach(g=>{
+    const daysOrder={Montag:1,Dienstag:2,Mittwoch:3,Donnerstag:4,Freitag:5,Samstag:6};
+    const days=[...new Set(g.days)].sort((a,b)=>(daysOrder[a]||99)-(daysOrder[b]||99));
+    const months=[...new Set(g.months)].sort();
+    const dates=[...new Set(g.dates)].sort();
+
+    let period="";
+    if(days.length) period=days.join(", ");
+    else if(months.length) period=months.join(", ");
+    else if(dates.length) period=dates.join(", ");
+
+    html+=`<tr>
+      <td>${g.market}</td>
+      <td>${g.area}</td>
+      <td>${g.title}</td>
+      <td>${g.type}</td>
+      <td>${period}</td>
+      <td>${g.priority}</td>
+      <td><div class="admin-actions">
+        <button class="btn-blue" onclick="editTask('${g.ids[0]}')">Anpassen</button>
+        <button class="btn-red" onclick='deleteTaskGroup(${JSON.stringify(g.ids)})'>Alle löschen</button>
+      </div></td>
+    </tr>`;
+  });
+
+  html+=`</tbody></table></div>`;
+  c.innerHTML=html;
+}
+
+async function deleteTaskGroup(ids){
+  if(!adminUnlocked)return alert("Admin-PIN erforderlich.");
+  if(!confirm("Diese zusammengefasste Aufgabe wirklich komplett löschen?"))return;
+
+  for(const id of ids){
+    await db.from("task_logs").delete().eq("task_id",id);
+    await db.from("tasks").delete().eq("id",id);
+  }
+
+  loadTasks();
+  loadAdminTasks();
+  loadControlTasks();
+}
+
 async function loadControlTasks(){if(!adminUnlocked)return;const market=document.getElementById("controlMarket").value,area=document.getElementById("controlArea").value,from=document.getElementById("controlDateFrom").value,to=document.getElementById("controlDateTo").value,status=document.getElementById("controlStatus").value,c=document.getElementById("controlTasks");c.innerHTML="";if(!from||!to)return c.innerHTML="Bitte Zeitraum auswählen.";if(from>to)return c.innerHTML="Der Zeitraum ist ungültig.";const rows=[];for(let d=new Date(from+"T00:00:00");d<=new Date(to+"T00:00:00");d=addDays(d,1)){const dateISO=formatDate(d),weekday=dayNameFromISO(dateISO);let q=db.from("tasks").select("*").eq("market",market);if(area)q=q.eq("area",area);const{data,error}=await q;if(error)return c.innerHTML="Fehler: "+error.message;const tasks=(data||[]).filter(t=>taskApplies(t,dateISO,weekday));if(!tasks.length)continue;const logs=await fetchLogs(tasks.map(t=>t.id),dateISO);tasks.forEach(task=>{const log=logs[task.id],late=isLateLog(log);if(status==="done"&&!log)return;if(status==="open"&&log)return;if(status==="late"&&!late)return;rows.push({task,log,dateISO,late})})}if(!rows.length)return c.innerHTML="Keine Treffer für diesen Filter.";rows.sort((a,b)=>a.dateISO.localeCompare(b.dateISO)||(a.task.area||"").localeCompare(b.task.area||"")||prioritySort(a.task,b.task));let html=`<div class="table-wrap"><table><thead><tr><th>Datum</th><th>Bereich</th><th>Aufgabe</th><th>Status</th><th>Erledigt von</th><th>Zeit</th><th>Hinweis</th></tr></thead><tbody>`;rows.forEach(({task,log,dateISO,late})=>{html+=`<tr class="${late?"high":""}"><td>${formatDateDE(dateISO)}</td><td>${task.area}</td><td>${task.title} ${priorityPill(task.priority)}</td><td>${statusPill(Boolean(log))}</td><td>${log?.done_by||""}</td><td>${log?formatDateTimeDE(log.done_at):""}</td><td>${late?"verspätet bestätigt":""}</td></tr>`});html+=`</tbody></table></div>`;c.innerHTML=html}
 async function editTask(id){if(!adminUnlocked)return alert("Admin-PIN erforderlich.");const{data,error}=await db.from("tasks").select("*").eq("id",id).single();if(error)return alert("Fehler: "+error.message);const title=prompt("Bezeichnung:",data.title||"");if(title===null)return;const area=prompt("Bereich:",data.area||"");if(area===null)return;const priority=prompt("Wichtigkeit (hoch, mittel, niedrig, info):",data.priority||"");if(priority===null)return;const{error:e}=await db.from("tasks").update({title:title.trim(),area:area.trim(),priority:priority.trim()}).eq("id",id);if(e)return alert("Fehler: "+e.message);await loadAreas();loadTasks();loadAdminTasks();loadControlTasks()}
 async function deleteTask(id){if(!adminUnlocked)return alert("Admin-PIN erforderlich.");if(!confirm("Diese Aufgabe wirklich löschen?"))return;await db.from("task_logs").delete().eq("task_id",id);await db.from("tasks").delete().eq("id",id);loadTasks();loadAdminTasks();loadControlTasks()}
