@@ -43,7 +43,54 @@ const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KE
 function todayISO(){return formatDate(new Date())} function formatDate(date){const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,"0"),d=String(date.getDate()).padStart(2,"0");return `${y}-${m}-${d}`} function formatDateDE(s){if(!s)return"";const[y,m,d]=s.split("-");return`${d}.${m}.${y}`} function formatDateTimeDE(v){if(!v)return"";return new Date(v).toLocaleString("de-DE",{timeZone:"Europe/Berlin",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"})} function berlinNowForDB(){const parts=new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Berlin",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}).formatToParts(new Date()).reduce((a,p)=>(a[p.type]=p.value,a),{});return`${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`} function berlinDateISO(v){return new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Berlin",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(v))} function isLateLog(log){return Boolean(log&&log.done_at&&log.done_date&&berlinDateISO(log.done_at)>log.done_date)} function addDays(date,days){const d=new Date(date);d.setDate(d.getDate()+days);return d} function getMonday(date){const d=new Date(date),day=d.getDay(),diff=day===0?-6:1-day;d.setDate(d.getDate()+diff);d.setHours(0,0,0,0);return d} function dateForDayName(day){const select=document.getElementById("day");const selected=select?.options[select.selectedIndex];if(selected?.dataset?.date)return selected.dataset.date;return formatDate(addDays(getMonday(new Date()),DAY_NAMES.indexOf(day)))} function dayNameFromISO(s){const idx=new Date(s+"T00:00:00").getDay();return idx===0?"Sonntag":DAY_NAMES[idx-1]} function monthFromISO(s){return s.slice(0,7)} function tomorrowISO(){const today=new Date();const dow=today.getDay();if(dow===6)return formatDate(addDays(today,2));return formatDate(addDays(today,1))} function tomorrowDayName(){return dayNameFromISO(tomorrowISO())}
 function priorityClass(p){if(!p)return"";if(p==="info")return"info";if(p.toLowerCase()==="hoch")return"high";if(p.toLowerCase()==="mittel")return"medium";return"low"} function priorityPill(p){if(!p)return"";const c=p==="info"?"info-p":p.toLowerCase()+"-p";return`<span class="pill ${c}">${p}</span>`} function statusPill(done){return done?`<span class="pill done-p">erledigt</span>`:`<span class="pill open-p">offen</span>`} function prioritySort(a,b){const o={hoch:1,mittel:2,niedrig:3,info:4};return(o[a.priority?.toLowerCase()]||99)-(o[b.priority?.toLowerCase()]||99)} function daySort(a,b){const o={Montag:1,Dienstag:2,Mittwoch:3,Donnerstag:4,Freitag:5,Samstag:6};return(o[a.day]||99)-(o[b.day]||99)}
 function selectAllAdminDays(){document.querySelectorAll(".adminDay").forEach(cb=>cb.checked=true)}
-function populateAllowedDays(){const select=document.getElementById("day");select.innerHTML="";const today=new Date(),todayDate=new Date(today.getFullYear(),today.getMonth(),today.getDate()),yesterday=addDays(todayDate,-1),monday=getMonday(todayDate);DAY_NAMES.forEach((day,i)=>{const date=addDays(monday,i);if(date>=yesterday){const o=document.createElement("option");o.value=day;o.textContent=`${day} (${formatDateDE(formatDate(date))})`;select.appendChild(o)}});if(todayDate.getDay()===6){const nextMonday=addDays(monday,7);const o=document.createElement("option");o.value="Montag";o.textContent=`Montag (${formatDateDE(formatDate(nextMonday))})`;o.dataset.date=formatDate(nextMonday);select.appendChild(o)}const ti=todayDate.getDay()-1;if(ti>=0&&ti<=5)select.value=DAY_NAMES[ti];else if(select.options.length>0)select.selectedIndex=0}
+function populateAllowedDays(){
+  const select=document.getElementById("day");
+  select.innerHTML="";
+
+  const today=new Date();
+  const todayDate=new Date(today.getFullYear(),today.getMonth(),today.getDate());
+  const yesterday=addDays(todayDate,-1);
+  const monday=getMonday(todayDate);
+
+  DAY_NAMES.forEach((day,i)=>{
+    const date=addDays(monday,i);
+    if(date>=yesterday){
+      const o=document.createElement("option");
+      o.value=day;
+      o.textContent=`${day} (${formatDateDE(formatDate(date))})`;
+      select.appendChild(o);
+    }
+  });
+
+  // Samstag: zusätzlich Montag der Folgewoche anzeigen
+  if(todayDate.getDay()===6){
+    const nextMonday=addDays(monday,7);
+    const o=document.createElement("option");
+    o.value="Montag";
+    o.textContent=`Montag (${formatDateDE(formatDate(nextMonday))})`;
+    o.dataset.date=formatDate(nextMonday);
+    select.appendChild(o);
+  }
+
+  // Sonntag: Samstag + Montag der Folgewoche anzeigen und Montag auswählen
+  if(todayDate.getDay()===0){
+    const nextMonday=addDays(getMonday(todayDate),7);
+    const exists=[...select.options].some(opt=>opt.dataset.date===formatDate(nextMonday));
+    if(!exists){
+      const o=document.createElement("option");
+      o.value="Montag";
+      o.textContent=`Montag (${formatDateDE(formatDate(nextMonday))})`;
+      o.dataset.date=formatDate(nextMonday);
+      select.appendChild(o);
+    }
+    select.value="Montag";
+    return;
+  }
+
+  const ti=todayDate.getDay()-1;
+  if(ti>=0&&ti<=5)select.value=DAY_NAMES[ti];
+  else if(select.options.length>0)select.selectedIndex=0;
+}
 async function loadAreas(){const{data}=await db.from("tasks").select("area");const standard=["O&G","MoPro","Markt","Hausmeister"],dbAreas=[...new Set((data||[]).map(t=>t.area).filter(Boolean))],areas=[...new Set([...standard,...dbAreas])].sort((a,b)=>a.localeCompare(b,"de"));const saved=localStorage.getItem("selectedArea")||"",areaFilter=document.getElementById("areaFilter"),adminArea=document.getElementById("adminArea"),controlArea=document.getElementById("controlArea"),adminTableAreaFilter=document.getElementById("adminTableAreaFilter");areaFilter.innerHTML=`<option value="">Alle Bereiche außer Hausmeister</option>`;controlArea.innerHTML=`<option value="">Alle Bereiche</option>`;if(adminTableAreaFilter)adminTableAreaFilter.innerHTML=`<option value="">Alle Bereiche</option>`;adminArea.innerHTML="";areas.forEach(area=>{[areaFilter,adminArea,controlArea].forEach(sel=>{const o=document.createElement("option");o.value=area;o.textContent=area;sel.appendChild(o)});if(adminTableAreaFilter){const o=document.createElement("option");o.value=area;o.textContent=area;adminTableAreaFilter.appendChild(o)}});if([...areaFilter.options].some(o=>o.value===saved))areaFilter.value=saved;if(adminArea.options.length&&!adminArea.value)adminArea.value=areas[0];toggleAdminPeriodFields()}
 function showTab(tab){document.getElementById("todoSection").style.display=tab==="todo"?"block":"none";document.getElementById("adminSection").style.display=tab==="admin"?"block":"none";document.getElementById("todoTab").classList.toggle("active",tab==="todo");document.getElementById("adminTab").classList.toggle("active",tab==="admin");if(tab==="admin"){loadAdminTasks();loadControlTasks()}else loadTasks()}
 function openAdminPin(){if(!adminUnlocked){const pin=prompt("Admin-PIN eingeben:");if(pin===ADMIN_PIN)adminUnlocked=true;else if(pin!==null)return alert("Falsche PIN.");else return}showTab("admin")}
@@ -169,7 +216,6 @@ const nameInput=document.getElementById("name");nameInput.value=localStorage.get
 </script>
 </body>
 </html>
-
 
 
 
