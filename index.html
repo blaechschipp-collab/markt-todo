@@ -5,28 +5,66 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Markt ToDo</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <style>
     :root{--blue:#004f9e;--blue-dark:#00315f;--yellow:#ffdd00;--red:#ef4444;--orange:#f59e0b;--green:#22c55e;--border:#d8e2ef;--text:#08213f}
-    *{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(180deg,var(--blue-dark),var(--blue));color:var(--text);min-height:100vh}.header{background:linear-gradient(135deg,#002b55,#0059ad);padding:22px 26px 18px;border-bottom:6px solid var(--yellow)}.brand{max-width:1300px;margin:0 auto}.logo{max-width:520px;width:100%;height:auto;display:block}.brand-title{font-size:44px;font-weight:900;font-style:italic;color:#fff}.brand-subtitle{font-size:18px;color:#d9ecff}.main{max-width:1300px;margin:0 auto;padding:24px}.tabs{display:flex;gap:10px;margin-bottom:18px}.tab{border:2px solid var(--yellow);background:transparent;color:#fff;padding:14px 24px;border-radius:12px 12px 0 0;font-weight:bold;cursor:pointer}.tab.active{background:var(--yellow);color:var(--blue-dark)}.todo-tab{flex:9}.admin-tab{flex:1;min-width:92px}.box{background:#fff;border-radius:14px;padding:18px;margin-bottom:18px;box-shadow:0 8px 24px rgba(0,0,0,.14)}.admin{border:3px solid var(--yellow)}.control-grid{display:grid;grid-template-columns:repeat(5,minmax(160px,1fr));gap:14px;align-items:end}label{font-weight:bold;font-size:14px;display:block;margin-bottom:6px}input,select,textarea,button{padding:12px;border-radius:8px;border:1px solid #b8c7d9;font-size:15px;width:100%}textarea{min-height:86px;resize:vertical}button{cursor:pointer;font-weight:bold;border:none}.btn-yellow{background:var(--yellow);color:var(--blue-dark)}.btn-blue{background:var(--blue);color:#fff}.btn-dark{background:var(--blue-dark);color:#fff}.btn-red{background:#c62828;color:#fff}.btn-green{background:#2e7d32;color:#fff}.task{padding:14px;border-radius:10px;margin-bottom:10px;border:1px solid var(--border);display:flex;gap:12px;align-items:flex-start}.high{background:#ffe5e5;border-color:#ffb3b3}.medium{background:#fff5cc;border-color:#ffe480}.low{background:#e8f5e9;border-color:#bde8c3}.info{background:#e0f2fe;border-color:#7dd3fc}.done{text-decoration:line-through;color:#6b7280}.pill{display:inline-block;padding:3px 8px;border-radius:999px;color:#fff;font-size:12px;font-weight:bold;margin-left:6px}.high-p{background:var(--red)}.medium-p{background:var(--orange)}.low-p{background:var(--green)}.open-p{background:#64748b}.done-p{background:var(--green)}.info-p{background:#0284c7}.small{font-size:13px;color:#64748b;margin-top:4px}.days label,.months label{display:inline-flex;align-items:center;gap:6px;margin:6px 12px 6px 0;font-weight:normal}.days input,.months input{width:auto}.admin-actions{display:flex;gap:8px;flex-wrap:wrap}.admin-actions button{width:auto}.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px}table{border-collapse:collapse;width:100%;min-width:900px;background:#fff}th,td{border:1px solid #e1e8f0;padding:9px;text-align:left;font-size:13px}th{background:#f1f5f9}.footer{background:var(--yellow);color:var(--blue-dark);text-align:center;padding:18px;font-weight:bold;margin-top:30px}
-    @media(max-width:900px){body{background:var(--blue-dark)}.header{padding:14px 12px 12px}.main{padding:12px}.logo{max-width:280px}.tabs{position:sticky;top:0;z-index:10;background:var(--blue-dark);padding-top:8px}.todo-tab{flex:9}.admin-tab{flex:1;min-width:70px}.tab{padding:12px 8px;font-size:14px}.box{padding:12px;border-radius:12px;margin-bottom:12px}.control-grid{grid-template-columns:1fr;gap:10px}input,select,textarea,button{font-size:16px;padding:13px}.task{padding:12px;gap:10px}.task input[type="checkbox"]{width:24px;height:24px;flex:0 0 24px}.admin-actions{display:grid;grid-template-columns:1fr 1fr}.admin-actions button{width:100%}.footer{font-size:13px;padding:12px}}
+    *{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(180deg,var(--blue-dark),var(--blue));color:var(--text);min-height:100vh}.header{background:linear-gradient(135deg,#002b55,#0059ad);padding:22px 26px 18px;border-bottom:6px solid var(--yellow)}.brand{max-width:1300px;margin:0 auto}.logo{max-width:520px;width:100%;height:auto;display:block}.brand-title{font-size:44px;font-weight:900;font-style:italic;color:#fff}.brand-subtitle{font-size:18px;color:#d9ecff}.main{max-width:1300px;margin:0 auto;padding:24px}.tabs{display:flex;gap:10px;margin-bottom:18px}.tab{border:2px solid var(--yellow);background:transparent;color:#fff;padding:14px 24px;border-radius:12px 12px 0 0;font-weight:bold;cursor:pointer}.tab.active{background:var(--yellow);color:var(--blue-dark)}.todo-tab{flex:7}.analytics-tab{flex:2}.admin-tab{flex:1;min-width:92px}.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:14px}.metric-card{background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:16px}.metric-value{font-size:28px;font-weight:900;color:var(--blue-dark)}.locked{opacity:.75}.box{background:#fff;border-radius:14px;padding:18px;margin-bottom:18px;box-shadow:0 8px 24px rgba(0,0,0,.14)}.admin{border:3px solid var(--yellow)}.control-grid{display:grid;grid-template-columns:repeat(5,minmax(160px,1fr));gap:14px;align-items:end}label{font-weight:bold;font-size:14px;display:block;margin-bottom:6px}input,select,textarea,button{padding:12px;border-radius:8px;border:1px solid #b8c7d9;font-size:15px;width:100%}textarea{min-height:86px;resize:vertical}button{cursor:pointer;font-weight:bold;border:none}.btn-yellow{background:var(--yellow);color:var(--blue-dark)}.btn-blue{background:var(--blue);color:#fff}.btn-dark{background:var(--blue-dark);color:#fff}.btn-red{background:#c62828;color:#fff}.btn-green{background:#2e7d32;color:#fff}.task{padding:14px;border-radius:10px;margin-bottom:10px;border:1px solid var(--border);display:flex;gap:12px;align-items:flex-start}.high{background:#ffe5e5;border-color:#ffb3b3}.medium{background:#fff5cc;border-color:#ffe480}.low{background:#e8f5e9;border-color:#bde8c3}.info{background:#e0f2fe;border-color:#7dd3fc}.done{text-decoration:line-through;color:#6b7280}.pill{display:inline-block;padding:3px 8px;border-radius:999px;color:#fff;font-size:12px;font-weight:bold;margin-left:6px}.high-p{background:var(--red)}.medium-p{background:var(--orange)}.low-p{background:var(--green)}.open-p{background:#64748b}.done-p{background:var(--green)}.info-p{background:#0284c7}.small{font-size:13px;color:#64748b;margin-top:4px}.days label,.months label{display:inline-flex;align-items:center;gap:6px;margin:6px 12px 6px 0;font-weight:normal}.days input,.months input{width:auto}.admin-actions{display:flex;gap:8px;flex-wrap:wrap}.admin-actions button{width:auto}.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px}table{border-collapse:collapse;width:100%;min-width:900px;background:#fff}th,td{border:1px solid #e1e8f0;padding:9px;text-align:left;font-size:13px}th{background:#f1f5f9}.footer{background:var(--yellow);color:var(--blue-dark);text-align:center;padding:18px;font-weight:bold;margin-top:30px}
+    @media(max-width:900px){body{background:var(--blue-dark)}.header{padding:14px 12px 12px}.main{padding:12px}.logo{max-width:280px}.tabs{position:sticky;top:0;z-index:10;background:var(--blue-dark);padding-top:8px}.todo-tab{flex:6}.analytics-tab{flex:3}.admin-tab{flex:1;min-width:70px}.tab{padding:12px 8px;font-size:14px}.metric-grid{grid-template-columns:1fr}.box{padding:12px;border-radius:12px;margin-bottom:12px}.control-grid{grid-template-columns:1fr;gap:10px}input,select,textarea,button{font-size:16px;padding:13px}.task{padding:12px;gap:10px}.task input[type="checkbox"]{width:24px;height:24px;flex:0 0 24px}.admin-actions{display:grid;grid-template-columns:1fr 1fr}.admin-actions button{width:100%}.footer{font-size:13px;padding:12px}}
   </style>
 </head>
 <body>
 <header class="header"><div class="brand"><img src="logo.png" alt="EDEKA Paul Logo" class="logo" onerror="this.style.display='none';document.getElementById('fallbackBrand').style.display='block';"><div id="fallbackBrand" style="display:none"><div class="brand-title">Paul.</div><div class="brand-subtitle">Regional. Frisch. Freundlich.</div></div></div></header>
 <main class="main">
-  <div class="tabs"><button id="todoTab" class="tab active todo-tab" onclick="showTab('todo')">☑ ToDo</button><button id="adminTab" class="tab admin-tab" onclick="openAdminPin()">🔒 Admin</button></div>
+  <div class="tabs"><button id="todoTab" class="tab active todo-tab" onclick="showTab('todo')">☑ ToDo</button><button id="analyticsTab" class="tab analytics-tab" onclick="showTab('analytics')">📊 Auswertungen</button><button id="adminTab" class="tab admin-tab" onclick="openAdminPin()">🔒 Admin</button></div>
   <section id="todoSection">
     <div class="box"><div class="control-grid"><div><label>Dein Name</label><input id="name" placeholder="Dein Name"></div><div><label>Markt</label><select id="marketFilter" onchange="handleMarketChange()"><option value="ALLE">Alle Märkte</option><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="areaFilter" onchange="handleAreaChange()"><option value="">Alle Bereiche außer Hausmeister</option></select></div><div id="dayControl"><label>Tag</label><select id="day" onchange="loadTasks()"></select></div><div id="monthControl" style="display:none"><label>Monat</label><input id="monthFilter" type="month" onchange="loadTasks()"></div><div><label>&nbsp;</label><button class="btn-yellow" onclick="loadTasks()">Aktualisieren</button></div></div></div>
     <div id="tasks" class="box"></div>
 
     <div class="box"><h2>Übergabe an morgen</h2><div class="small">Nur für den aktuell gewählten Bereich sichtbar.</div><textarea id="handoverText" placeholder="Info für morgen eingeben..."></textarea><button class="btn-blue" onclick="createHandover()" style="margin-top:10px;width:auto">Info für morgen speichern</button><div id="handoverMsg" class="small"></div></div>
   </section>
+
+  <section id="analyticsSection" style="display:none">
+    <div class="box">
+      <h2>📊 Auswertungen</h2>
+      <div class="small">Zugriff nur für freigegebene Markt-/Bereichskombinationen.</div>
+      <div class="control-grid" style="margin-top:14px">
+        <div><label>Markt</label><select id="analyticsMarket"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
+        <div><label>Bereich</label><select id="analyticsArea"></select></div>
+        <div><label>Passwort</label><input id="analyticsPassword" type="password" placeholder="Passwort"></div>
+        <div><label>&nbsp;</label><button class="btn-yellow" onclick="loginAnalytics()">Auswertungen öffnen</button></div>
+      </div>
+      <div id="analyticsLoginMsg" class="small"></div>
+    </div>
+
+    <div id="analyticsDashboard" style="display:none">
+      <div class="box">
+        <h2 id="analyticsTitle">Dashboard</h2>
+        <div class="control-grid">
+          <div><label>Von</label><input id="analyticsDateFrom" type="date" onchange="loadAnalytics()"></div>
+          <div><label>Bis</label><input id="analyticsDateTo" type="date" onchange="loadAnalytics()"></div>
+          <div><label>&nbsp;</label><button class="btn-yellow" onclick="loadAnalytics()">Aktualisieren</button></div>
+        </div>
+      </div>
+      <div id="analyticsCards" class="box"></div>
+      <div id="analyticsTable" class="box"></div>
+      <div id="analyticsNotes" class="box"></div>
+    </div>
+  </section>
+
   <section id="adminSection" style="display:none">
     <div class="box admin"><h2>Adminbereich – Aufgabe anlegen</h2><div class="control-grid"><div><label>Markt</label><select id="adminMarket" onchange="handleAdminMarketChange()"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="adminArea" onchange="toggleAdminPeriodFields()"></select><input id="adminCustomArea" placeholder="Neue Abteilung / Bereich" style="margin-top:8px"></div><div><label>Wichtigkeit</label><select id="adminPriority"><option>hoch</option><option>mittel</option><option>niedrig</option></select></div><div><label>Bezeichnung</label><input id="adminCustomTitle" placeholder="Aufgabe eingeben"></div><div><label>Art</label><select id="adminTaskMode" onchange="toggleAdminPeriodFields()"><option value="recurring">Wiederholend</option><option value="single">Einmalig / Zeitraum</option></select></div></div>
       <div id="adminDaysBox" style="margin-top:16px"><label>Tage</label><div class="days"><button type="button" class="btn-yellow" onclick="selectAllAdminDays()" style="width:auto;margin-bottom:8px">Täglich Mo–Sa</button><br><label><input type="checkbox" class="adminDay" value="Montag"> Montag</label><label><input type="checkbox" class="adminDay" value="Dienstag"> Dienstag</label><label><input type="checkbox" class="adminDay" value="Mittwoch"> Mittwoch</label><label><input type="checkbox" class="adminDay" value="Donnerstag"> Donnerstag</label><label><input type="checkbox" class="adminDay" value="Freitag"> Freitag</label><label><input type="checkbox" class="adminDay" value="Samstag"> Samstag</label></div></div>
       <div id="adminDateRangeBox" style="display:none;margin-top:16px"><div class="control-grid"><div><label>Von Datum</label><input id="adminStartDate" type="date"></div><div><label>Bis Datum</label><input id="adminEndDate" type="date"></div></div></div>
       <div id="adminMonthBox" style="display:none;margin-top:16px"><label>Monate für Hausmeister</label><div class="months"><label><input type="checkbox" class="adminMonth" value="2026-01"> Jan</label><label><input type="checkbox" class="adminMonth" value="2026-02"> Feb</label><label><input type="checkbox" class="adminMonth" value="2026-03"> Mär</label><label><input type="checkbox" class="adminMonth" value="2026-04"> Apr</label><label><input type="checkbox" class="adminMonth" value="2026-05"> Mai</label><label><input type="checkbox" class="adminMonth" value="2026-06"> Jun</label><label><input type="checkbox" class="adminMonth" value="2026-07"> Jul</label><label><input type="checkbox" class="adminMonth" value="2026-08"> Aug</label><label><input type="checkbox" class="adminMonth" value="2026-09"> Sep</label><label><input type="checkbox" class="adminMonth" value="2026-10"> Okt</label><label><input type="checkbox" class="adminMonth" value="2026-11"> Nov</label><label><input type="checkbox" class="adminMonth" value="2026-12"> Dez</label></div></div>
       <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap"><button class="btn-green" onclick="createTasks()" style="width:auto">Aufgabe speichern</button><button class="btn-dark" onclick="showTab('todo')" style="width:auto">Zurück zur ToDo</button></div><div id="adminMessage" class="small"></div></div>
+    <div class="box admin">
+      <h2>📊 Kennzahlen per Excel hochladen</h2>
+      <div class="small">Excel-Datei mit Spalten: Markt, Bereich, Kennzahl, Wert, Einheit, Datum</div>
+      <input id="metricsExcelFile" type="file" accept=".xlsx,.xls" />
+      <button class="btn-green" onclick="uploadMetricsExcel()" style="width:auto;margin-top:10px">Excel hochladen</button>
+      <div id="metricsUploadMsg" class="small"></div>
+    </div>
+
     <div class="box admin"><h2>Adminbereich – bestehende Aufgaben</h2><div class="small">Vorlagen, Einmalaufgaben und Übergaben als Tabelle.</div>
       <div class="control-grid" style="margin-top:14px">
         <div><label>Bereich filtern</label><select id="adminTableAreaFilter" onchange="loadAdminTasks()"><option value="">Alle Bereiche</option></select></div>
@@ -145,6 +183,84 @@ async function loadAreas(){
   const dbAreas=[...new Set((data||[]).map(t=>t.area).filter(Boolean))];
   allAreas=[...new Set([...standard,...dbAreas])].sort((a,b)=>a.localeCompare(b,"de"));
   applyAreaRules();
+  fillAnalyticsAreas();
+}
+
+let analyticsAccess = null;
+
+function prepareAnalytics(){
+  const from=document.getElementById("analyticsDateFrom");
+  const to=document.getElementById("analyticsDateTo");
+  if(!from.value) from.value=todayISO().slice(0,8)+"01";
+  if(!to.value) to.value=todayISO();
+  fillAnalyticsAreas();
+}
+
+function fillAnalyticsAreas(){
+  const select=document.getElementById("analyticsArea");
+  if(!select) return;
+  const current=select.value;
+  select.innerHTML="";
+  allAreas.forEach(area=>{
+    const o=document.createElement("option");
+    o.value=area;
+    o.textContent=area;
+    select.appendChild(o);
+  });
+  if([...select.options].some(o=>o.value===current)) select.value=current;
+}
+
+async function loginAnalytics(){
+  const market=document.getElementById("analyticsMarket").value;
+  const area=document.getElementById("analyticsArea").value;
+  const password=document.getElementById("analyticsPassword").value.trim();
+  const msg=document.getElementById("analyticsLoginMsg");
+  msg.innerHTML="";
+
+  if(!password){alert("Bitte Passwort eingeben.");return;}
+
+  const {data,error}=await db.from("access_codes").select("*").eq("password",password).limit(1);
+  if(error){msg.innerHTML="Fehler: "+error.message;return;}
+  if(!data||!data.length){msg.innerHTML="Passwort falsch.";return;}
+
+  analyticsAccess={market,area,role:data[0].role||"global"};
+  document.getElementById("analyticsDashboard").style.display="block";
+  document.getElementById("analyticsTitle").innerText=`Dashboard – ${area} im Marktvergleich`;
+  loadAnalytics();
+}
+
+async function loadAnalytics(){
+  if(!analyticsAccess) return;
+  const from=document.getElementById("analyticsDateFrom").value;
+  const to=document.getElementById("analyticsDateTo").value;
+  const cards=document.getElementById("analyticsCards");
+  const table=document.getElementById("analyticsTable");
+  const notes=document.getElementById("analyticsNotes");
+  cards.innerHTML="";table.innerHTML="";notes.innerHTML="";
+
+  let q=db.from("metrics").select("*").eq("area",analyticsAccess.area).gte("metric_date",from).lte("metric_date",to);
+  const {data,error}=await q;
+  if(error){cards.innerHTML="Fehler: "+error.message;return;}
+
+  const metrics=data||[];
+  if(!metrics.length){cards.innerHTML="Keine Kennzahlen für diesen Zeitraum.";}
+  else{
+    const sums={};
+    metrics.forEach(m=>{
+      const key=`${m.metric_name}||${m.metric_unit||""}`;
+      if(!sums[key]) sums[key]={name:m.metric_name,unit:m.metric_unit||"",value:0};
+      sums[key].value+=Number(m.metric_value||0);
+    });
+    cards.innerHTML=`<h2>Kennzahlen</h2><div class="metric-grid">${Object.values(sums).map(s=>`<div class="metric-card"><div class="small">${s.name}</div><div class="metric-value">${s.value.toLocaleString("de-DE")}</div><div class="small">${s.unit}</div></div>`).join("")}</div>`;
+
+    table.innerHTML=`<h2>Details</h2><div class="table-wrap"><table><thead><tr><th>Datum</th><th>Markt</th><th>Bereich</th><th>Kennzahl</th><th>Wert</th><th>Einheit</th></tr></thead><tbody>${metrics.sort((a,b)=>a.metric_date.localeCompare(b.metric_date)).map(m=>`<tr><td>${formatDateDE(m.metric_date)}</td><td>${m.market}</td><td>${m.area}</td><td>${m.metric_name}</td><td>${Number(m.metric_value||0).toLocaleString("de-DE")}</td><td>${m.metric_unit||""}</td></tr>`).join("")}</tbody></table></div>`;
+  }
+
+  let nq=db.from("metric_notes").select("*").eq("area",analyticsAccess.area).gte("note_date",from).lte("note_date",to);
+  const {data:noteData,error:noteError}=await nq;
+  if(noteError){notes.innerHTML="Fehler: "+noteError.message;return;}
+  const noteRows=noteData||[];
+  notes.innerHTML=`<h2>Hinweise</h2>${noteRows.length?noteRows.sort((a,b)=>a.note_date.localeCompare(b.note_date)).map(n=>`<div class="task info"><div><strong>${formatDateDE(n.note_date)} | ${n.area}</strong><div>${n.note}</div></div></div>`).join(""):"Keine Hinweise im Zeitraum."}`;
 }
 
 function handleMarketChange(){
@@ -165,7 +281,17 @@ function handleControlMarketChange(){
   loadControlTasks();
 }
 
-function showTab(tab){document.getElementById("todoSection").style.display=tab==="todo"?"block":"none";document.getElementById("adminSection").style.display=tab==="admin"?"block":"none";document.getElementById("todoTab").classList.toggle("active",tab==="todo");document.getElementById("adminTab").classList.toggle("active",tab==="admin");if(tab==="admin"){loadAdminTasks();loadControlTasks()}else loadTasks()}
+function showTab(tab){
+  document.getElementById("todoSection").style.display=tab==="todo"?"block":"none";
+  document.getElementById("analyticsSection").style.display=tab==="analytics"?"block":"none";
+  document.getElementById("adminSection").style.display=tab==="admin"?"block":"none";
+  document.getElementById("todoTab").classList.toggle("active",tab==="todo");
+  document.getElementById("analyticsTab").classList.toggle("active",tab==="analytics");
+  document.getElementById("adminTab").classList.toggle("active",tab==="admin");
+  if(tab==="admin"){loadAdminTasks();loadControlTasks()}
+  else if(tab==="analytics"){prepareAnalytics()}
+  else loadTasks()
+}
 function openAdminPin(){if(!adminUnlocked){const pin=prompt("Admin-PIN eingeben:");if(pin===ADMIN_PIN)adminUnlocked=true;else if(pin!==null)return alert("Falsche PIN.");else return}showTab("admin")}
 function handleAreaChange(){const area=document.getElementById("areaFilter").value,isHaus=area==="Hausmeister",marketSelect=document.getElementById("marketFilter");document.getElementById("dayControl").style.display=isHaus?"none":"block";document.getElementById("monthControl").style.display=isHaus?"block":"none";marketSelect.options[0].style.display=isHaus?"block":"none";if(!isHaus&&marketSelect.value==="ALLE")marketSelect.value="Freckenfeld";localStorage.setItem("selectedArea",area);localStorage.setItem("selectedMarket",marketSelect.value);loadTasks()}
 function toggleAdminPeriodFields(){const area=(document.getElementById("adminCustomArea").value.trim()||document.getElementById("adminArea").value),mode=document.getElementById("adminTaskMode").value,isHaus=area==="Hausmeister",isSingle=mode==="single";document.getElementById("adminDaysBox").style.display=(!isHaus&&!isSingle)?"block":"none";document.getElementById("adminMonthBox").style.display=isHaus?"block":"none";document.getElementById("adminDateRangeBox").style.display=(!isHaus&&isSingle)?"block":"none"}
@@ -294,6 +420,7 @@ const nameInput=document.getElementById("name");nameInput.value=localStorage.get
 </script>
 </body>
 </html>
+
 
 
 
