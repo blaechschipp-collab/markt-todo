@@ -64,7 +64,10 @@
         <div><label>Duplikat-Schutz</label><select id="metricsDedupMode"><option value="replace" selected>Vorhandene Werte zu Markt+Datum überschreiben</option><option value="append">Anhängen (kann Duplikate erzeugen)</option></select></div>
       </div>
       <input id="metricsExcelFile" type="file" accept=".xlsx,.xls" style="margin-top:10px" />
-      <button class="btn-green" onclick="uploadMetricsExcel()" style="width:auto;margin-top:10px">Excel hochladen</button>
+      <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn-green" onclick="uploadMetricsExcel()" style="width:auto">Excel hochladen</button>
+        <button class="btn-red" onclick="clearAllMetrics()" style="width:auto">Alle Kennzahlen löschen (Reset)</button>
+      </div>
       <div id="metricsUploadMsg" class="small"></div>
     </div>
     <div class="box admin"><h2>Adminbereich – bestehende Aufgaben</h2><div class="small">Vorlagen, Einmalaufgaben und Übergaben als Tabelle.</div>
@@ -647,6 +650,28 @@ function parseEdekaBoSheet(matrix, format, year){
     }
   }
   return out;
+}
+
+/* ===========================
+   NEU: Komplettes Zurücksetzen der Kennzahlen
+   =========================== */
+async function clearAllMetrics(){
+  if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
+  const msg = document.getElementById("metricsUploadMsg");
+  const sure1 = confirm("Wirklich ALLE Kennzahlen aus der Datenbank löschen?\n\nDie Auswertungen sind danach leer, bis du wieder Excel-Dateien hochlädst.");
+  if(!sure1) return;
+  const sure2 = prompt('Zur Sicherheit bitte exakt   LÖSCHEN   eingeben:');
+  if(sure2 !== "LÖSCHEN"){ msg.innerHTML = "Abgebrochen. Es wurde nichts gelöscht."; return; }
+  msg.innerHTML = "Lösche alle Kennzahlen ...";
+  // Trick: gte auf ein sehr frühes Datum trifft alle Zeilen
+  const r = await db.from("metrics").delete().gte("metric_date", "1900-01-01");
+  if(r.error){
+    msg.innerHTML = "Fehler beim Löschen: " + r.error.message;
+    return;
+  }
+  msg.innerHTML = "Alle Kennzahlen wurden gelöscht. Du kannst jetzt die Excel-Dateien neu hochladen.";
+  await fillAnalyticsMarkets();
+  await fillAnalyticsAreas();
 }
 
 /* ===========================
