@@ -185,14 +185,33 @@ async function prepareAnalytics(){
   await fillAnalyticsMarkets();
   await fillAnalyticsAreas();
 }
+async function fetchAllPaged(buildQuery){
+  // Supabase liefert standardmaessig nur 1000 Zeilen pro Anfrage. Wir holen alles in Seiten.
+  const PAGE = 1000;
+  let offset = 0;
+  let all = [];
+  while(true){
+    const q = buildQuery().range(offset, offset + PAGE - 1);
+    const {data, error} = await q;
+    if(error) throw error;
+    const slice = data || [];
+    all = all.concat(slice);
+    if(slice.length < PAGE) break;
+    offset += PAGE;
+    if(offset > 200000) break; // Sicherheitsanker
+  }
+  return all;
+}
 async function fillAnalyticsMarkets(){
   const select=document.getElementById("analyticsMarket");
   if(!select) return;
   const current=select.value;
   select.innerHTML="";
-  const {data,error}=await db.from("metrics").select("market");
-  if(error){
-    console.error(error);
+  let data;
+  try{
+    data = await fetchAllPaged(()=>db.from("metrics").select("market"));
+  }catch(e){
+    console.error(e);
     const o=document.createElement("option");
     o.value="";
     o.textContent="Keine Märkte gefunden";
@@ -229,12 +248,11 @@ async function fillAnalyticsAreas(){
     select.appendChild(o);
     return;
   }
-  const {data,error}=await db
-    .from("metrics")
-    .select("area")
-    .eq("market",market);
-  if(error){
-    console.error(error);
+  let data;
+  try{
+    data = await fetchAllPaged(()=>db.from("metrics").select("area").eq("market",market));
+  }catch(e){
+    console.error(e);
     const o=document.createElement("option");
     o.value="";
     o.textContent="Keine Bereiche gefunden";
@@ -292,11 +310,17 @@ async function loadAnalytics(){
   const table=document.getElementById("analyticsTable");
   const notes=document.getElementById("analyticsNotes");
   cards.innerHTML="";table.innerHTML="";notes.innerHTML="";
-  let q=db.from("metrics").select("*").eq("area",analyticsAccess.area).gte("metric_date",from).lte("metric_date",to);
-  if(scope==="market") q=q.eq("market",analyticsAccess.market);
-  const {data,error}=await q;
-  if(error){cards.innerHTML="Fehler: "+error.message;return;}
-  const metrics=data||[];
+  let metrics;
+  try{
+    metrics = await fetchAllPaged(()=>{
+      let q = db.from("metrics").select("*").eq("area",analyticsAccess.area).gte("metric_date",from).lte("metric_date",to);
+      if(scope==="market") q = q.eq("market",analyticsAccess.market);
+      return q;
+    });
+  }catch(e){
+    cards.innerHTML="Fehler: "+(e.message||e);
+    return;
+  }
   const titleSuffix = scope==="market" ? `Nur ${analyticsAccess.market}` : "Alle Märkte";
   if(!metrics.length){cards.innerHTML=`<h2>Kennzahlen (${titleSuffix})</h2>Keine Kennzahlen für diesen Zeitraum.`;}
   else{
