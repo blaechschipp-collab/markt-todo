@@ -71,8 +71,8 @@
         <div><label>Fallback Markt</label><select id="metricsUploadMarket"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
         <div><label>Fallback Bereich</label><select id="metricsUploadArea"><option>O&G</option><option>MoPro</option><option>Markt</option><option>Hausmeister</option></select></div>
         <div><label>Fallback Datum</label><input id="metricsUploadDate" type="date"></div>
-        <div><label>Duplikat-Schutz</label><select id="metricsDedupMode"><option value="replace" selected>Vorhandene Werte zu Markt+Datum überschreiben</option><option value="append">Anhängen (kann Duplikate erzeugen)</option></select></div>
       </div>
+      <div class="small" style="margin-top:8px">Hinweis: Ein Upload fügt Werte hinzu und löscht nichts. Zum Reset bitte den roten Knopf unten verwenden.</div>
       <input id="metricsExcelFile" type="file" accept=".xlsx,.xls" style="margin-top:10px" />
       <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn-green" onclick="uploadMetricsExcel()" style="width:auto">Excel hochladen</button>
@@ -551,20 +551,77 @@ async function showArticles(market, area, periodWeeks){
     if(!articles[key].byDate[r.metric_date]) articles[key].byDate[r.metric_date] = {};
     articles[key].byDate[r.metric_date][kpi] = Number(r.metric_value) || 0;
   });
-  // Sortierung: nach Summe Abschriften aufsteigend (groesste Abschriften = stark negativ zuerst)
+  // Pro Artikel: Summe Abschriften und Mittelwert % am Umsatz vorausrechnen
   const list = Object.values(articles).map(a => {
     let totalAbs = 0;
-    Object.values(a.byDate).forEach(kv => { totalAbs += (kv["Abschriften VK [br]"] || 0); });
-    return {...a, totalAbs};
-  }).sort((a,b) => a.totalAbs - b.totalAbs);
-  let html = `<p class="small">Zeitraum: ${formatDateDE(range.fromDisplayISO)} bis ${formatDateDE(range.toDisplayISO)} &nbsp;·&nbsp; ${list.length} Artikel · sortiert nach höchsten Abschriften zuerst</p>`;
+    let pctVals = [];
+    Object.values(a.byDate).forEach(kv => {
+      if(kv["Abschriften VK [br]"] !== undefined) totalAbs += kv["Abschriften VK [br]"];
+      if(kv["Ant. Abschr. VK [br] am Umsatz %"] !== undefined) pctVals.push(kv["Ant. Abschr. VK [br] am Umsatz %"]);
+    });
+    const avgPct = pctVals.length ? pctVals.reduce((s,x)=>s+x,0) / pctVals.length : null;
+    return {...a, totalAbs, avgPct};
+  });
+  // State fuer Sortierung speichern
+  articleViewState = {
+    list,
+    range,
+    sortKey: "totalAbs",
+    sortDir: "asc" // staerkste Abschriften (negativste) zuerst
+  };
+  renderArticleTable();
+}
+let articleViewState = null;
+function setArticleSort(key){
+  if(!articleViewState) return;
+  if(articleViewState.sortKey === key){
+    articleViewState.sortDir = articleViewState.sortDir === "asc" ? "desc" : "asc";
+  } else {
+    articleViewState.sortKey = key;
+    // sinnvolle Default-Richtung pro Spalte
+    articleViewState.sortDir = (key === "totalAbs" || key === "avgPct") ? "asc" : "asc";
+  }
+  renderArticleTable();
+}
+function renderArticleTable(){
+  if(!articleViewState) return;
+  const {list, range, sortKey, sortDir} = articleViewState;
+  // Sortierung anwenden
+  const sorted = [...list].sort((a,b)=>{
+    const av = a[sortKey];
+    const bv = b[sortKey];
+    if(av === null || av === undefined) return 1;
+    if(bv === null || bv === undefined) return -1;
+    if(typeof av === "number" && typeof bv === "number"){
+      return sortDir === "asc" ? av - bv : bv - av;
+    }
+    const cmp = String(av).localeCompare(String(bv), "de");
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+  function arrow(key){
+    if(sortKey !== key) return `<span style="opacity:.35">↕</span>`;
+    return sortDir === "asc" ? "↑" : "↓";
+  }
+  function thBtn(key, label, align){
+    const alignAttr = align ? ` style="text-align:${align};cursor:pointer;user-select:none"` : ` style="cursor:pointer;user-select:none"`;
+    return `<th${alignAttr} onclick="setArticleSort('${key}')">${label} ${arrow(key)}</th>`;
+  }
+  let html = `<p class="small">Zeitraum: ${formatDateDE(range.fromDisplayISO)} bis ${formatDateDE(range.toDisplayISO)} &nbsp;·&nbsp; ${sorted.length} Artikel · Spalten mit ↕ sind sortierbar (Klick zum Umschalten)</p>`;
   html += `<div class="table-wrap"><table><thead><tr>
-    <th>Art.-Nr.</th><th>Bezeichnung</th><th>GTIN</th><th>Datum (KW-Do)</th>
-    <th style="text-align:right">Abschriften €</th><th style="text-align:right">% am Umsatz</th>
+    ${thBtn("artNo", "Art.-Nr.")}
+    ${thBtn("artName", "Bezeichnung")}
+    <th>GTIN</th>
+    <th>Datum (KW-Do)</th>
+    ${thBtn("totalAbs", "Abschriften € (Summe)", "right")}
+    ${thBtn("avgPct", "Ø % am Umsatz", "right")}
   </tr></thead><tbody>`;
-  list.forEach(a => {
+  sorted.forEach(a => {
     const dates = Object.keys(a.byDate).sort();
-    const span = dates.length;
+    const span = Math.max(dates.length, 1);
+    if(!dates.length){
+      html += `<tr><td><strong>${a.artNo}</strong></td><td>${a.artName}</td><td>${a.gtin}</td><td>–</td><td style="text-align:right">${a.totalAbs.toLocaleString("de-DE",{maximumFractionDigits:2})}</td><td style="text-align:right">${a.avgPct !== null ? a.avgPct.toLocaleString("de-DE",{maximumFractionDigits:2})+" %" : "–"}</td></tr>`;
+      return;
+    }
     dates.forEach((d, idx) => {
       const kv = a.byDate[d];
       const abs = kv["Abschriften VK [br]"];
@@ -580,12 +637,22 @@ async function showArticles(market, area, periodWeeks){
       html += `<td style="text-align:right">${pct !== undefined ? pct.toLocaleString("de-DE",{maximumFractionDigits:2}) + " %" : "–"}</td>`;
       html += `</tr>`;
     });
+    // Optional: Summenzeile pro Artikel, wenn mehr als 1 Datum
+    if(dates.length > 1){
+      html += `<tr style="background:#f1f5f9;font-weight:bold">
+        <td colspan="3" style="text-align:right">Summe / Ø für ${a.artNo}:</td>
+        <td>–</td>
+        <td style="text-align:right">${a.totalAbs.toLocaleString("de-DE",{maximumFractionDigits:2})}</td>
+        <td style="text-align:right">${a.avgPct !== null ? a.avgPct.toLocaleString("de-DE",{maximumFractionDigits:2})+" %" : "–"}</td>
+      </tr>`;
+    }
   });
   html += `</tbody></table></div>`;
-  modalBody.innerHTML = html;
+  document.getElementById("articleModalBody").innerHTML = html;
 }
 function closeArticleModal(){
   document.getElementById("articleModal").style.display = "none";
+  articleViewState = null;
 }
 /* alte Analytics-Funktion entfernt — neue Version weiter oben */
 function handleMarketChange(){
@@ -985,7 +1052,6 @@ async function uploadMetricsExcel(){
   const fallbackMarket = document.getElementById("metricsUploadMarket").value;
   const fallbackArea = document.getElementById("metricsUploadArea").value;
   const fallbackDate = document.getElementById("metricsUploadDate").value || todayISO();
-  const dedupMode = document.getElementById("metricsDedupMode")?.value || "replace";
   const file = input.files[0];
   const buffer = await file.arrayBuffer();
   const workbook = XLSX.read(buffer, {type:"array"});
@@ -1048,24 +1114,7 @@ async function uploadMetricsExcel(){
     return;
   }
 
-  // Duplikat-Schutz: alle bestehenden Werte zu denselben Markt+Datum-Kombinationen entfernen
-  if(dedupMode === "replace"){
-    const uniqMarkets = [...new Set(inserts.map(i => i.market))];
-    const uniqDates = [...new Set(inserts.map(i => i.metric_date))];
-    if(uniqMarkets.length && uniqDates.length){
-      // In Datums-Batches loeschen, falls die Liste sehr lang ist
-      const DEL_BATCH = 100;
-      for(let i=0; i<uniqDates.length; i+=DEL_BATCH){
-        const datesSlice = uniqDates.slice(i, i+DEL_BATCH);
-        const delResult = await db.from("metrics").delete().in("market", uniqMarkets).in("metric_date", datesSlice);
-        if(delResult.error){
-          msg.innerHTML = "Fehler beim Bereinigen alter Werte: " + delResult.error.message + "<br>" + debug.join("<br>");
-          return;
-        }
-      }
-    }
-  }
-
+  // Kein automatisches Loeschen mehr. Aufraeumen passiert nur ueber den Reset-Knopf.
   // In Batches einfuegen
   const BATCH = 500;
   let inserted = 0;
