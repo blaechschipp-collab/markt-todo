@@ -9,7 +9,16 @@
   <style>
     :root{--blue:#004f9e;--blue-dark:#00315f;--yellow:#ffdd00;--red:#ef4444;--orange:#f59e0b;--green:#22c55e;--border:#d8e2ef;--text:#08213f}
     *{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(180deg,var(--blue-dark),var(--blue));color:var(--text);min-height:100vh}.header{background:linear-gradient(135deg,#002b55,#0059ad);padding:22px 26px 18px;border-bottom:6px solid var(--yellow)}.brand{max-width:1300px;margin:0 auto}.logo{max-width:520px;width:100%;height:auto;display:block}.brand-title{font-size:44px;font-weight:900;font-style:italic;color:#fff}.brand-subtitle{font-size:18px;color:#d9ecff}.main{max-width:1300px;margin:0 auto;padding:24px}.tabs{display:flex;gap:10px;margin-bottom:18px}.tab{border:2px solid var(--yellow);background:transparent;color:#fff;padding:14px 24px;border-radius:12px 12px 0 0;font-weight:bold;cursor:pointer}.tab.active{background:var(--yellow);color:var(--blue-dark)}.todo-tab{flex:7}.analytics-tab{flex:2}.admin-tab{flex:1;min-width:92px}.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:14px}.metric-card{background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:16px}.metric-value{font-size:28px;font-weight:900;color:var(--blue-dark)}.locked{opacity:.75}.box{background:#fff;border-radius:14px;padding:18px;margin-bottom:18px;box-shadow:0 8px 24px rgba(0,0,0,.14)}.admin{border:3px solid var(--yellow)}.control-grid{display:grid;grid-template-columns:repeat(5,minmax(160px,1fr));gap:14px;align-items:end}label{font-weight:bold;font-size:14px;display:block;margin-bottom:6px}input,select,textarea,button{padding:12px;border-radius:8px;border:1px solid #b8c7d9;font-size:15px;width:100%}textarea{min-height:86px;resize:vertical}button{cursor:pointer;font-weight:bold;border:none}.btn-yellow{background:var(--yellow);color:var(--blue-dark)}.btn-blue{background:var(--blue);color:#fff}.btn-dark{background:var(--blue-dark);color:#fff}.btn-red{background:#c62828;color:#fff}.btn-green{background:#2e7d32;color:#fff}.task{padding:14px;border-radius:10px;margin-bottom:10px;border:1px solid var(--border);display:flex;gap:12px;align-items:flex-start}.high{background:#ffe5e5;border-color:#ffb3b3}.medium{background:#fff5cc;border-color:#ffe480}.low{background:#e8f5e9;border-color:#bde8c3}.info{background:#e0f2fe;border-color:#7dd3fc}.done{text-decoration:line-through;color:#6b7280}.pill{display:inline-block;padding:3px 8px;border-radius:999px;color:#fff;font-size:12px;font-weight:bold;margin-left:6px}.high-p{background:var(--red)}.medium-p{background:var(--orange)}.low-p{background:var(--green)}.open-p{background:#64748b}.done-p{background:var(--green)}.info-p{background:#0284c7}.small{font-size:13px;color:#64748b;margin-top:4px}.days label,.months label{display:inline-flex;align-items:center;gap:6px;margin:6px 12px 6px 0;font-weight:normal}.days input,.months input{width:auto}.admin-actions{display:flex;gap:8px;flex-wrap:wrap}.admin-actions button{width:auto}.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px}table{border-collapse:collapse;width:100%;min-width:900px;background:#fff}th,td{border:1px solid #e1e8f0;padding:9px;text-align:left;font-size:13px}th{background:#f1f5f9}.footer{background:var(--yellow);color:var(--blue-dark);text-align:center;padding:18px;font-weight:bold;margin-top:30px}
+    .kpi-block .kpi-cards{display:none}
+    .kpi-mobile-card{background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px}
+    .kpi-mobile-card h3{margin:0 0 8px;font-size:16px;color:var(--blue-dark)}
+    .kpi-mobile-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #eef2f7;font-size:14px;gap:8px}
+    .kpi-mobile-row:last-of-type{border-bottom:none}
+    .kpi-mobile-row .label{color:#475569;flex:1;min-width:0}
+    .kpi-mobile-row .value{font-weight:bold;text-align:right;white-space:nowrap}
+    .kpi-mobile-card .kpi-mobile-action{margin-top:10px}
     @media(max-width:900px){body{background:var(--blue-dark)}.header{padding:14px 12px 12px}.main{padding:12px}.logo{max-width:280px}.tabs{position:sticky;top:0;z-index:10;background:var(--blue-dark);padding-top:8px}.todo-tab{flex:6}.analytics-tab{flex:3}.admin-tab{flex:1;min-width:70px}.tab{padding:12px 8px;font-size:14px}.metric-grid{grid-template-columns:1fr}.box{padding:12px;border-radius:12px;margin-bottom:12px}.control-grid{grid-template-columns:1fr;gap:10px}input,select,textarea,button{font-size:16px;padding:13px}.task{padding:12px;gap:10px}.task input[type="checkbox"]{width:24px;height:24px;flex:0 0 24px}.admin-actions{display:grid;grid-template-columns:1fr 1fr}.admin-actions button{width:100%}.footer{font-size:13px;padding:12px}}
+    @media(max-width:700px){.kpi-block .kpi-table{display:none}.kpi-block .kpi-cards{display:block}}
   </style>
 </head>
 <body>
@@ -38,6 +47,7 @@
           <div><label>Zeitraum</label><select id="analyticsPeriod" onchange="loadAnalytics()">
             <option value="1">Letzte Kalenderwoche</option>
             <option value="4">Letzte 4 Kalenderwochen</option>
+            <option value="year">Gesamtes laufendes Jahr</option>
           </select></div>
           <div><label>Bereich filtern</label><select id="analyticsBereich" onchange="loadAnalytics()"><option value="">Alle Bereiche</option></select></div>
           <div><label>&nbsp;</label><button class="btn-yellow" onclick="loadAnalytics()">Aktualisieren</button></div>
@@ -330,17 +340,30 @@ function lastCompletedISOWeekThursday(){
   thursday.setDate(lastSunday.getDate() - 3); // Donnerstag dieser KW
   return thursday;
 }
-function isoPeriodRange(periodWeeks){
+function isoPeriodRange(period){
+  // period: "1", "4" oder "year"
   const endThu = lastCompletedISOWeekThursday();
-  const startThu = new Date(endThu);
-  startThu.setDate(endThu.getDate() - (periodWeeks - 1) * 7);
+  let startThu;
+  let labelSuffix = "";
+  if(period === "year"){
+    // Jahresbeginn = Donnerstag der KW01 des aktuellen Jahres
+    const year = new Date().getFullYear();
+    startThu = thursdayOfISOWeek(year, 1);
+    labelSuffix = "Gesamtes laufendes Jahr";
+  } else {
+    const periodWeeks = parseInt(period, 10) || 1;
+    startThu = new Date(endThu);
+    startThu.setDate(endThu.getDate() - (periodWeeks - 1) * 7);
+    labelSuffix = periodWeeks + " Kalenderwoche" + (periodWeeks > 1 ? "n" : "");
+  }
   const startMon = new Date(startThu); startMon.setDate(startThu.getDate() - 3);
   const endSun = new Date(endThu); endSun.setDate(endThu.getDate() + 3);
   return {
     fromThuISO: formatDate(startThu),
     toThuISO: formatDate(endThu),
     fromDisplayISO: formatDate(startMon),
-    toDisplayISO: formatDate(endSun)
+    toDisplayISO: formatDate(endSun),
+    labelSuffix
   };
 }
 function computeArrow(kind, value, compareDiff){
@@ -378,13 +401,13 @@ function sumArr(a){return a ? a.reduce((s,x)=>s+(Number(x)||0), 0) : 0;}
 function avgArr(a){return a && a.length ? (a.reduce((s,x)=>s+(Number(x)||0), 0) / a.length) : null;}
 async function loadAnalytics(){
   if(!analyticsAccess) return;
-  const periodWeeks = parseInt(document.getElementById("analyticsPeriod").value, 10) || 1;
+  const period = document.getElementById("analyticsPeriod").value || "1";
   const selectedBereich = document.getElementById("analyticsBereich").value;
   const content = document.getElementById("analyticsContent");
   const periodLabel = document.getElementById("analyticsPeriodLabel");
   content.innerHTML = `<div class="box">Lade Daten ...</div>`;
-  const range = isoPeriodRange(periodWeeks);
-  periodLabel.innerHTML = `Zeitraum: ${formatDateDE(range.fromDisplayISO)} bis ${formatDateDE(range.toDisplayISO)} (${periodWeeks} Kalenderwoche${periodWeeks>1?"n":""})`;
+  const range = isoPeriodRange(period);
+  periodLabel.innerHTML = `Zeitraum: ${formatDateDE(range.fromDisplayISO)} bis ${formatDateDE(range.toDisplayISO)} (${range.labelSuffix})`;
   let allRows;
   try{
     allRows = await fetchAllPaged(()=>{
@@ -404,13 +427,14 @@ async function loadAnalytics(){
     content.innerHTML = `<div class="box">Keine Werte für diesen Zeitraum.</div>`;
     return;
   }
-  // Gruppierung: area -> market -> {kpi: [values]}
+  // Gruppierung: area -> market -> byDate -> {kpi: value}
+  // So koennen wir Spanne mit Umsatz desselben Datums gewichten.
   const groups = {};
   allRows.forEach(m => {
     const key = `${m.area}||${m.market}`;
-    if(!groups[key]) groups[key] = {area: m.area, market: m.market, vals: {}};
-    if(!groups[key].vals[m.metric_name]) groups[key].vals[m.metric_name] = [];
-    groups[key].vals[m.metric_name].push(Number(m.metric_value) || 0);
+    if(!groups[key]) groups[key] = {area: m.area, market: m.market, byDate: {}};
+    if(!groups[key].byDate[m.metric_date]) groups[key].byDate[m.metric_date] = {};
+    groups[key].byDate[m.metric_date][m.metric_name] = Number(m.metric_value) || 0;
   });
   // Bereiche sortieren: "Markt Gesamt" zuerst, Rest alphabetisch
   const areasInData = [...new Set(Object.values(groups).map(g => g.area))];
@@ -420,70 +444,108 @@ async function loadAnalytics(){
   areas.forEach(area => {
     const marketsForArea = ANALYTICS_MARKET_ORDER.filter(m => groups[`${area}||${m}`]);
     if(!marketsForArea.length) return;
-    // Kennzahlen je Markt vorab berechnen
+    // Kennzahlen je Markt vorab berechnen – Spanne wird umsatz-gewichtet
+    // (mathematisch identisch zur "Ergebnis"-Spalte aus dem BO-Export).
     const perMarket = marketsForArea.map(market => {
-      const v = groups[`${area}||${market}`].vals;
-      const umsatz = sumArr(v["Umsatz"]);
-      const umsatzVj = sumArr(v["Umsatz Vj"]);
+      const byDate = groups[`${area}||${market}`].byDate;
+      let umsatz = 0, umsatzVj = 0, kunden = 0, kundenVj = 0, abschrSum = 0;
+      let ertragWeighted = 0, ertragWeights = 0, ertragSimple = [];
+      let ertragVjWeighted = 0, ertragVjWeights = 0, ertragVjSimple = [];
+      let pctSimple = [];
+      Object.keys(byDate).forEach(d => {
+        const v = byDate[d];
+        if(v["Umsatz"] !== undefined) umsatz += v["Umsatz"];
+        if(v["Umsatz Vj"] !== undefined) umsatzVj += v["Umsatz Vj"];
+        if(v["Kunden"] !== undefined) kunden += v["Kunden"];
+        if(v["Kunden Vj"] !== undefined) kundenVj += v["Kunden Vj"];
+        if(v["Abschriften VK [br]"] !== undefined) abschrSum += v["Abschriften VK [br]"];
+        if(v["Nettoertragssp."] !== undefined){
+          if(v["Umsatz"] !== undefined && v["Umsatz"] > 0){
+            ertragWeighted += v["Nettoertragssp."] * v["Umsatz"];
+            ertragWeights += v["Umsatz"];
+          } else {
+            ertragSimple.push(v["Nettoertragssp."]);
+          }
+        }
+        if(v["Nettoertragssp. Vj"] !== undefined){
+          if(v["Umsatz Vj"] !== undefined && v["Umsatz Vj"] > 0){
+            ertragVjWeighted += v["Nettoertragssp. Vj"] * v["Umsatz Vj"];
+            ertragVjWeights += v["Umsatz Vj"];
+          } else {
+            ertragVjSimple.push(v["Nettoertragssp. Vj"]);
+          }
+        }
+        if(v["Ant. Abschr. VK [br] am Umsatz %"] !== undefined){
+          pctSimple.push(v["Ant. Abschr. VK [br] am Umsatz %"]);
+        }
+      });
       const umsatzPct = (umsatzVj > 0) ? ((umsatz - umsatzVj) / umsatzVj * 100) : null;
-      const kunden = sumArr(v["Kunden"]);
-      const kundenVj = sumArr(v["Kunden Vj"]);
       const kundenPct = (kundenVj > 0) ? ((kunden - kundenVj) / kundenVj * 100) : null;
-      const ertrag = avgArr(v["Nettoertragssp."]);
-      const ertragVj = avgArr(v["Nettoertragssp. Vj"]);
+      let ertrag = null;
+      if(ertragWeights > 0) ertrag = ertragWeighted / ertragWeights;
+      else if(ertragSimple.length) ertrag = ertragSimple.reduce((a,b)=>a+b,0) / ertragSimple.length;
+      let ertragVj = null;
+      if(ertragVjWeights > 0) ertragVj = ertragVjWeighted / ertragVjWeights;
+      else if(ertragVjSimple.length) ertragVj = ertragVjSimple.reduce((a,b)=>a+b,0) / ertragVjSimple.length;
       const ertragDiff = (ertrag !== null && ertragVj !== null) ? (ertrag - ertragVj) : null;
-      const abschrSum = sumArr(v["Abschriften VK [br]"]);
       let abschrPct;
-      if(umsatz > 0 && v["Abschriften VK [br]"]){
+      if(umsatz > 0 && abschrSum !== 0){
         abschrPct = abschrSum / umsatz * 100;
-      } else if(v["Ant. Abschr. VK [br] am Umsatz %"]){
-        abschrPct = avgArr(v["Ant. Abschr. VK [br] am Umsatz %"]);
+      } else if(pctSimple.length){
+        abschrPct = pctSimple.reduce((a,b)=>a+b,0) / pctSimple.length;
       } else {
         abschrPct = null;
       }
       return {market, umsatzPct, kundenPct, ertrag, ertragVj, ertragDiff, abschrPct};
     });
     const hasArticles = (area !== "Markt Gesamt");
-    // Header: Kennzahl | Markt1 | Markt2 | ...
-    html += `<div class="box"><h2 style="margin-top:0">${area}</h2><div class="table-wrap"><table><thead><tr><th>Kennzahl</th>`;
+    // Desktop-Tabelle: Kennzahl | Markt1 | Markt2 | ...
+    html += `<div class="box kpi-block"><h2 style="margin-top:0">${area}</h2>`;
+    html += `<div class="kpi-table"><div class="table-wrap"><table><thead><tr><th>Kennzahl</th>`;
     perMarket.forEach(p => html += `<th>${p.market}</th>`);
     html += `</tr></thead><tbody>`;
-    // Zeile 1: Umsatz vs Vj
     html += `<tr><td><strong>Umsatz vs. Vorjahr</strong></td>`;
     perMarket.forEach(p => html += `<td>${formatKpiCell(p.umsatzPct, "%", "vs_vj")}</td>`);
-    html += `</tr>`;
-    // Zeile 2: Kunden vs Vj
-    html += `<tr><td><strong>Kunden vs. Vorjahr</strong></td>`;
+    html += `</tr><tr><td><strong>Kunden vs. Vorjahr</strong></td>`;
     perMarket.forEach(p => html += `<td>${formatKpiCell(p.kundenPct, "%", "vs_vj")}</td>`);
-    html += `</tr>`;
-    // Zeile 3: Nettoertragsspanne
-    html += `<tr><td><strong>Nettoertragsspanne</strong></td>`;
+    html += `</tr><tr><td><strong>Nettoertragsspanne</strong></td>`;
     perMarket.forEach(p => html += `<td>${formatKpiCell(p.ertrag, "%", "ertrag", p.ertragDiff)}</td>`);
-    html += `</tr>`;
-    // Zeile 4: Nettoertragsspanne Vj
-    html += `<tr><td><strong>Nettoertragssp. Vorjahr</strong></td>`;
+    html += `</tr><tr><td><strong>Nettoertragssp. Vorjahr</strong></td>`;
     perMarket.forEach(p => html += `<td>${formatKpiCell(p.ertragVj, "%", "info")}</td>`);
-    html += `</tr>`;
-    // Zeile 5: Abschriften am Umsatz
-    html += `<tr><td><strong>Abschriften am Umsatz</strong></td>`;
+    html += `</tr><tr><td><strong>Abschriften am Umsatz</strong></td>`;
     perMarket.forEach(p => html += `<td>${formatKpiCell(p.abschrPct, "%", "abschr")}</td>`);
     html += `</tr>`;
-    // Zeile 6: Artikel-Buttons (nur fuer Abteilungs-Bereiche, nicht Markt Gesamt)
     if(hasArticles){
       html += `<tr><td></td>`;
       perMarket.forEach(p => {
-        const btn = `<button class="btn-blue" style="width:auto" onclick="showArticles('${p.market.replace(/'/g, "\\'")}','${area.replace(/'/g, "\\'")}',${periodWeeks})">Artikel anschauen</button>`;
+        const btn = `<button class="btn-blue" style="width:auto" onclick="showArticles('${p.market.replace(/'/g, "\\'")}','${area.replace(/'/g, "\\'")}','${period}')">Artikel anschauen</button>`;
         html += `<td>${btn}</td>`;
       });
       html += `</tr>`;
     }
     html += `</tbody></table></div></div>`;
+    // Mobile-Karten: pro Markt eine Karte mit den 5 Kennzahlen untereinander
+    html += `<div class="kpi-cards">`;
+    perMarket.forEach(p => {
+      html += `<div class="kpi-mobile-card"><h3>${p.market}</h3>`;
+      html += `<div class="kpi-mobile-row"><span class="label">Umsatz vs. Vorjahr</span><span class="value">${formatKpiCell(p.umsatzPct, "%", "vs_vj")}</span></div>`;
+      html += `<div class="kpi-mobile-row"><span class="label">Kunden vs. Vorjahr</span><span class="value">${formatKpiCell(p.kundenPct, "%", "vs_vj")}</span></div>`;
+      html += `<div class="kpi-mobile-row"><span class="label">Nettoertragsspanne</span><span class="value">${formatKpiCell(p.ertrag, "%", "ertrag", p.ertragDiff)}</span></div>`;
+      html += `<div class="kpi-mobile-row"><span class="label">Nettoertragssp. Vorjahr</span><span class="value">${formatKpiCell(p.ertragVj, "%", "info")}</span></div>`;
+      html += `<div class="kpi-mobile-row"><span class="label">Abschriften am Umsatz</span><span class="value">${formatKpiCell(p.abschrPct, "%", "abschr")}</span></div>`;
+      if(hasArticles){
+        html += `<div class="kpi-mobile-action"><button class="btn-blue" style="width:100%" onclick="showArticles('${p.market.replace(/'/g, "\\'")}','${area.replace(/'/g, "\\'")}','${period}')">Artikel anschauen</button></div>`;
+      }
+      html += `</div>`;
+    });
+    html += `</div>`;
+    html += `</div>`; // schliesst kpi-block
   });
   if(!html) html = `<div class="box">Keine passenden Werte gefunden.</div>`;
   content.innerHTML = html;
 }
-async function showArticles(market, area, periodWeeks){
-  const range = isoPeriodRange(periodWeeks);
+async function showArticles(market, area, period){
+  const range = isoPeriodRange(period);
   const modalTitle = document.getElementById("articleModalTitle");
   const modalBody = document.getElementById("articleModalBody");
   modalTitle.textContent = `Artikel – ${area} / ${market}`;
@@ -693,11 +755,131 @@ function openAdminPin(){if(!adminUnlocked){const pin=prompt("Admin-PIN eingeben:
 function handleAreaChange(){const area=document.getElementById("areaFilter").value,isHaus=area==="Hausmeister",marketSelect=document.getElementById("marketFilter");document.getElementById("dayControl").style.display=isHaus?"none":"block";document.getElementById("monthControl").style.display=isHaus?"block":"none";marketSelect.options[0].style.display=isHaus?"block":"none";if(!isHaus&&marketSelect.value==="ALLE")marketSelect.value="Freckenfeld";localStorage.setItem("selectedArea",area);localStorage.setItem("selectedMarket",marketSelect.value);loadTasks()}
 function toggleAdminPeriodFields(){const area=(document.getElementById("adminCustomArea").value.trim()||document.getElementById("adminArea").value),mode=document.getElementById("adminTaskMode").value,isHaus=area==="Hausmeister",isSingle=mode==="single";document.getElementById("adminDaysBox").style.display=(!isHaus&&!isSingle)?"block":"none";document.getElementById("adminMonthBox").style.display=isHaus?"block":"none";document.getElementById("adminDateRangeBox").style.display=(!isHaus&&isSingle)?"block":"none"}
 async function fetchLogs(ids,dateISO){if(!ids.length)return{};const{data,error}=await db.from("task_logs").select("*").in("task_id",ids).eq("done_date",dateISO);if(error)throw error;const m={};(data||[]).forEach(l=>m[l.task_id]=l);return m}
+function previousWorkingDayISO(dateISO){
+  const d = new Date(dateISO + "T00:00:00");
+  do { d.setDate(d.getDate() - 1); } while(d.getDay() === 0); // Sonntag ueberspringen
+  return formatDate(d);
+}
+function bumpPriority(priority){
+  const p = String(priority || "").toLowerCase();
+  if(p === "niedrig") return "mittel";
+  if(p === "mittel") return "hoch";
+  if(p === "info") return "info";
+  return "hoch";
+}
+function lastDayOfMonthISO(monthYYYYMM){
+  const [y, m] = monthYYYYMM.split("-").map(Number);
+  const d = new Date(y, m, 0); // Tag 0 vom Folgemonat = letzter Tag dieses Monats
+  return formatDate(d);
+}
+function monthLabelDE(monthYYYYMM){
+  return new Date(monthYYYYMM + "-01T00:00:00").toLocaleDateString("de-DE", {month: "long", year: "numeric"});
+}
 function taskApplies(task, dateISO, day){if(task.task_type==="handover"||task.task_type==="single")return task.start_date<=dateISO&&task.end_date>=dateISO;if(task.area==="Hausmeister")return task.month===monthFromISO(dateISO);return task.day===day}
-async function loadTasks(){const market=document.getElementById("marketFilter").value,area=document.getElementById("areaFilter").value;if(area==="Hausmeister")return loadMonthlyTasks(market);const day=document.getElementById("day").value||DAY_NAMES[0],dateISO=dateForDayName(day),container=document.getElementById("tasks");container.innerHTML="";let q=db.from("tasks").select("*").eq("market",market).neq("area","Hausmeister");if(area)q=q.eq("area",area);const{data,error}=await q;if(error)return container.innerHTML="Fehler: "+error.message;const tasks=(data||[]).filter(t=>taskApplies(t,dateISO,day));if(!tasks.length)return container.innerHTML="Keine Aufgaben für diesen Markt / Tag.";const logs=await fetchLogs(tasks.map(t=>t.id),dateISO);tasks.sort(prioritySort);container.innerHTML=`<h2>${day} – ${formatDateDE(dateISO)}</h2>`;tasks.forEach(task=>{const log=logs[task.id],checked=log?"checked":"",doneClass=log?"done":"";const div=document.createElement("div");div.className=`task ${task.task_type==="handover"?"info":priorityClass(task.priority)}`;div.innerHTML=`<input type="checkbox" ${checked} onchange="toggleTask('${task.id}','${dateISO}',this.checked)"><div><div class="${doneClass}"><strong>${task.market||""}</strong> | <strong>${task.area||""}</strong> – ${task.title} ${task.task_type==="handover"?priorityPill("info"):priorityPill(task.priority)}</div><div class="small">Soll-Datum: ${formatDateDE(dateISO)}${task.task_type==="handover"?" | Übergabe/Info":""}${log?" | Erledigt von: "+log.done_by+" | "+formatDateTimeDE(log.done_at):""}</div></div>`;container.appendChild(div)})}
+async function loadTasks(){
+  const market = document.getElementById("marketFilter").value;
+  const area = document.getElementById("areaFilter").value;
+  if(area === "Hausmeister") return loadMonthlyTasks(market);
+  const day = document.getElementById("day").value || DAY_NAMES[0];
+  const dateISO = dateForDayName(day);
+  const container = document.getElementById("tasks");
+  container.innerHTML = "";
+  let q = db.from("tasks").select("*").eq("market", market).neq("area", "Hausmeister");
+  if(area) q = q.eq("area", area);
+  const {data, error} = await q;
+  if(error) return container.innerHTML = "Fehler: " + error.message;
+  const allFetched = data || [];
+  const todaysTasks = allFetched.filter(t => taskApplies(t, dateISO, day));
+  // Carry-over vom vorigen Werktag: nur recurring Aufgaben, die gestern offen geblieben sind
+  let carryOvers = [];
+  if(dateISO <= todayISO()){
+    const prevISO = previousWorkingDayISO(dateISO);
+    const prevDay = dayNameFromISO(prevISO);
+    const prevDayTasks = allFetched.filter(t => t.task_type === "recurring" && taskApplies(t, prevISO, prevDay));
+    if(prevDayTasks.length){
+      const prevLogs = await fetchLogs(prevDayTasks.map(t => t.id), prevISO);
+      const todayIds = new Set(todaysTasks.map(t => t.id));
+      carryOvers = prevDayTasks
+        .filter(t => !prevLogs[t.id] && !todayIds.has(t.id))
+        .map(t => ({...t, _carryOver: true, _origDateISO: prevISO, _origPriority: t.priority, priority: bumpPriority(t.priority)}));
+    }
+  }
+  if(!todaysTasks.length && !carryOvers.length){
+    return container.innerHTML = `<h2>${day} – ${formatDateDE(dateISO)}</h2><div class="small">Keine Aufgaben für diesen Markt / Tag.</div>`;
+  }
+  const todaysLogs = todaysTasks.length ? await fetchLogs(todaysTasks.map(t => t.id), dateISO) : {};
+  carryOvers.sort(prioritySort);
+  todaysTasks.sort(prioritySort);
+  const allDisplay = [...carryOvers, ...todaysTasks];
+  container.innerHTML = `<h2>${day} – ${formatDateDE(dateISO)}</h2>`;
+  if(carryOvers.length){
+    const note = document.createElement("div");
+    note.style.cssText = "background:#fff4e0;border:1px solid #f59e0b;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:14px";
+    note.innerHTML = `⚠️ <strong>${carryOvers.length}</strong> offene Aufgabe(n) vom ${formatDateDE(carryOvers[0]._origDateISO)} wurden auf heute übertragen. Die Wichtigkeit ist automatisch um eine Stufe erhöht.`;
+    container.appendChild(note);
+  }
+  allDisplay.forEach(task => {
+    const isCarry = task._carryOver;
+    const logDateISO = isCarry ? task._origDateISO : dateISO;
+    const log = isCarry ? null : todaysLogs[task.id];
+    const checked = log ? "checked" : "";
+    const doneClass = log ? "done" : "";
+    const div = document.createElement("div");
+    div.className = `task ${task.task_type === "handover" ? "info" : priorityClass(task.priority)}`;
+    if(isCarry) div.style.borderLeft = "5px solid #c2410c";
+    const carryBadge = isCarry ? ` <span class="pill" style="background:#c2410c">Übertrag</span>` : "";
+    const carryNote = isCarry ? ` | Soll war ${formatDateDE(task._origDateISO)}, ursprünglich „${task._origPriority}"` : "";
+    div.innerHTML = `<input type="checkbox" ${checked} onchange="toggleTask('${task.id}','${logDateISO}',this.checked)">
+      <div>
+        <div class="${doneClass}"><strong>${task.market || ""}</strong> | <strong>${task.area || ""}</strong> – ${task.title} ${task.task_type === "handover" ? priorityPill("info") : priorityPill(task.priority)}${carryBadge}</div>
+        <div class="small">${isCarry ? "Übertrag" : "Soll-Datum: " + formatDateDE(dateISO)}${task.task_type === "handover" ? " | Übergabe/Info" : ""}${carryNote}${log ? " | Erledigt von: " + log.done_by + " | " + formatDateTimeDE(log.done_at) : ""}</div>
+      </div>`;
+    container.appendChild(div);
+  });
+}
 async function loadMonthlyTasks(market){const month=document.getElementById("monthFilter").value,container=document.getElementById("tasks");container.innerHTML="";let query=db.from("tasks").select("*").eq("area","Hausmeister").eq("month",month);if(market!=="ALLE")query=query.eq("market",market);const{data,error}=await query;if(error)return container.innerHTML="Fehler: "+error.message;if(!data||!data.length)return container.innerHTML="Keine Hausmeister-Aufgaben für diesen Markt / Monat.";const monthDate=`${month}-01`,logs=await fetchLogs(data.map(t=>t.id),monthDate);data.sort(prioritySort);container.innerHTML=`<h2>Hausmeister Aufgaben – ${new Date(month+"-01T00:00:00").toLocaleDateString("de-DE",{month:"long",year:"numeric"})}</h2>`;data.forEach(task=>{const log=logs[task.id],checked=log?"checked":"",doneClass=log?"done":"";const div=document.createElement("div");div.className=`task ${priorityClass(task.priority)}`;div.innerHTML=`<input type="checkbox" ${checked} onchange="toggleTask('${task.id}','${monthDate}',this.checked)"><div><div class="${doneClass}"><strong>${task.market||""}</strong> | <strong>${task.area||""}</strong> – ${task.title} ${priorityPill(task.priority)}</div><div class="small">Monat: ${month.split("-")[1]}.${month.split("-")[0]}${log?" | Erledigt von: "+log.done_by+" | "+formatDateTimeDE(log.done_at):""}</div></div>`;container.appendChild(div)})}
 async function toggleTask(taskId,dateISO,value){const ok=confirm(value?"Möchten Sie diese Aufgabe wirklich abhaken?":"Möchten Sie das Häkchen wirklich entfernen?");if(!ok){loadTasks();return}const name=document.getElementById("name").value.trim();if(!name){alert("Bitte Namen eingeben.");loadTasks();return}if(value&&dateISO<todayISO()){const lateOk=confirm("Sind Sie sicher, eine Aufgabe von gestern zu bestätigen?");if(!lateOk){loadTasks();return}}if(value){await db.from("task_logs").delete().eq("task_id",taskId).eq("done_date",dateISO);const{error}=await db.from("task_logs").insert({task_id:taskId,done_date:dateISO,done_by:name,done_at:berlinNowForDB()});if(error)alert("Fehler: "+error.message)}else{const{error}=await db.from("task_logs").delete().eq("task_id",taskId).eq("done_date",dateISO);if(error)alert("Fehler: "+error.message)}loadTasks();if(adminUnlocked)loadControlTasks()}
-async function createHandover(){const name=document.getElementById("name").value.trim(),market=document.getElementById("marketFilter").value,area=document.getElementById("areaFilter").value,text=document.getElementById("handoverText").value.trim(),msg=document.getElementById("handoverMsg");if(!name)return alert("Bitte Namen eingeben.");if(!area||area==="Hausmeister")return alert("Bitte einen konkreten Bereich auswählen.");if(!text)return alert("Bitte eine Info eingeben.");const date=tomorrowISO();const{error}=await db.from("tasks").insert({market,area,title:`Übergabe: ${text}`,priority:"info",task_type:"handover",start_date:date,end_date:date,day:tomorrowDayName(),month:null,done:false,done_by:null,done_at:null});if(error)return msg.innerHTML="Fehler: "+error.message;document.getElementById("handoverText").value="";msg.innerHTML=`Info wurde für morgen (${formatDateDE(date)}) gespeichert.`;await loadAreas();loadTasks()}
+async function createHandover(){
+  const name = document.getElementById("name").value.trim();
+  const market = document.getElementById("marketFilter").value;
+  const area = document.getElementById("areaFilter").value;
+  const text = document.getElementById("handoverText").value.trim();
+  const msg = document.getElementById("handoverMsg");
+  if(!name) return alert("Bitte Namen eingeben.");
+  if(!area) return alert("Bitte einen Bereich auswählen.");
+  if(!text) return alert("Bitte eine Info eingeben.");
+  if(market === "ALLE") return alert("Bitte einen konkreten Markt auswählen.");
+  if(area === "Hausmeister"){
+    // Hausmeister-Info gilt fuer den gewaehlten Monat (oder aktuellen Monat als Fallback)
+    const month = document.getElementById("monthFilter").value || todayISO().slice(0,7);
+    const startDate = `${month}-01`;
+    const endDate = lastDayOfMonthISO(month);
+    const {error} = await db.from("tasks").insert({
+      market, area, title: `Info: ${text}`,
+      priority: "info", task_type: "handover",
+      start_date: startDate, end_date: endDate,
+      day: null, month: month,
+      done: false, done_by: null, done_at: null
+    });
+    if(error) return msg.innerHTML = "Fehler: " + error.message;
+    document.getElementById("handoverText").value = "";
+    msg.innerHTML = `Info wurde für ${monthLabelDE(month)} gespeichert.`;
+    await loadAreas();
+    loadTasks();
+    return;
+  }
+  const date = tomorrowISO();
+  const {error} = await db.from("tasks").insert({
+    market, area, title: `Übergabe: ${text}`, priority: "info", task_type: "handover",
+    start_date: date, end_date: date, day: tomorrowDayName(), month: null,
+    done: false, done_by: null, done_at: null
+  });
+  if(error) return msg.innerHTML = "Fehler: " + error.message;
+  document.getElementById("handoverText").value = "";
+  msg.innerHTML = `Info wurde für morgen (${formatDateDE(date)}) gespeichert.`;
+  await loadAreas();
+  loadTasks();
+}
 async function createTasks(){if(!adminUnlocked)return alert("Admin-PIN erforderlich.");const market=document.getElementById("adminMarket").value,title=document.getElementById("adminCustomTitle").value.trim(),selectedArea=document.getElementById("adminArea").value,customArea=document.getElementById("adminCustomArea").value.trim(),area=customArea||selectedArea,priority=document.getElementById("adminPriority").value,mode=document.getElementById("adminTaskMode").value,msg=document.getElementById("adminMessage");if(!title)return alert("Bitte eine Bezeichnung eingeben.");
 if((market==="Freckenfeld"||market==="Gossersweiler-Stein") && !["Hausmeister","Markt"].includes(area)){
   alert("Für Freckenfeld und Gossersweiler-Stein können nur Aufgaben für Markt oder Hausmeister angelegt werden.");
