@@ -17,8 +17,21 @@
     .kpi-mobile-row .label{color:#475569;flex:1;min-width:0}
     .kpi-mobile-row .value{font-weight:bold;text-align:right;white-space:nowrap}
     .kpi-mobile-card .kpi-mobile-action{margin-top:10px}
+    .article-block .article-cards{display:none}
+    .article-block .article-sort-mobile{display:none}
+    .article-card{background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px}
+    .article-card .a-name{font-weight:bold;color:var(--blue-dark);font-size:15px;line-height:1.2}
+    .article-card .a-meta{color:#64748b;font-size:12px;margin-top:2px}
+    .article-card .a-totals{display:flex;gap:10px;margin-top:10px}
+    .article-card .a-totals > div{flex:1;background:#fff;border:1px solid var(--border);border-radius:8px;padding:8px}
+    .article-card .a-totals .a-lbl{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.5px}
+    .article-card .a-totals .a-val{font-size:18px;font-weight:bold;color:var(--blue-dark);margin-top:4px}
+    .article-card details{margin-top:10px}
+    .article-card details summary{cursor:pointer;color:var(--blue);font-size:13px;font-weight:bold}
+    .article-card .a-detail-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dotted #cbd5e1;font-size:13px}
+    .article-card .a-detail-row:last-child{border-bottom:none}
     @media(max-width:900px){body{background:var(--blue-dark)}.header{padding:14px 12px 12px}.main{padding:12px}.logo{max-width:280px}.tabs{position:sticky;top:0;z-index:10;background:var(--blue-dark);padding-top:8px}.todo-tab{flex:6}.analytics-tab{flex:3}.admin-tab{flex:1;min-width:70px}.tab{padding:12px 8px;font-size:14px}.metric-grid{grid-template-columns:1fr}.box{padding:12px;border-radius:12px;margin-bottom:12px}.control-grid{grid-template-columns:1fr;gap:10px}input,select,textarea,button{font-size:16px;padding:13px}.task{padding:12px;gap:10px}.task input[type="checkbox"]{width:24px;height:24px;flex:0 0 24px}.admin-actions{display:grid;grid-template-columns:1fr 1fr}.admin-actions button{width:100%}.footer{font-size:13px;padding:12px}}
-    @media(max-width:700px){.kpi-block .kpi-table{display:none}.kpi-block .kpi-cards{display:block}}
+    @media(max-width:700px){.kpi-block .kpi-table{display:none}.kpi-block .kpi-cards{display:block}.article-block .article-table{display:none}.article-block .article-cards{display:block}.article-block .article-sort-mobile{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}.article-block .article-sort-mobile label{margin:0}}
   </style>
 </head>
 <body>
@@ -676,8 +689,24 @@ function renderArticleTable(){
     const alignAttr = align ? ` style="text-align:${align};cursor:pointer;user-select:none"` : ` style="cursor:pointer;user-select:none"`;
     return `<th${alignAttr} onclick="setArticleSort('${key}')">${label} ${arrow(key)}</th>`;
   }
-  let html = `<p class="small">Zeitraum: ${formatDateDE(range.fromDisplayISO)} bis ${formatDateDE(range.toDisplayISO)} &nbsp;·&nbsp; ${sorted.length} Artikel · Spalten mit ↕ sind sortierbar (Klick zum Umschalten)</p>`;
-  html += `<div class="table-wrap"><table><thead><tr>
+  function fmtNum(v){ return v.toLocaleString("de-DE",{maximumFractionDigits:2}); }
+  let html = `<div class="article-block">`;
+  html += `<p class="small">Zeitraum: ${formatDateDE(range.fromDisplayISO)} bis ${formatDateDE(range.toDisplayISO)} &nbsp;·&nbsp; ${sorted.length} Artikel</p>`;
+  // Mobile-Sortierauswahl
+  const currentSortValue = `${sortKey}:${sortDir}`;
+  const sortOpts = [
+    {v:"totalAbs:asc", t:"Abschriften € (höchste Verluste zuerst)"},
+    {v:"totalAbs:desc", t:"Abschriften € (niedrigste zuerst)"},
+    {v:"avgPct:asc", t:"Ø % am Umsatz (0% & größte zuerst)"},
+    {v:"avgPct:desc", t:"Ø % am Umsatz (kleinste zuerst, 0% bleibt oben)"},
+    {v:"artName:asc", t:"Bezeichnung A → Z"},
+    {v:"artNo:asc", t:"Art.-Nr. aufsteigend"}
+  ];
+  html += `<div class="article-sort-mobile"><label>Sortieren:</label><select onchange="setArticleSortMobile(this.value)">`;
+  sortOpts.forEach(o => html += `<option value="${o.v}"${o.v === currentSortValue ? " selected" : ""}>${o.t}</option>`);
+  html += `</select></div>`;
+  // Desktop-Tabelle
+  html += `<div class="article-table"><div class="small" style="margin-bottom:6px">Spalten mit ↕ sind sortierbar (Klick zum Umschalten)</div><div class="table-wrap"><table><thead><tr>
     ${thBtn("artNo", "Art.-Nr.")}
     ${thBtn("artName", "Bezeichnung")}
     <th>GTIN</th>
@@ -689,7 +718,7 @@ function renderArticleTable(){
     const dates = Object.keys(a.byDate).sort();
     const span = Math.max(dates.length, 1);
     if(!dates.length){
-      html += `<tr><td><strong>${a.artNo}</strong></td><td>${a.artName}</td><td>${a.gtin}</td><td>–</td><td style="text-align:right">${a.totalAbs.toLocaleString("de-DE",{maximumFractionDigits:2})}</td><td style="text-align:right">${a.avgPct !== null ? a.avgPct.toLocaleString("de-DE",{maximumFractionDigits:2})+" %" : "–"}</td></tr>`;
+      html += `<tr><td><strong>${a.artNo}</strong></td><td>${a.artName}</td><td>${a.gtin}</td><td>–</td><td style="text-align:right">${fmtNum(a.totalAbs)}</td><td style="text-align:right">${a.avgPct !== null ? fmtNum(a.avgPct)+" %" : "–"}</td></tr>`;
       return;
     }
     dates.forEach((d, idx) => {
@@ -703,22 +732,55 @@ function renderArticleTable(){
         html += `<td rowspan="${span}">${a.gtin}</td>`;
       }
       html += `<td>${formatDateDE(d)}</td>`;
-      html += `<td style="text-align:right">${abs !== undefined ? abs.toLocaleString("de-DE",{maximumFractionDigits:2}) : "–"}</td>`;
-      html += `<td style="text-align:right">${pct !== undefined ? pct.toLocaleString("de-DE",{maximumFractionDigits:2}) + " %" : "–"}</td>`;
+      html += `<td style="text-align:right">${abs !== undefined ? fmtNum(abs) : "–"}</td>`;
+      html += `<td style="text-align:right">${pct !== undefined ? fmtNum(pct)+" %" : "–"}</td>`;
       html += `</tr>`;
     });
-    // Optional: Summenzeile pro Artikel, wenn mehr als 1 Datum
     if(dates.length > 1){
       html += `<tr style="background:#f1f5f9;font-weight:bold">
         <td colspan="3" style="text-align:right">Summe / Ø für ${a.artNo}:</td>
         <td>–</td>
-        <td style="text-align:right">${a.totalAbs.toLocaleString("de-DE",{maximumFractionDigits:2})}</td>
-        <td style="text-align:right">${a.avgPct !== null ? a.avgPct.toLocaleString("de-DE",{maximumFractionDigits:2})+" %" : "–"}</td>
+        <td style="text-align:right">${fmtNum(a.totalAbs)}</td>
+        <td style="text-align:right">${a.avgPct !== null ? fmtNum(a.avgPct)+" %" : "–"}</td>
       </tr>`;
     }
   });
-  html += `</tbody></table></div>`;
+  html += `</tbody></table></div></div>`;
+  // Handy-Karten
+  html += `<div class="article-cards">`;
+  sorted.forEach(a => {
+    const dates = Object.keys(a.byDate).sort();
+    html += `<div class="article-card">
+      <div class="a-name">${a.artName || "(ohne Bezeichnung)"}</div>
+      <div class="a-meta">Art.-Nr. ${a.artNo}${a.gtin ? " · GTIN " + a.gtin : ""}</div>
+      <div class="a-totals">
+        <div><div class="a-lbl">Abschriften €</div><div class="a-val">${fmtNum(a.totalAbs)}</div></div>
+        <div><div class="a-lbl">Ø % am Umsatz</div><div class="a-val">${a.avgPct !== null ? fmtNum(a.avgPct)+" %" : "–"}</div></div>
+      </div>`;
+    if(dates.length > 1){
+      html += `<details><summary>Details pro Woche (${dates.length})</summary>`;
+      dates.forEach(d => {
+        const kv = a.byDate[d];
+        const abs = kv["Abschriften VK [br]"];
+        const pct = kv["Ant. Abschr. VK [br] am Umsatz %"];
+        html += `<div class="a-detail-row"><span>${formatDateDE(d)}</span><span>${abs !== undefined ? fmtNum(abs) + " €" : "–"} · ${pct !== undefined ? fmtNum(pct)+" %" : "–"}</span></div>`;
+      });
+      html += `</details>`;
+    } else if(dates.length === 1){
+      html += `<div class="a-meta" style="margin-top:6px">KW-Donnerstag: ${formatDateDE(dates[0])}</div>`;
+    }
+    html += `</div>`;
+  });
+  html += `</div>`;
+  html += `</div>`; // article-block
   document.getElementById("articleModalBody").innerHTML = html;
+}
+function setArticleSortMobile(value){
+  if(!articleViewState) return;
+  const [key, dir] = value.split(":");
+  articleViewState.sortKey = key;
+  articleViewState.sortDir = dir;
+  renderArticleTable();
 }
 function closeArticleModal(){
   document.getElementById("articleModal").style.display = "none";
@@ -848,26 +910,30 @@ async function createHandover(){
   if(!name) return alert("Bitte Namen eingeben.");
   if(!area) return alert("Bitte einen Bereich auswählen.");
   if(!text) return alert("Bitte eine Info eingeben.");
-  if(market === "ALLE") return alert("Bitte einen konkreten Markt auswählen.");
   if(area === "Hausmeister"){
-    // Hausmeister-Info gilt fuer den gewaehlten Monat (oder aktuellen Monat als Fallback)
+    // Hausmeister-Info gilt fuer den gewaehlten Monat. Bei Markt = "ALLE" eine Info je Markt anlegen.
     const month = document.getElementById("monthFilter").value || todayISO().slice(0,7);
     const startDate = `${month}-01`;
     const endDate = lastDayOfMonthISO(month);
-    const {error} = await db.from("tasks").insert({
-      market, area, title: `Info: ${text}`,
+    const targetMarkets = market === "ALLE"
+      ? ["Freckenfeld","Gossersweiler-Stein","Billigheim-Ingenheim","Steinfeld"]
+      : [market];
+    const rows = targetMarkets.map(m => ({
+      market: m, area, title: `Info: ${text}`,
       priority: "info", task_type: "handover",
       start_date: startDate, end_date: endDate,
       day: null, month: month,
       done: false, done_by: null, done_at: null
-    });
+    }));
+    const {error} = await db.from("tasks").insert(rows);
     if(error) return msg.innerHTML = "Fehler: " + error.message;
     document.getElementById("handoverText").value = "";
-    msg.innerHTML = `Info wurde für ${monthLabelDE(month)} gespeichert.`;
+    msg.innerHTML = `Info wurde für ${monthLabelDE(month)} gespeichert${market === "ALLE" ? ` (für alle ${targetMarkets.length} Märkte)` : ""}.`;
     await loadAreas();
     loadTasks();
     return;
   }
+  if(market === "ALLE") return alert("Bitte einen konkreten Markt auswählen.");
   const date = tomorrowISO();
   const {error} = await db.from("tasks").insert({
     market, area, title: `Übergabe: ${text}`, priority: "info", task_type: "handover",
