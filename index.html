@@ -28,7 +28,7 @@
       <h2>📊 Auswertungen</h2>
       <div class="small">Zugriff nur für freigegebene Markt-/Bereichskombinationen.</div>
       <div class="control-grid" style="margin-top:14px">
-        <div><label>Markt</label><select id="analyticsMarket" onchange="fillAnalyticsAreas()"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
+        <div><label>Markt</label><select id="analyticsMarket" onchange="fillAnalyticsAreas()"></select></div>
         <div><label>Bereich</label><select id="analyticsArea"></select></div>
         <div><label>Passwort</label><input id="analyticsPassword" type="password" placeholder="Passwort"></div>
         <div><label>&nbsp;</label><button class="btn-yellow" onclick="loginAnalytics()">Auswertungen öffnen</button></div>
@@ -193,12 +193,52 @@ async function loadAreas(){
 
 let analyticsAccess = null;
 
-function prepareAnalytics(){
+async function prepareAnalytics(){
   const from=document.getElementById("analyticsDateFrom");
   const to=document.getElementById("analyticsDateTo");
   if(!from.value) from.value=todayISO().slice(0,8)+"01";
   if(!to.value) to.value=todayISO();
-  fillAnalyticsAreas();
+  await fillAnalyticsMarkets();
+  await fillAnalyticsAreas();
+}
+
+async function fillAnalyticsMarkets(){
+  const select=document.getElementById("analyticsMarket");
+  if(!select) return;
+
+  const current=select.value;
+  select.innerHTML="";
+
+  const {data,error}=await db.from("metrics").select("market");
+
+  if(error){
+    console.error(error);
+    const o=document.createElement("option");
+    o.value="";
+    o.textContent="Keine Märkte gefunden";
+    select.appendChild(o);
+    return;
+  }
+
+  const markets=[...new Set((data||[]).map(r=>r.market).filter(Boolean))]
+    .sort((a,b)=>a.localeCompare(b,"de"));
+
+  if(!markets.length){
+    const o=document.createElement("option");
+    o.value="";
+    o.textContent="Keine Märkte vorhanden";
+    select.appendChild(o);
+    return;
+  }
+
+  markets.forEach(market=>{
+    const o=document.createElement("option");
+    o.value=market;
+    o.textContent=market;
+    select.appendChild(o);
+  });
+
+  if([...select.options].some(o=>o.value===current)) select.value=current;
 }
 
 async function fillAnalyticsAreas(){
@@ -209,6 +249,14 @@ async function fillAnalyticsAreas(){
 
   const current=select.value;
   select.innerHTML="";
+
+  if(!market){
+    const o=document.createElement("option");
+    o.value="";
+    o.textContent="Erst Markt mit Daten wählen";
+    select.appendChild(o);
+    return;
+  }
 
   const {data,error}=await db
     .from("metrics")
@@ -252,6 +300,7 @@ async function loginAnalytics(){
   const msg=document.getElementById("analyticsLoginMsg");
   msg.innerHTML="";
 
+  if(!market || !area){msg.innerHTML="Für diesen Markt wurden keine Kennzahlen/Bereiche gefunden.";return;}
   if(!password){alert("Bitte Passwort eingeben.");return;}
 
   const {data,error}=await db.from("access_codes").select("*").eq("password",password).limit(1);
@@ -578,6 +627,8 @@ async function uploadMetricsExcel(){
 
   msg.innerHTML = inserts.length + " Kennzahlen wurden hochgeladen.";
   input.value = "";
+  await fillAnalyticsMarkets();
+  await fillAnalyticsAreas();
 }
 
 async function editTask(id){if(!adminUnlocked)return alert("Admin-PIN erforderlich.");const{data,error}=await db.from("tasks").select("*").eq("id",id).single();if(error)return alert("Fehler: "+error.message);const title=prompt("Bezeichnung:",data.title||"");if(title===null)return;const area=prompt("Bereich:",data.area||"");if(area===null)return;const priority=prompt("Wichtigkeit (hoch, mittel, niedrig, info):",data.priority||"");if(priority===null)return;const{error:e}=await db.from("tasks").update({title:title.trim(),area:area.trim(),priority:priority.trim()}).eq("id",id);if(e)return alert("Fehler: "+e.message);await loadAreas();loadTasks();loadAdminTasks();loadControlTasks()}
