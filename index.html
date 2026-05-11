@@ -187,7 +187,7 @@ async function loadAreas(){
   fillAnalyticsAreas();
 }
 let analyticsAccess = null;
-const ANALYTICS_MARKET_ORDER = ["Freckenfeld","Gossersweiler-Stein","Billigheim-Ingenheim","Steinfeld"];
+const ANALYTICS_MARKET_ORDER = ["Billigheim-Ingenheim","Steinfeld","Freckenfeld","Gossersweiler-Stein"];
 const ART_PREFIX = "__art__||";
 async function prepareAnalytics(){
   // Bereichs-Filter mit allen vorhandenen Bereichen befuellen
@@ -420,31 +420,18 @@ async function loadAnalytics(){
   areas.forEach(area => {
     const marketsForArea = ANALYTICS_MARKET_ORDER.filter(m => groups[`${area}||${m}`]);
     if(!marketsForArea.length) return;
-    html += `<div class="box"><h2 style="margin-top:0">${area}</h2><div class="table-wrap"><table><thead><tr>
-      <th>Markt</th>
-      <th>Umsatz vs. Vorjahr</th>
-      <th>Kunden vs. Vorjahr</th>
-      <th>Nettoertragsspanne</th>
-      <th>Nettoertragssp. Vorjahr</th>
-      <th>Abschriften am Umsatz</th>
-      <th>Aktion</th>
-    </tr></thead><tbody>`;
-    marketsForArea.forEach(market => {
-      const g = groups[`${area}||${market}`];
-      const v = g.vals;
-      // Umsatz vs Vj
+    // Kennzahlen je Markt vorab berechnen
+    const perMarket = marketsForArea.map(market => {
+      const v = groups[`${area}||${market}`].vals;
       const umsatz = sumArr(v["Umsatz"]);
       const umsatzVj = sumArr(v["Umsatz Vj"]);
       const umsatzPct = (umsatzVj > 0) ? ((umsatz - umsatzVj) / umsatzVj * 100) : null;
-      // Kunden vs Vj
       const kunden = sumArr(v["Kunden"]);
       const kundenVj = sumArr(v["Kunden Vj"]);
       const kundenPct = (kundenVj > 0) ? ((kunden - kundenVj) / kundenVj * 100) : null;
-      // Nettoertragsspanne (Mittelwert der wöchentlichen %-Werte)
       const ertrag = avgArr(v["Nettoertragssp."]);
       const ertragVj = avgArr(v["Nettoertragssp. Vj"]);
       const ertragDiff = (ertrag !== null && ertragVj !== null) ? (ertrag - ertragVj) : null;
-      // Abschriften am Umsatz: lieber neu rechnen, sonst Mittel der %
       const abschrSum = sumArr(v["Abschriften VK [br]"]);
       let abschrPct;
       if(umsatz > 0 && v["Abschriften VK [br]"]){
@@ -454,20 +441,42 @@ async function loadAnalytics(){
       } else {
         abschrPct = null;
       }
-      const hasArticles = (area !== "Markt Gesamt"); // Artikel-Daten gibt es nur pro Bereich
-      const btn = hasArticles
-        ? `<button class="btn-blue" style="width:auto" onclick="showArticles('${market.replace(/'/g, "\\'")}','${area.replace(/'/g, "\\'")}',${periodWeeks})">Artikel anschauen</button>`
-        : `<span class="small">–</span>`;
-      html += `<tr>
-        <td><strong>${market}</strong></td>
-        <td>${formatKpiCell(umsatzPct, "%", "vs_vj")}</td>
-        <td>${formatKpiCell(kundenPct, "%", "vs_vj")}</td>
-        <td>${formatKpiCell(ertrag, "%", "ertrag", ertragDiff)}</td>
-        <td>${formatKpiCell(ertragVj, "%", "info")}</td>
-        <td>${formatKpiCell(abschrPct, "%", "abschr")}</td>
-        <td>${btn}</td>
-      </tr>`;
+      return {market, umsatzPct, kundenPct, ertrag, ertragVj, ertragDiff, abschrPct};
     });
+    const hasArticles = (area !== "Markt Gesamt");
+    // Header: Kennzahl | Markt1 | Markt2 | ...
+    html += `<div class="box"><h2 style="margin-top:0">${area}</h2><div class="table-wrap"><table><thead><tr><th>Kennzahl</th>`;
+    perMarket.forEach(p => html += `<th>${p.market}</th>`);
+    html += `</tr></thead><tbody>`;
+    // Zeile 1: Umsatz vs Vj
+    html += `<tr><td><strong>Umsatz vs. Vorjahr</strong></td>`;
+    perMarket.forEach(p => html += `<td>${formatKpiCell(p.umsatzPct, "%", "vs_vj")}</td>`);
+    html += `</tr>`;
+    // Zeile 2: Kunden vs Vj
+    html += `<tr><td><strong>Kunden vs. Vorjahr</strong></td>`;
+    perMarket.forEach(p => html += `<td>${formatKpiCell(p.kundenPct, "%", "vs_vj")}</td>`);
+    html += `</tr>`;
+    // Zeile 3: Nettoertragsspanne
+    html += `<tr><td><strong>Nettoertragsspanne</strong></td>`;
+    perMarket.forEach(p => html += `<td>${formatKpiCell(p.ertrag, "%", "ertrag", p.ertragDiff)}</td>`);
+    html += `</tr>`;
+    // Zeile 4: Nettoertragsspanne Vj
+    html += `<tr><td><strong>Nettoertragssp. Vorjahr</strong></td>`;
+    perMarket.forEach(p => html += `<td>${formatKpiCell(p.ertragVj, "%", "info")}</td>`);
+    html += `</tr>`;
+    // Zeile 5: Abschriften am Umsatz
+    html += `<tr><td><strong>Abschriften am Umsatz</strong></td>`;
+    perMarket.forEach(p => html += `<td>${formatKpiCell(p.abschrPct, "%", "abschr")}</td>`);
+    html += `</tr>`;
+    // Zeile 6: Artikel-Buttons (nur fuer Abteilungs-Bereiche, nicht Markt Gesamt)
+    if(hasArticles){
+      html += `<tr><td></td>`;
+      perMarket.forEach(p => {
+        const btn = `<button class="btn-blue" style="width:auto" onclick="showArticles('${p.market.replace(/'/g, "\\'")}','${area.replace(/'/g, "\\'")}',${periodWeeks})">Artikel anschauen</button>`;
+        html += `<td>${btn}</td>`;
+      });
+      html += `</tr>`;
+    }
     html += `</tbody></table></div></div>`;
   });
   if(!html) html = `<div class="box">Keine passenden Werte gefunden.</div>`;
@@ -494,7 +503,38 @@ async function showArticles(market, area, periodWeeks){
     return;
   }
   if(!rows.length){
-    modalBody.innerHTML = `<p>Für ${area} in ${market} sind im Zeitraum ${formatDateDE(range.fromDisplayISO)} – ${formatDateDE(range.toDisplayISO)} keine Artikel-Daten in der Datenbank.<br><br><span class="small">Hinweis: Artikel-Daten kommen aus der Abschriften-Excel. Falls du diese vor dem letzten App-Update hochgeladen hast, lade sie im Adminbereich noch einmal hoch (vorher „Alle Kennzahlen löschen").</span></p>`;
+    // Diagnose: gibt es ueberhaupt Artikel-Daten fuer diesen Bereich (egal welcher Markt/welches Datum)?
+    let totalArticles = 0;
+    let anyDatesIso = [];
+    try{
+      const probeArea = await db.from("metrics")
+        .select("metric_date", {count: "exact", head: true})
+        .eq("area", area)
+        .like("metric_name", ART_PREFIX + "%");
+      totalArticles = probeArea.count || 0;
+      if(totalArticles > 0){
+        const sample = await db.from("metrics")
+          .select("metric_date")
+          .eq("area", area)
+          .like("metric_name", ART_PREFIX + "%")
+          .limit(2000);
+        anyDatesIso = [...new Set((sample.data||[]).map(r=>r.metric_date))].sort();
+      }
+    }catch(e){ /* still Diagnose-Modus */ }
+    if(totalArticles === 0){
+      modalBody.innerHTML = `<p>Für den Bereich <strong>${area}</strong> sind in der Datenbank gar keine Artikel-Detailzeilen vorhanden.</p>
+        <p>So bekommst du sie hinein:</p>
+        <ol style="margin-left:18px">
+          <li>Im Adminbereich auf den roten Knopf <strong>„Alle Kennzahlen löschen (Reset)"</strong> klicken (zweimal bestätigen).</li>
+          <li>Erst die Umsatz-Excel hochladen, dann die Abschriften-Excel.</li>
+          <li>Die Erfolgsmeldung sollte einige tausend Werte zeigen, nicht nur ein paar hundert – das sind die Artikelzeilen.</li>
+        </ol>
+        <p class="small">Wichtig: nur die App-Version, die diesen Knopf hier kennt, speichert auch Artikel mit. Wenn du nach dem letzten App-Update noch nicht neu hochgeladen hast, ist das jetzt der Moment dafür.</p>`;
+    } else {
+      modalBody.innerHTML = `<p>Für <strong>${area}</strong> in <strong>${market}</strong> sind im Zeitraum ${formatDateDE(range.fromDisplayISO)} bis ${formatDateDE(range.toDisplayISO)} keine Artikel-Werte vorhanden.</p>
+        <p class="small">Es liegen aber Artikel-Daten für diesen Bereich vor (insgesamt ${totalArticles} Zeilen, Datumsangaben in der DB: ${anyDatesIso.map(formatDateDE).join(", ") || "–"}).<br>
+        Tipp: oben „Letzte 4 Kalenderwochen" wählen, oder einen anderen Markt prüfen.</p>`;
+    }
     return;
   }
   // Aggregation pro Artikel + Datum
