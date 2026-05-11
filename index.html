@@ -60,7 +60,12 @@
     <div class="box admin">
       <h2>📊 Kennzahlen per Excel hochladen</h2>
       <div class="small">Excel-Datei mit Spalten: Markt, Bereich, Kennzahl, Wert, Einheit, Datum</div>
-      <input id="metricsExcelFile" type="file" accept=".xlsx,.xls" />
+      <div class="control-grid" style="margin-top:14px">
+        <div><label>Fallback Markt</label><select id="metricsUploadMarket"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
+        <div><label>Fallback Bereich</label><select id="metricsUploadArea"><option>O&G</option><option>MoPro</option><option>Markt</option><option>Hausmeister</option></select></div>
+        <div><label>Fallback Datum</label><input id="metricsUploadDate" type="date"></div>
+      </div>
+      <input id="metricsExcelFile" type="file" accept=".xlsx,.xls" style="margin-top:10px" />
       <button class="btn-green" onclick="uploadMetricsExcel()" style="width:auto;margin-top:10px">Excel hochladen</button>
       <div id="metricsUploadMsg" class="small"></div>
     </div>
@@ -425,9 +430,7 @@ function normalizeExcelDate(value){
 
   const s = String(value).trim();
 
-  if(s.length === 10 && s.charAt(4) === "-" && s.charAt(7) === "-"){
-    return s;
-  }
+  if(s.length === 10 && s.charAt(4) === "-" && s.charAt(7) === "-") return s;
 
   if(s.length === 10 && s.charAt(2) === "." && s.charAt(5) === "."){
     const parts = s.split(".");
@@ -440,13 +443,31 @@ function normalizeExcelDate(value){
   return "";
 }
 
-function getExcelValue(row, names){
-  for(const n of names){
-    if(row[n] !== undefined && row[n] !== null && String(row[n]).trim() !== ""){
-      return row[n];
-    }
+function cleanHeader(value){
+  return String(value || "").trim().toLowerCase().replaceAll(" ","").replaceAll("_","").replaceAll("-","");
+}
+
+function getExcelValue(row, aliases){
+  const keys = Object.keys(row);
+  const cleaned = {};
+  keys.forEach(k => cleaned[cleanHeader(k)] = k);
+
+  for(const alias of aliases){
+    const hit = cleaned[cleanHeader(alias)];
+    if(hit !== undefined && row[hit] !== undefined && row[hit] !== null && String(row[hit]).trim() !== "") return row[hit];
   }
   return "";
+}
+
+function isIgnoredMetricColumn(header){
+  const h = cleanHeader(header);
+  return ["market","markt","area","bereich","abteilung","metricname","kennzahl","name","metricvalue","wert","value","metricunit","einheit","unit","metricdate","datum","date","monat","month"].includes(h);
+}
+
+function isProbablyNumber(value){
+  if(value === null || value === undefined || value === "") return false;
+  const n = Number(String(value).replace(",","."));
+  return !Number.isNaN(n);
 }
 
 async function uploadMetricsExcel(){
@@ -464,41 +485,57 @@ async function uploadMetricsExcel(){
     return;
   }
 
+  const fallbackMarket = document.getElementById("metricsUploadMarket").value;
+  const fallbackArea = document.getElementById("metricsUploadArea").value;
+  const fallbackDate = document.getElementById("metricsUploadDate").value || todayISO();
+
   const file = input.files[0];
   const buffer = await file.arrayBuffer();
   const workbook = XLSX.read(buffer,{type:"array"});
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json(sheet,{defval:""});
-
-  if(!rows.length){
-    msg.innerHTML = "Die Excel-Datei ist leer.";
-    return;
-  }
-
   const inserts = [];
+  const debugHeaders = [];
 
-  rows.forEach(row => {
-    const market = String(getExcelValue(row,["market","Markt"])).trim();
-    const area = String(getExcelValue(row,["area","Bereich","Abteilung"])).trim();
-    const metric_name = String(getExcelValue(row,["metric_name","Kennzahl","Name"])).trim();
-    const metric_value_raw = String(getExcelValue(row,["metric_value","Wert","Value"])).replace(",",".").trim();
-    const metric_unit = String(getExcelValue(row,["metric_unit","Einheit","Unit"])).trim();
-    const metric_date = normalizeExcelDate(getExcelValue(row,["metric_date","Datum","Date"]));
+  workbook.SheetNames.forEach(sheetName => {
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(sheet,{defval:""});
+    if(!rows.length) return;
 
-    if(market && area && metric_name && metric_value_raw !== "" && metric_date){
-      inserts.push({
-        market: market,
-        area: area,
-        metric_name: metric_name,
-        metric_value: Number(metric_value_raw),
-        metric_unit: metric_unit,
-        metric_date: metric_date
+    debugHeaders.push(sheetName + ": " + Object.keys(rows[0]).join(" | "));
+
+    rows.forEach(row => {
+      const market = String(getExcelValue(row,["market","Markt","Filiale","Standort"]) || fallbackMarket).trim();
+      const area = String(getExcelValue(row,["area","Bereich","Abteilung","Warengruppe"]) || fallbackArea).trim();
+      const dateValue = getExcelValue(row,["metric_date","Datum","Date","Tag"]);
+      const metric_date = normalizeExcelDate(dateValue) || fallbackDate;
+      const metric_unit_direct = String(getExcelValue(row,["metric_unit","Einheit","Unit"])).trim();
+
+      const directName = String(getExcelValue(row,["metric_name","Kennzahl","Name","KPI"])).trim();
+      const directValueRaw = String(getExcelValue(row,["metric_value","Wert","Value","Betrag"])).replace(",",".").trim();
+
+      if(market && area && directName && directValueRaw !== "" && metric_date && isProbablyNumber(directValueRaw)){
+        inserts.push({market,area,metric_name:directName,metric_value:Number(directValueRaw),metric_unit:metric_unit_direct,metric_date});
+        return;
+      }
+
+      Object.keys(row).forEach(header => {
+        if(isIgnoredMetricColumn(header)) return;
+        const raw = row[header];
+        if(!isProbablyNumber(raw)) return;
+
+        inserts.push({
+          market,
+          area,
+          metric_name:String(header).trim(),
+          metric_value:Number(String(raw).replace(",",".")),
+          metric_unit:metric_unit_direct,
+          metric_date
+        });
       });
-    }
+    });
   });
 
   if(!inserts.length){
-    msg.innerHTML = "Keine gültigen Zeilen gefunden. Benötigte Spalten: Markt, Bereich, Kennzahl, Wert, Einheit, Datum.";
+    msg.innerHTML = "Keine gültigen Zeilen gefunden.<br>Erkannte Spalten:<br>" + debugHeaders.join("<br>") + "<br><br>Unterstützt wird entweder:<br>Markt | Bereich | Kennzahl | Wert | Einheit | Datum<br>oder:<br>Markt | Bereich | Datum | Umsatz | Abschriften | ...";
     return;
   }
 
@@ -515,7 +552,9 @@ async function uploadMetricsExcel(){
 
 async function editTask(id){if(!adminUnlocked)return alert("Admin-PIN erforderlich.");const{data,error}=await db.from("tasks").select("*").eq("id",id).single();if(error)return alert("Fehler: "+error.message);const title=prompt("Bezeichnung:",data.title||"");if(title===null)return;const area=prompt("Bereich:",data.area||"");if(area===null)return;const priority=prompt("Wichtigkeit (hoch, mittel, niedrig, info):",data.priority||"");if(priority===null)return;const{error:e}=await db.from("tasks").update({title:title.trim(),area:area.trim(),priority:priority.trim()}).eq("id",id);if(e)return alert("Fehler: "+e.message);await loadAreas();loadTasks();loadAdminTasks();loadControlTasks()}
 async function deleteTask(id){if(!adminUnlocked)return alert("Admin-PIN erforderlich.");if(!confirm("Diese Aufgabe wirklich löschen?"))return;await db.from("task_logs").delete().eq("task_id",id);await db.from("tasks").delete().eq("id",id);loadTasks();loadAdminTasks();loadControlTasks()}
-const nameInput=document.getElementById("name");nameInput.value=localStorage.getItem("employeeName")||"";nameInput.addEventListener("input",function(){localStorage.setItem("employeeName",this.value)});const marketInput=document.getElementById("marketFilter"),areaInput=document.getElementById("areaFilter");marketInput.value=localStorage.getItem("selectedMarket")||"Freckenfeld";marketInput.addEventListener("change",function(){localStorage.setItem("selectedMarket",this.value)});document.getElementById("monthFilter").value=todayISO().slice(0,7);document.getElementById("controlDateFrom").value=todayISO();document.getElementById("controlDateTo").value=todayISO();document.getElementById("adminStartDate").value=todayISO();document.getElementById("adminEndDate").value=todayISO();populateAllowedDays();loadAreas().then(()=>{handleAreaChange()});
+const nameInput=document.getElementById("name");nameInput.value=localStorage.getItem("employeeName")||"";nameInput.addEventListener("input",function(){localStorage.setItem("employeeName",this.value)});const marketInput=document.getElementById("marketFilter"),areaInput=document.getElementById("areaFilter");marketInput.value=localStorage.getItem("selectedMarket")||"Freckenfeld";marketInput.addEventListener("change",function(){localStorage.setItem("selectedMarket",this.value)});document.getElementById("monthFilter").value=todayISO().slice(0,7);document.getElementById("controlDateFrom").value=todayISO();document.getElementById("controlDateTo").value=todayISO();document.getElementById("adminStartDate").value=todayISO();document.getElementById("adminEndDate").value=todayISO();document.getElementById("metricsUploadDate").value=todayISO();populateAllowedDays();loadAreas().then(()=>{handleAreaChange()});
 </script>
 </body>
+</html>
+
 </html>
