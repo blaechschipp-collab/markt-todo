@@ -19,10 +19,8 @@
   <section id="todoSection">
     <div class="box"><div class="control-grid"><div><label>Dein Name</label><input id="name" placeholder="Dein Name"></div><div><label>Markt</label><select id="marketFilter" onchange="handleMarketChange()"><option value="ALLE">Alle Märkte</option><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="areaFilter" onchange="handleAreaChange()"><option value="">Alle Bereiche außer Hausmeister</option></select></div><div id="dayControl"><label>Tag</label><select id="day" onchange="loadTasks()"></select></div><div id="monthControl" style="display:none"><label>Monat</label><input id="monthFilter" type="month" onchange="loadTasks()"></div><div><label>&nbsp;</label><button class="btn-yellow" onclick="loadTasks()">Aktualisieren</button></div></div></div>
     <div id="tasks" class="box"></div>
-
     <div class="box"><h2>Übergabe an morgen</h2><div class="small">Nur für den aktuell gewählten Bereich sichtbar.</div><textarea id="handoverText" placeholder="Info für morgen eingeben..."></textarea><button class="btn-blue" onclick="createHandover()" style="margin-top:10px;width:auto">Info für morgen speichern</button><div id="handoverMsg" class="small"></div></div>
   </section>
-
   <section id="analyticsSection" style="display:none">
     <div class="box">
       <h2>📊 Auswertungen</h2>
@@ -35,13 +33,13 @@
       </div>
       <div id="analyticsLoginMsg" class="small"></div>
     </div>
-
     <div id="analyticsDashboard" style="display:none">
       <div class="box">
         <h2 id="analyticsTitle">Dashboard</h2>
         <div class="control-grid">
           <div><label>Von</label><input id="analyticsDateFrom" type="date" onchange="loadAnalytics()"></div>
           <div><label>Bis</label><input id="analyticsDateTo" type="date" onchange="loadAnalytics()"></div>
+          <div><label>Vergleich</label><select id="analyticsScope" onchange="loadAnalytics()"><option value="market">Nur ausgewählten Markt</option><option value="all">Alle Märkte (Vergleich)</option></select></div>
           <div><label>&nbsp;</label><button class="btn-yellow" onclick="loadAnalytics()">Aktualisieren</button></div>
         </div>
       </div>
@@ -50,7 +48,6 @@
       <div id="analyticsNotes" class="box"></div>
     </div>
   </section>
-
   <section id="adminSection" style="display:none">
     <div class="box admin"><h2>Adminbereich – Aufgabe anlegen</h2><div class="control-grid"><div><label>Markt</label><select id="adminMarket" onchange="handleAdminMarketChange()"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="adminArea" onchange="toggleAdminPeriodFields()"></select><input id="adminCustomArea" placeholder="Neue Abteilung / Bereich" style="margin-top:8px"></div><div><label>Wichtigkeit</label><select id="adminPriority"><option>hoch</option><option>mittel</option><option>niedrig</option></select></div><div><label>Bezeichnung</label><input id="adminCustomTitle" placeholder="Aufgabe eingeben"></div><div><label>Art</label><select id="adminTaskMode" onchange="toggleAdminPeriodFields()"><option value="recurring">Wiederholend</option><option value="single">Einmalig / Zeitraum</option></select></div></div>
       <div id="adminDaysBox" style="margin-top:16px"><label>Tage</label><div class="days"><button type="button" class="btn-yellow" onclick="selectAllAdminDays()" style="width:auto;margin-bottom:8px">Täglich Mo–Sa</button><br><label><input type="checkbox" class="adminDay" value="Montag"> Montag</label><label><input type="checkbox" class="adminDay" value="Dienstag"> Dienstag</label><label><input type="checkbox" class="adminDay" value="Mittwoch"> Mittwoch</label><label><input type="checkbox" class="adminDay" value="Donnerstag"> Donnerstag</label><label><input type="checkbox" class="adminDay" value="Freitag"> Freitag</label><label><input type="checkbox" class="adminDay" value="Samstag"> Samstag</label></div></div>
@@ -59,17 +56,17 @@
       <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap"><button class="btn-green" onclick="createTasks()" style="width:auto">Aufgabe speichern</button><button class="btn-dark" onclick="showTab('todo')" style="width:auto">Zurück zur ToDo</button></div><div id="adminMessage" class="small"></div></div>
     <div class="box admin">
       <h2>📊 Kennzahlen per Excel hochladen</h2>
-      <div class="small">Excel-Datei mit Spalten: Markt, Bereich, Kennzahl, Wert, Einheit, Datum</div>
+      <div class="small">Unterstützt automatisch:<br>1) EDEKA BO-Kreuztabellen (Umsatzbericht & Abschriften) – einfach hochladen, alles weitere wird erkannt.<br>2) Flache Tabellen mit Spalten: Markt, Bereich, Kennzahl, Wert, Einheit, Datum.<br>3) Flache Tabellen: Markt, Bereich, Datum, Umsatz, Abschriften, … (jede Zahlenspalte wird eine Kennzahl).</div>
       <div class="control-grid" style="margin-top:14px">
         <div><label>Fallback Markt</label><select id="metricsUploadMarket"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
         <div><label>Fallback Bereich</label><select id="metricsUploadArea"><option>O&G</option><option>MoPro</option><option>Markt</option><option>Hausmeister</option></select></div>
         <div><label>Fallback Datum</label><input id="metricsUploadDate" type="date"></div>
+        <div><label>Duplikat-Schutz</label><select id="metricsDedupMode"><option value="replace" selected>Vorhandene Werte zu Markt+Datum überschreiben</option><option value="append">Anhängen (kann Duplikate erzeugen)</option></select></div>
       </div>
       <input id="metricsExcelFile" type="file" accept=".xlsx,.xls" style="margin-top:10px" />
       <button class="btn-green" onclick="uploadMetricsExcel()" style="width:auto;margin-top:10px">Excel hochladen</button>
       <div id="metricsUploadMsg" class="small"></div>
     </div>
-
     <div class="box admin"><h2>Adminbereich – bestehende Aufgaben</h2><div class="small">Vorlagen, Einmalaufgaben und Übergaben als Tabelle.</div>
       <div class="control-grid" style="margin-top:14px">
         <div><label>Bereich filtern</label><select id="adminTableAreaFilter" onchange="loadAdminTasks()"><option value="">Alle Bereiche</option></select></div>
@@ -83,18 +80,17 @@
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const ADMIN_PIN="4711"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false; const DAY_NAMES=["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
+const KNOWN_EDEKA_MARKETS=["Billigheim-Ingenheim","Steinfeld","Freckenfeld","Gossersweiler-Stein"];
 function todayISO(){return formatDate(new Date())} function formatDate(date){const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,"0"),d=String(date.getDate()).padStart(2,"0");return `${y}-${m}-${d}`} function formatDateDE(s){if(!s)return"";const[y,m,d]=s.split("-");return`${d}.${m}.${y}`} function formatDateTimeDE(v){if(!v)return"";return new Date(v).toLocaleString("de-DE",{timeZone:"Europe/Berlin",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"})} function berlinNowForDB(){const parts=new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Berlin",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}).formatToParts(new Date()).reduce((a,p)=>(a[p.type]=p.value,a),{});return`${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`} function berlinDateISO(v){return new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Berlin",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(v))} function isLateLog(log){return Boolean(log&&log.done_at&&log.done_date&&berlinDateISO(log.done_at)>log.done_date)} function addDays(date,days){const d=new Date(date);d.setDate(d.getDate()+days);return d} function getMonday(date){const d=new Date(date),day=d.getDay(),diff=day===0?-6:1-day;d.setDate(d.getDate()+diff);d.setHours(0,0,0,0);return d} function dateForDayName(day){const select=document.getElementById("day");const selected=select?.options[select.selectedIndex];if(selected?.dataset?.date)return selected.dataset.date;return formatDate(addDays(getMonday(new Date()),DAY_NAMES.indexOf(day)))} function dayNameFromISO(s){const idx=new Date(s+"T00:00:00").getDay();return idx===0?"Sonntag":DAY_NAMES[idx-1]} function monthFromISO(s){return s.slice(0,7)} function tomorrowISO(){const today=new Date();const dow=today.getDay();if(dow===6)return formatDate(addDays(today,2));return formatDate(addDays(today,1))} function tomorrowDayName(){return dayNameFromISO(tomorrowISO())}
 function priorityClass(p){if(!p)return"";if(p==="info")return"info";if(p.toLowerCase()==="hoch")return"high";if(p.toLowerCase()==="mittel")return"medium";return"low"} function priorityPill(p){if(!p)return"";const c=p==="info"?"info-p":p.toLowerCase()+"-p";return`<span class="pill ${c}">${p}</span>`} function statusPill(done){return done?`<span class="pill done-p">erledigt</span>`:`<span class="pill open-p">offen</span>`} function prioritySort(a,b){const o={hoch:1,mittel:2,niedrig:3,info:4};return(o[a.priority?.toLowerCase()]||99)-(o[b.priority?.toLowerCase()]||99)} function daySort(a,b){const o={Montag:1,Dienstag:2,Mittwoch:3,Donnerstag:4,Freitag:5,Samstag:6};return(o[a.day]||99)-(o[b.day]||99)}
 function selectAllAdminDays(){document.querySelectorAll(".adminDay").forEach(cb=>cb.checked=true)}
 function populateAllowedDays(){
   const select=document.getElementById("day");
   select.innerHTML="";
-
   const today=new Date();
   const todayDate=new Date(today.getFullYear(),today.getMonth(),today.getDate());
   const yesterday=addDays(todayDate,-1);
   const monday=getMonday(todayDate);
-
   DAY_NAMES.forEach((day,i)=>{
     const date=addDays(monday,i);
     if(date>=yesterday){
@@ -104,8 +100,6 @@ function populateAllowedDays(){
       select.appendChild(o);
     }
   });
-
-  // Samstag: zusätzlich Montag der Folgewoche anzeigen
   if(todayDate.getDay()===6){
     const nextMonday=addDays(monday,7);
     const o=document.createElement("option");
@@ -114,8 +108,6 @@ function populateAllowedDays(){
     o.dataset.date=formatDate(nextMonday);
     select.appendChild(o);
   }
-
-  // Sonntag: Samstag + Montag der Folgewoche anzeigen und Montag auswählen
   if(todayDate.getDay()===0){
     const nextMonday=addDays(getMonday(todayDate),7);
     const exists=[...select.options].some(opt=>opt.dataset.date===formatDate(nextMonday));
@@ -129,18 +121,15 @@ function populateAllowedDays(){
     select.value="Montag";
     return;
   }
-
   const ti=todayDate.getDay()-1;
   if(ti>=0&&ti<=5)select.value=DAY_NAMES[ti];
   else if(select.options.length>0)select.selectedIndex=0;
 }
 let allAreas = [];
-
 function allowedAreasForMarket(market){
   if(market === "Freckenfeld" || market === "Gossersweiler-Stein") return ["Hausmeister", "Markt"];
   return allAreas;
 }
-
 function fillAreaSelect(select, areas, includeAll, allText){
   const current = select.value;
   select.innerHTML = "";
@@ -158,30 +147,24 @@ function fillAreaSelect(select, areas, includeAll, allText){
   });
   if([...select.options].some(o=>o.value===current)) select.value=current;
 }
-
 function applyAreaRules(){
   const todoMarket = document.getElementById("marketFilter").value;
   const adminMarket = document.getElementById("adminMarket").value;
   const controlMarket = document.getElementById("controlMarket").value;
-
   const areaFilter = document.getElementById("areaFilter");
   const adminArea = document.getElementById("adminArea");
   const controlArea = document.getElementById("controlArea");
   const adminTableAreaFilter = document.getElementById("adminTableAreaFilter");
-
   fillAreaSelect(areaFilter, allowedAreasForMarket(todoMarket), true, "Alle Bereiche außer Hausmeister");
   fillAreaSelect(adminArea, allowedAreasForMarket(adminMarket), false, "");
   fillAreaSelect(controlArea, allowedAreasForMarket(controlMarket), true, "Alle Bereiche");
   if(adminTableAreaFilter) fillAreaSelect(adminTableAreaFilter, allowedAreasForMarket(adminMarket), true, "Alle Bereiche");
-
   const savedArea = localStorage.getItem("selectedArea") || "";
   if([...areaFilter.options].some(o=>o.value===savedArea)) areaFilter.value=savedArea;
   if(![...areaFilter.options].some(o=>o.value===areaFilter.value)) areaFilter.value="";
   if(adminArea.options.length && !adminArea.value) adminArea.selectedIndex=0;
-
   toggleAdminPeriodFields();
 }
-
 async function loadAreas(){
   const {data}=await db.from("tasks").select("area");
   const standard=["O&G","MoPro","Markt","Hausmeister"];
@@ -190,9 +173,7 @@ async function loadAreas(){
   applyAreaRules();
   fillAnalyticsAreas();
 }
-
 let analyticsAccess = null;
-
 async function prepareAnalytics(){
   const from=document.getElementById("analyticsDateFrom");
   const to=document.getElementById("analyticsDateTo");
@@ -201,16 +182,12 @@ async function prepareAnalytics(){
   await fillAnalyticsMarkets();
   await fillAnalyticsAreas();
 }
-
 async function fillAnalyticsMarkets(){
   const select=document.getElementById("analyticsMarket");
   if(!select) return;
-
   const current=select.value;
   select.innerHTML="";
-
   const {data,error}=await db.from("metrics").select("market");
-
   if(error){
     console.error(error);
     const o=document.createElement("option");
@@ -219,10 +196,8 @@ async function fillAnalyticsMarkets(){
     select.appendChild(o);
     return;
   }
-
   const markets=[...new Set((data||[]).map(r=>r.market).filter(Boolean))]
     .sort((a,b)=>a.localeCompare(b,"de"));
-
   if(!markets.length){
     const o=document.createElement("option");
     o.value="";
@@ -230,26 +205,20 @@ async function fillAnalyticsMarkets(){
     select.appendChild(o);
     return;
   }
-
   markets.forEach(market=>{
     const o=document.createElement("option");
     o.value=market;
     o.textContent=market;
     select.appendChild(o);
   });
-
   if([...select.options].some(o=>o.value===current)) select.value=current;
 }
-
 async function fillAnalyticsAreas(){
   const market=document.getElementById("analyticsMarket").value;
   const select=document.getElementById("analyticsArea");
-
   if(!select) return;
-
   const current=select.value;
   select.innerHTML="";
-
   if(!market){
     const o=document.createElement("option");
     o.value="";
@@ -257,12 +226,10 @@ async function fillAnalyticsAreas(){
     select.appendChild(o);
     return;
   }
-
   const {data,error}=await db
     .from("metrics")
     .select("area")
     .eq("market",market);
-
   if(error){
     console.error(error);
     const o=document.createElement("option");
@@ -271,10 +238,8 @@ async function fillAnalyticsAreas(){
     select.appendChild(o);
     return;
   }
-
   const areas=[...new Set((data||[]).map(r=>r.area).filter(Boolean))]
     .sort((a,b)=>a.localeCompare(b,"de"));
-
   if(!areas.length){
     const o=document.createElement("option");
     o.value="";
@@ -282,89 +247,93 @@ async function fillAnalyticsAreas(){
     select.appendChild(o);
     return;
   }
-
   areas.forEach(area=>{
     const o=document.createElement("option");
     o.value=area;
     o.textContent=area;
     select.appendChild(o);
   });
-
   if([...select.options].some(o=>o.value===current)) select.value=current;
 }
-
 async function loginAnalytics(){
   const market=document.getElementById("analyticsMarket").value;
   const area=document.getElementById("analyticsArea").value;
   const password=document.getElementById("analyticsPassword").value.trim();
   const msg=document.getElementById("analyticsLoginMsg");
   msg.innerHTML="";
-
   if(!market || !area){msg.innerHTML="Für diesen Markt wurden keine Kennzahlen/Bereiche gefunden.";return;}
   if(!password){alert("Bitte Passwort eingeben.");return;}
-
   const {data,error}=await db.from("access_codes").select("*").eq("password",password).limit(1);
   if(error){msg.innerHTML="Fehler: "+error.message;return;}
   if(!data||!data.length){msg.innerHTML="Passwort falsch.";return;}
-
   analyticsAccess={market,area,role:data[0].role||"global"};
   document.getElementById("analyticsDashboard").style.display="block";
-  document.getElementById("analyticsTitle").innerText=`Dashboard – ${area} im Marktvergleich`;
+  document.getElementById("analyticsTitle").innerText=`Dashboard – ${market} / ${area}`;
   loadAnalytics();
 }
-
+function isPercentUnit(unit){return String(unit||"").trim()==="%"}
+function aggregateMetric(values, unit){
+  // % -> Mittelwert, alles andere -> Summe
+  if(!values.length) return 0;
+  if(isPercentUnit(unit)){
+    return values.reduce((a,b)=>a+b,0)/values.length;
+  }
+  return values.reduce((a,b)=>a+b,0);
+}
 async function loadAnalytics(){
   if(!analyticsAccess) return;
   const from=document.getElementById("analyticsDateFrom").value;
   const to=document.getElementById("analyticsDateTo").value;
+  const scope=document.getElementById("analyticsScope")?.value || "market";
   const cards=document.getElementById("analyticsCards");
   const table=document.getElementById("analyticsTable");
   const notes=document.getElementById("analyticsNotes");
   cards.innerHTML="";table.innerHTML="";notes.innerHTML="";
-
   let q=db.from("metrics").select("*").eq("area",analyticsAccess.area).gte("metric_date",from).lte("metric_date",to);
+  if(scope==="market") q=q.eq("market",analyticsAccess.market);
   const {data,error}=await q;
   if(error){cards.innerHTML="Fehler: "+error.message;return;}
-
   const metrics=data||[];
-  if(!metrics.length){cards.innerHTML="Keine Kennzahlen für diesen Zeitraum.";}
+  const titleSuffix = scope==="market" ? `Nur ${analyticsAccess.market}` : "Alle Märkte";
+  if(!metrics.length){cards.innerHTML=`<h2>Kennzahlen (${titleSuffix})</h2>Keine Kennzahlen für diesen Zeitraum.`;}
   else{
-    const sums={};
+    const grouped={};
     metrics.forEach(m=>{
       const key=`${m.metric_name}||${m.metric_unit||""}`;
-      if(!sums[key]) sums[key]={name:m.metric_name,unit:m.metric_unit||"",value:0};
-      sums[key].value+=Number(m.metric_value||0);
+      if(!grouped[key]) grouped[key]={name:m.metric_name,unit:m.metric_unit||"",values:[]};
+      const num=Number(m.metric_value||0);
+      if(Number.isFinite(num)) grouped[key].values.push(num);
     });
-    cards.innerHTML=`<h2>Kennzahlen</h2><div class="metric-grid">${Object.values(sums).map(s=>`<div class="metric-card"><div class="small">${s.name}</div><div class="metric-value">${s.value.toLocaleString("de-DE")}</div><div class="small">${s.unit}</div></div>`).join("")}</div>`;
-
-    table.innerHTML=`<h2>Details</h2><div class="table-wrap"><table><thead><tr><th>Datum</th><th>Markt</th><th>Bereich</th><th>Kennzahl</th><th>Wert</th><th>Einheit</th></tr></thead><tbody>${metrics.sort((a,b)=>a.metric_date.localeCompare(b.metric_date)).map(m=>`<tr><td>${formatDateDE(m.metric_date)}</td><td>${m.market}</td><td>${m.area}</td><td>${m.metric_name}</td><td>${Number(m.metric_value||0).toLocaleString("de-DE")}</td><td>${m.metric_unit||""}</td></tr>`).join("")}</tbody></table></div>`;
+    const cardEntries = Object.values(grouped).map(g=>{
+      const value = aggregateMetric(g.values, g.unit);
+      const label = isPercentUnit(g.unit) ? " (Ø)" : " (Σ)";
+      return {name:g.name, unit:g.unit, value, label, count:g.values.length};
+    }).sort((a,b)=>a.name.localeCompare(b.name,"de"));
+    cards.innerHTML=`<h2>Kennzahlen (${titleSuffix})</h2><div class="metric-grid">${cardEntries.map(s=>`<div class="metric-card"><div class="small">${s.name}${s.label}</div><div class="metric-value">${s.value.toLocaleString("de-DE",{maximumFractionDigits:2})}</div><div class="small">${s.unit} · ${s.count} Werte</div></div>`).join("")}</div>`;
+    const sortedRows=metrics.slice().sort((a,b)=>a.metric_date.localeCompare(b.metric_date)||a.market.localeCompare(b.market,"de")||a.metric_name.localeCompare(b.metric_name,"de"));
+    table.innerHTML=`<h2>Details</h2><div class="table-wrap"><table><thead><tr><th>Datum</th><th>Markt</th><th>Bereich</th><th>Kennzahl</th><th>Wert</th><th>Einheit</th></tr></thead><tbody>${sortedRows.map(m=>`<tr><td>${formatDateDE(m.metric_date)}</td><td>${m.market}</td><td>${m.area}</td><td>${m.metric_name}</td><td>${Number(m.metric_value||0).toLocaleString("de-DE",{maximumFractionDigits:2})}</td><td>${m.metric_unit||""}</td></tr>`).join("")}</tbody></table></div>`;
   }
-
   let nq=db.from("metric_notes").select("*").eq("area",analyticsAccess.area).gte("note_date",from).lte("note_date",to);
   const {data:noteData,error:noteError}=await nq;
   if(noteError){notes.innerHTML="Fehler: "+noteError.message;return;}
   const noteRows=noteData||[];
   notes.innerHTML=`<h2>Hinweise</h2>${noteRows.length?noteRows.sort((a,b)=>a.note_date.localeCompare(b.note_date)).map(n=>`<div class="task info"><div><strong>${formatDateDE(n.note_date)} | ${n.area}</strong><div>${n.note}</div></div></div>`).join(""):"Keine Hinweise im Zeitraum."}`;
 }
-
 function handleMarketChange(){
   const market=document.getElementById("marketFilter").value;
   localStorage.setItem("selectedMarket",market);
   applyAreaRules();
   handleAreaChange();
 }
-
 function handleAdminMarketChange(){
   applyAreaRules();
   loadAdminTasks();
   loadControlTasks();
 }
-
 function handleControlMarketChange(){
   applyAreaRules();
   loadControlTasks();
 }
-
 function showTab(tab){
   document.getElementById("todoSection").style.display=tab==="todo"?"block":"none";
   document.getElementById("analyticsSection").style.display=tab==="analytics"?"block":"none";
@@ -393,28 +362,21 @@ if((market==="Freckenfeld"||market==="Gossersweiler-Stein") && !["Hausmeister","
 let rows=[];if(area==="Hausmeister"){const months=[...document.querySelectorAll(".adminMonth:checked")].map(cb=>cb.value);if(!months.length)return alert("Bitte mindestens einen Monat auswählen.");rows=months.map(month=>({market,title,area,month,day:null,priority,task_type:"monthly",start_date:null,end_date:null,done:false,done_by:null,done_at:null}))}else if(mode==="single"){const start=document.getElementById("adminStartDate").value,end=document.getElementById("adminEndDate").value||start;if(!start)return alert("Bitte Startdatum auswählen.");if(end<start)return alert("Bis-Datum darf nicht vor Von-Datum liegen.");rows=[{market,title,area,day:null,month:null,priority,task_type:"single",start_date:start,end_date:end,done:false,done_by:null,done_at:null}]}else{const days=[...document.querySelectorAll(".adminDay:checked")].map(cb=>cb.value);if(!days.length)return alert("Bitte mindestens einen Tag auswählen.");rows=days.map(day=>({market,title,area,day,month:null,priority,task_type:"recurring",start_date:null,end_date:null,done:false,done_by:null,done_at:null}))}const{error}=await db.from("tasks").insert(rows);if(error)return msg.innerHTML="Fehler: "+error.message;msg.innerHTML="Aufgabe wurde gespeichert.";document.getElementById("adminCustomTitle").value="";document.getElementById("adminCustomArea").value="";document.querySelectorAll(".adminDay,.adminMonth").forEach(cb=>cb.checked=false);await loadAreas();loadTasks();loadAdminTasks();loadControlTasks()}
 async function loadAdminTasks(){
   if(!adminUnlocked)return;
-
   const market=document.getElementById("adminMarket").value;
   const areaFilter=document.getElementById("adminTableAreaFilter")?.value||"";
   const search=(document.getElementById("adminTableSearch")?.value||"").toLowerCase().trim();
   const sortMode=document.getElementById("adminTableSort")?.value||"area";
-
   let query=db.from("tasks").select("*").eq("market",market);
   if(areaFilter)query=query.eq("area",areaFilter);
-
   const {data,error}=await query;
   const c=document.getElementById("adminTasks");
   c.innerHTML="";
-
   if(error)return c.innerHTML="Fehler: "+error.message;
   if(!data||!data.length)return c.innerHTML="Keine Aufgaben für diesen Markt angelegt.";
-
   const groups={};
-
   (data||[]).filter(t=>!search||`${t.title||""} ${t.area||""} ${t.task_type||""} ${t.priority||""}`.toLowerCase().includes(search)).forEach(t=>{
     const type=t.task_type==="handover"?"Übergabe/Info":t.task_type==="single"?"Einmalig":t.area==="Hausmeister"?"Monatlich":"Wiederholend";
     const key=[t.market||"",t.area||"",t.title||"",type,t.priority||""].join("||");
-
     if(!groups[key]){
       groups[key]={
         market:t.market||"",
@@ -428,9 +390,7 @@ async function loadAdminTasks(){
         dates:[]
       };
     }
-
     groups[key].ids.push(t.id);
-
     if(t.area==="Hausmeister" && t.month){
       groups[key].months.push(t.month);
     }else if(t.task_type==="single"||t.task_type==="handover"){
@@ -440,7 +400,6 @@ async function loadAdminTasks(){
       groups[key].days.push(t.day);
     }
   });
-
   const rows=Object.values(groups).sort((a,b)=>{
     if(sortMode==="priority"){
       const order={hoch:1,mittel:2,niedrig:3,info:4};
@@ -451,20 +410,16 @@ async function loadAdminTasks(){
     }
     return a.area.localeCompare(b.area,"de")||a.title.localeCompare(b.title,"de")||a.type.localeCompare(b.type,"de");
   });
-
   let html=`<div class="table-wrap"><table><thead><tr><th>Markt</th><th>Bereich</th><th>Aufgabe / Info</th><th>Art</th><th>Tage / Zeitraum</th><th>Wichtigkeit</th><th>Aktion</th></tr></thead><tbody>`;
-
   rows.forEach(g=>{
     const daysOrder={Montag:1,Dienstag:2,Mittwoch:3,Donnerstag:4,Freitag:5,Samstag:6};
     const days=[...new Set(g.days)].sort((a,b)=>(daysOrder[a]||99)-(daysOrder[b]||99));
     const months=[...new Set(g.months)].sort();
     const dates=[...new Set(g.dates)].sort();
-
     let period="";
     if(days.length) period=days.join(", ");
     else if(months.length) period=months.join(", ");
     else if(dates.length) period=dates.join(", ");
-
     html+=`<tr>
       <td>${g.market}</td>
       <td>${g.area}</td>
@@ -478,154 +433,336 @@ async function loadAdminTasks(){
       </div></td>
     </tr>`;
   });
-
   html+=`</tbody></table></div>`;
   c.innerHTML=html;
 }
-
 async function deleteTaskGroup(ids){
   if(!adminUnlocked)return alert("Admin-PIN erforderlich.");
   if(!confirm("Diese zusammengefasste Aufgabe wirklich komplett löschen?"))return;
-
   for(const id of ids){
     await db.from("task_logs").delete().eq("task_id",id);
     await db.from("tasks").delete().eq("id",id);
   }
-
   loadTasks();
   loadAdminTasks();
   loadControlTasks();
 }
-
 async function loadControlTasks(){if(!adminUnlocked)return;const market=document.getElementById("controlMarket").value,area=document.getElementById("controlArea").value,from=document.getElementById("controlDateFrom").value,to=document.getElementById("controlDateTo").value,status=document.getElementById("controlStatus").value,c=document.getElementById("controlTasks");c.innerHTML="";if(!from||!to)return c.innerHTML="Bitte Zeitraum auswählen.";if(from>to)return c.innerHTML="Der Zeitraum ist ungültig.";const rows=[];for(let d=new Date(from+"T00:00:00");d<=new Date(to+"T00:00:00");d=addDays(d,1)){const dateISO=formatDate(d),weekday=dayNameFromISO(dateISO);let q=db.from("tasks").select("*").eq("market",market);if(area)q=q.eq("area",area);const{data,error}=await q;if(error)return c.innerHTML="Fehler: "+error.message;const tasks=(data||[]).filter(t=>taskApplies(t,dateISO,weekday));if(!tasks.length)continue;const logs=await fetchLogs(tasks.map(t=>t.id),dateISO);tasks.forEach(task=>{const log=logs[task.id],late=isLateLog(log);if(status==="done"&&!log)return;if(status==="open"&&log)return;if(status==="late"&&!late)return;rows.push({task,log,dateISO,late})})}if(!rows.length)return c.innerHTML="Keine Treffer für diesen Filter.";rows.sort((a,b)=>a.dateISO.localeCompare(b.dateISO)||(a.task.area||"").localeCompare(b.task.area||"")||prioritySort(a.task,b.task));let html=`<div class="table-wrap"><table><thead><tr><th>Datum</th><th>Bereich</th><th>Aufgabe</th><th>Status</th><th>Erledigt von</th><th>Zeit</th><th>Hinweis</th></tr></thead><tbody>`;rows.forEach(({task,log,dateISO,late})=>{html+=`<tr class="${late?"high":""}"><td>${formatDateDE(dateISO)}</td><td>${task.area}</td><td>${task.title} ${priorityPill(task.priority)}</td><td>${statusPill(Boolean(log))}</td><td>${log?.done_by||""}</td><td>${log?formatDateTimeDE(log.done_at):""}</td><td>${late?"verspätet bestätigt":""}</td></tr>`});html+=`</tbody></table></div>`;c.innerHTML=html}
+
+/* ===========================
+   EXCEL-UPLOAD: bestehende Helfer
+   =========================== */
 function normalizeExcelDate(value){
   if(!value) return "";
-
   if(typeof value === "number"){
     const parsed = XLSX.SSF.parse_date_code(value);
     if(!parsed) return "";
     return parsed.y + "-" + String(parsed.m).padStart(2,"0") + "-" + String(parsed.d).padStart(2,"0");
   }
-
   const s = String(value).trim();
-
   if(s.length === 10 && s.charAt(4) === "-" && s.charAt(7) === "-") return s;
-
   if(s.length === 10 && s.charAt(2) === "." && s.charAt(5) === "."){
     const parts = s.split(".");
     return parts[2] + "-" + parts[1] + "-" + parts[0];
   }
-
   const d = new Date(s);
   if(!isNaN(d)) return formatDate(d);
-
   return "";
 }
-
 function cleanHeader(value){
   return String(value || "").trim().toLowerCase().replaceAll(" ","").replaceAll("_","").replaceAll("-","");
 }
-
 function getExcelValue(row, aliases){
   const keys = Object.keys(row);
   const cleaned = {};
   keys.forEach(k => cleaned[cleanHeader(k)] = k);
-
   for(const alias of aliases){
     const hit = cleaned[cleanHeader(alias)];
     if(hit !== undefined && row[hit] !== undefined && row[hit] !== null && String(row[hit]).trim() !== "") return row[hit];
   }
   return "";
 }
-
 function isIgnoredMetricColumn(header){
   const h = cleanHeader(header);
   return ["market","markt","area","bereich","abteilung","metricname","kennzahl","name","metricvalue","wert","value","metricunit","einheit","unit","metricdate","datum","date","monat","month"].includes(h);
 }
-
 function isProbablyNumber(value){
   if(value === null || value === undefined || value === "") return false;
   const n = Number(String(value).replace(",","."));
   return !Number.isNaN(n);
 }
 
+/* ===========================
+   NEU: EDEKA-BO Kreuztabellen-Parser
+   =========================== */
+function findCellInMatrix(matrix, value, maxRow){
+  const limit = Math.min(matrix.length, maxRow !== undefined ? maxRow : matrix.length);
+  for(let r=0; r<limit; r++){
+    const row = matrix[r] || [];
+    for(let c=0; c<row.length; c++){
+      const cell = row[c];
+      if(cell !== null && cell !== undefined && String(cell).trim() === value){
+        return {row:r, col:c};
+      }
+    }
+  }
+  return null;
+}
+function detectEdekaBoFormat(matrix){
+  if(!matrix || matrix.length < 4) return null;
+  const marktPos = findCellInMatrix(matrix, "Markt", 4);
+  if(!marktPos) return null;
+  const wochePos = findCellInMatrix(matrix, "Woche", 4);
+  if(!wochePos || wochePos.col !== marktPos.col) return null;
+  const marketRow = matrix[marktPos.row] || [];
+  const hasKnownMarket = marketRow.some(cell => KNOWN_EDEKA_MARKETS.includes(String(cell||"").trim()));
+  if(!hasKnownMarket) return null;
+  const dataStartCol = marktPos.col + 1;
+  const row2 = matrix[2] || [];
+  const isAbschriften = row2.some(cell => {
+    const v = String(cell||"").trim();
+    return v === "Artikel" || v === "GTIN";
+  });
+  if(isAbschriften){
+    return {
+      type:"abschriften",
+      marketRow: marktPos.row,
+      weekRow: wochePos.row,
+      kpiRow: 2,
+      dataStartRow: 3,
+      dataStartCol,
+      deptCol: 0,
+      articleCol: 1
+    };
+  }
+  return {
+    type:"umsatz",
+    marketRow: marktPos.row,
+    weekRow: wochePos.row,
+    dataStartRow: 2,
+    dataStartCol,
+    deptCol: 0,
+    kpiCol: 1
+  };
+}
+function thursdayOfISOWeek(year, week){
+  // Donnerstag der ISO-Kalenderwoche liegt immer im richtigen Kalenderjahr
+  const jan4 = new Date(year, 0, 4);
+  const dow = jan4.getDay() || 7; // Sonntag = 7
+  const week1Monday = new Date(jan4);
+  week1Monday.setDate(jan4.getDate() - dow + 1);
+  const thu = new Date(week1Monday);
+  thu.setDate(week1Monday.getDate() + (week - 1) * 7 + 3);
+  return thu;
+}
+function inferMetricUnit(kpiName){
+  const n = String(kpiName||"").toLowerCase();
+  if(n.includes("%")) return "%";
+  if(n.includes("kunden")) return "Kunden";
+  if(n.includes("d-bon") || n.includes("umsatz") || n.includes("abschrift") || n.includes("warenrohg") || n.includes("nettoertrag") || n.includes("ertrag")) return "€";
+  return "";
+}
+function detectYearFromWorkbook(workbook){
+  // Sucht nach DD.MM.YYYY in den Metadaten-Sheets, sonst aktuelles Jahr
+  for(const name of workbook.SheetNames){
+    if(String(name).toLowerCase().includes("metadaten")){
+      const ws = workbook.Sheets[name];
+      const arr = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:false});
+      for(const row of arr){
+        for(const cell of (row || [])){
+          if(typeof cell === "string"){
+            const m = cell.match(/(\d{2})\.(\d{2})\.(\d{4})/);
+            if(m) return parseInt(m[3], 10);
+          }
+        }
+      }
+    }
+  }
+  return new Date().getFullYear();
+}
+function parseEdekaBoSheet(matrix, format, year){
+  const out = [];
+  const markets = matrix[format.marketRow] || [];
+  const weeks = matrix[format.weekRow] || [];
+  const kpis = format.type === "abschriften" ? (matrix[format.kpiRow] || []) : null;
+  let lastDept = "";
+  for(let r = format.dataStartRow; r < matrix.length; r++){
+    const row = matrix[r] || [];
+    const deptRaw = row[format.deptCol];
+    let dept = (deptRaw !== null && deptRaw !== undefined && String(deptRaw).trim() !== "") ? String(deptRaw).trim() : lastDept;
+    if(!dept || dept === "#") continue;
+    lastDept = dept;
+    let umsatzKpi = null;
+    if(format.type === "umsatz"){
+      const kpiRaw = row[format.kpiCol];
+      if(kpiRaw === null || kpiRaw === undefined || String(kpiRaw).trim() === "") continue;
+      umsatzKpi = String(kpiRaw).trim();
+    } else {
+      // Abschriften: nur Abteilungs-Summen, keine Artikel-Detailzeilen
+      const articleRaw = row[format.articleCol];
+      const articleStr = articleRaw === null || articleRaw === undefined ? "" : String(articleRaw).trim();
+      if(dept !== "Gesamtergebnis" && articleStr !== "Ergebnis") continue;
+    }
+    const maxC = Math.max(row.length, markets.length, weeks.length);
+    for(let c = format.dataStartCol; c < maxC; c++){
+      const marketRaw = markets[c];
+      if(marketRaw === null || marketRaw === undefined) continue;
+      const market = String(marketRaw).trim();
+      if(!KNOWN_EDEKA_MARKETS.includes(market)) continue;
+      const weekRaw = weeks[c];
+      if(weekRaw === null || weekRaw === undefined) continue;
+      const weekStr = String(weekRaw).trim();
+      if(weekStr === "" || weekStr.toLowerCase() === "ergebnis") continue;
+      const weekNum = parseInt(weekStr, 10);
+      if(!Number.isInteger(weekNum) || weekNum < 1 || weekNum > 53) continue;
+      const cellVal = row[c];
+      if(cellVal === null || cellVal === undefined || cellVal === "") continue;
+      let num;
+      if(typeof cellVal === "number"){
+        num = cellVal;
+      } else {
+        num = Number(String(cellVal).replace(",", "."));
+        if(!Number.isFinite(num)) continue;
+      }
+      let kpiName;
+      if(format.type === "umsatz"){
+        kpiName = umsatzKpi;
+      } else {
+        const kpiRaw = kpis[c];
+        if(kpiRaw === null || kpiRaw === undefined) continue;
+        kpiName = String(kpiRaw).trim();
+      }
+      if(!kpiName) continue;
+      const area = (dept === "Gesamtergebnis") ? "Markt Gesamt" : dept;
+      const thu = thursdayOfISOWeek(year, weekNum);
+      const dateISO = formatDate(thu);
+      out.push({
+        market,
+        area,
+        metric_name: kpiName,
+        metric_value: num,
+        metric_unit: inferMetricUnit(kpiName),
+        metric_date: dateISO
+      });
+    }
+  }
+  return out;
+}
+
+/* ===========================
+   NEU: Haupt-Upload-Funktion
+   =========================== */
 async function uploadMetricsExcel(){
   if(!adminUnlocked){
     alert("Admin-PIN erforderlich.");
     return;
   }
-
   const input = document.getElementById("metricsExcelFile");
   const msg = document.getElementById("metricsUploadMsg");
-  msg.innerHTML = "";
-
+  msg.innerHTML = "Datei wird gelesen ...";
   if(!input.files || !input.files.length){
     alert("Bitte Excel-Datei auswählen.");
+    msg.innerHTML = "";
     return;
   }
-
   const fallbackMarket = document.getElementById("metricsUploadMarket").value;
   const fallbackArea = document.getElementById("metricsUploadArea").value;
   const fallbackDate = document.getElementById("metricsUploadDate").value || todayISO();
-
+  const dedupMode = document.getElementById("metricsDedupMode")?.value || "replace";
   const file = input.files[0];
   const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer,{type:"array"});
+  const workbook = XLSX.read(buffer, {type:"array"});
   const inserts = [];
-  const debugHeaders = [];
+  const debug = [];
 
-  workbook.SheetNames.forEach(sheetName => {
-    const sheet = workbook.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(sheet,{defval:""});
-    if(!rows.length) return;
-
-    debugHeaders.push(sheetName + ": " + Object.keys(rows[0]).join(" | "));
-
+  for(const sheetName of workbook.SheetNames){
+    if(String(sheetName).toLowerCase().includes("metadaten")) continue;
+    const ws = workbook.Sheets[sheetName];
+    const matrix = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true});
+    const fmt = detectEdekaBoFormat(matrix);
+    if(fmt){
+      const year = detectYearFromWorkbook(workbook);
+      const parsed = parseEdekaBoSheet(matrix, fmt, year);
+      inserts.push(...parsed);
+      debug.push(`Sheet "${sheetName}": EDEKA-BO ${fmt.type.toUpperCase()} (Jahr ${year}) erkannt – ${parsed.length} Werte gelesen.`);
+      continue;
+    }
+    // Fallback: flaches Format
+    const rows = XLSX.utils.sheet_to_json(ws, {defval:""});
+    if(!rows.length){
+      debug.push(`Sheet "${sheetName}": leer.`);
+      continue;
+    }
+    debug.push(`Sheet "${sheetName}": flaches Format. Spalten: ` + Object.keys(rows[0]).join(" | "));
     rows.forEach(row => {
-      const market = String(getExcelValue(row,["market","Markt","Filiale","Standort"]) || fallbackMarket).trim();
-      const area = String(getExcelValue(row,["area","Bereich","Abteilung","Warengruppe"]) || fallbackArea).trim();
-      const dateValue = getExcelValue(row,["metric_date","Datum","Date","Tag"]);
+      const market = String(getExcelValue(row, ["market","Markt","Filiale","Standort"]) || fallbackMarket).trim();
+      const area = String(getExcelValue(row, ["area","Bereich","Abteilung","Warengruppe"]) || fallbackArea).trim();
+      const dateValue = getExcelValue(row, ["metric_date","Datum","Date","Tag"]);
       const metric_date = normalizeExcelDate(dateValue) || fallbackDate;
-      const metric_unit_direct = String(getExcelValue(row,["metric_unit","Einheit","Unit"])).trim();
-
-      const directName = String(getExcelValue(row,["metric_name","Kennzahl","Name","KPI"])).trim();
-      const directValueRaw = String(getExcelValue(row,["metric_value","Wert","Value","Betrag"])).replace(",",".").trim();
-
+      const metric_unit_direct = String(getExcelValue(row, ["metric_unit","Einheit","Unit"])).trim();
+      const directName = String(getExcelValue(row, ["metric_name","Kennzahl","Name","KPI"])).trim();
+      const directValueRaw = String(getExcelValue(row, ["metric_value","Wert","Value","Betrag"])).replace(",",".").trim();
       if(market && area && directName && directValueRaw !== "" && metric_date && isProbablyNumber(directValueRaw)){
-        inserts.push({market,area,metric_name:directName,metric_value:Number(directValueRaw),metric_unit:metric_unit_direct,metric_date});
+        inserts.push({market, area, metric_name: directName, metric_value: Number(directValueRaw), metric_unit: metric_unit_direct, metric_date});
         return;
       }
-
       Object.keys(row).forEach(header => {
         if(isIgnoredMetricColumn(header)) return;
         const raw = row[header];
         if(!isProbablyNumber(raw)) return;
-
         inserts.push({
           market,
           area,
-          metric_name:String(header).trim(),
-          metric_value:Number(String(raw).replace(",",".")),
-          metric_unit:metric_unit_direct,
+          metric_name: String(header).trim(),
+          metric_value: Number(String(raw).replace(",",".")),
+          metric_unit: metric_unit_direct,
           metric_date
         });
       });
     });
-  });
+  }
 
   if(!inserts.length){
-    msg.innerHTML = "Keine gültigen Zeilen gefunden.<br>Erkannte Spalten:<br>" + debugHeaders.join("<br>") + "<br><br>Unterstützt wird entweder:<br>Markt | Bereich | Kennzahl | Wert | Einheit | Datum<br>oder:<br>Markt | Bereich | Datum | Umsatz | Abschriften | ...";
+    msg.innerHTML = "Keine gültigen Zeilen gefunden.<br>" + debug.join("<br>") +
+      "<br><br>Unterstützt wird:<br>" +
+      "• EDEKA-BO Kreuztabellen (Umsatzbericht & Abschriften) – wird automatisch erkannt.<br>" +
+      "• Flach: Markt | Bereich | Kennzahl | Wert | Einheit | Datum<br>" +
+      "• Flach: Markt | Bereich | Datum | Umsatz | Abschriften | ...";
     return;
   }
 
-  const result = await db.from("metrics").insert(inserts);
-
-  if(result.error){
-    msg.innerHTML = "Fehler: " + result.error.message;
-    return;
+  // Duplikat-Schutz: alle bestehenden Werte zu denselben Markt+Datum-Kombinationen entfernen
+  if(dedupMode === "replace"){
+    const uniqMarkets = [...new Set(inserts.map(i => i.market))];
+    const uniqDates = [...new Set(inserts.map(i => i.metric_date))];
+    if(uniqMarkets.length && uniqDates.length){
+      // In Datums-Batches loeschen, falls die Liste sehr lang ist
+      const DEL_BATCH = 100;
+      for(let i=0; i<uniqDates.length; i+=DEL_BATCH){
+        const datesSlice = uniqDates.slice(i, i+DEL_BATCH);
+        const delResult = await db.from("metrics").delete().in("market", uniqMarkets).in("metric_date", datesSlice);
+        if(delResult.error){
+          msg.innerHTML = "Fehler beim Bereinigen alter Werte: " + delResult.error.message + "<br>" + debug.join("<br>");
+          return;
+        }
+      }
+    }
   }
 
-  msg.innerHTML = inserts.length + " Kennzahlen wurden hochgeladen.";
+  // In Batches einfuegen
+  const BATCH = 500;
+  let inserted = 0;
+  for(let i=0; i<inserts.length; i+=BATCH){
+    const slice = inserts.slice(i, i+BATCH);
+    const r = await db.from("metrics").insert(slice);
+    if(r.error){
+      msg.innerHTML = `Fehler nach ${inserted} Zeilen: ${r.error.message}<br>` + debug.join("<br>");
+      return;
+    }
+    inserted += slice.length;
+  }
+
+  msg.innerHTML = `${inserted} Kennzahlen wurden hochgeladen.<br><span class="small">${debug.join("<br>")}</span>`;
   input.value = "";
   await fillAnalyticsMarkets();
   await fillAnalyticsAreas();
