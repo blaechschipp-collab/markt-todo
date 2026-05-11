@@ -590,6 +590,14 @@ function renderArticleTable(){
   const sorted = [...list].sort((a,b)=>{
     const av = a[sortKey];
     const bv = b[sortKey];
+    // Spezialregel: bei "Ø % am Umsatz" gehoeren 0%-Artikel (= nur abgeschrieben, nicht verkauft)
+    // immer an die Spitze, unabhaengig von Auf-/Absteigend
+    if(sortKey === "avgPct"){
+      const aZero = (av === 0);
+      const bZero = (bv === 0);
+      if(aZero && !bZero) return -1;
+      if(!aZero && bZero) return 1;
+    }
     if(av === null || av === undefined) return 1;
     if(bv === null || bv === undefined) return -1;
     if(typeof av === "number" && typeof bv === "number"){
@@ -1018,9 +1026,7 @@ async function clearAllMetrics(){
   if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
   const msg = document.getElementById("metricsUploadMsg");
   const sure1 = confirm("Wirklich ALLE Kennzahlen aus der Datenbank löschen?\n\nDie Auswertungen sind danach leer, bis du wieder Excel-Dateien hochlädst.");
-  if(!sure1) return;
-  const sure2 = prompt('Zur Sicherheit bitte exakt   LÖSCHEN   eingeben:');
-  if(sure2 !== "LÖSCHEN"){ msg.innerHTML = "Abgebrochen. Es wurde nichts gelöscht."; return; }
+  if(!sure1){ msg.innerHTML = "Abgebrochen. Es wurde nichts gelöscht."; return; }
   msg.innerHTML = "Lösche alle Kennzahlen ...";
   // Trick: gte auf ein sehr frühes Datum trifft alle Zeilen
   const r = await db.from("metrics").delete().gte("metric_date", "1900-01-01");
