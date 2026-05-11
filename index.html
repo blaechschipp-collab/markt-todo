@@ -28,7 +28,7 @@
       <h2>📊 Auswertungen</h2>
       <div class="small">Zugriff nur für freigegebene Markt-/Bereichskombinationen.</div>
       <div class="control-grid" style="margin-top:14px">
-        <div><label>Markt</label><select id="analyticsMarket"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
+        <div><label>Markt</label><select id="analyticsMarket" onchange="fillAnalyticsAreas()"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
         <div><label>Bereich</label><select id="analyticsArea"></select></div>
         <div><label>Passwort</label><input id="analyticsPassword" type="password" placeholder="Passwort"></div>
         <div><label>&nbsp;</label><button class="btn-yellow" onclick="loginAnalytics()">Auswertungen öffnen</button></div>
@@ -201,17 +201,47 @@ function prepareAnalytics(){
   fillAnalyticsAreas();
 }
 
-function fillAnalyticsAreas(){
+async function fillAnalyticsAreas(){
+  const market=document.getElementById("analyticsMarket").value;
   const select=document.getElementById("analyticsArea");
+
   if(!select) return;
+
   const current=select.value;
   select.innerHTML="";
-  allAreas.forEach(area=>{
+
+  const {data,error}=await db
+    .from("metrics")
+    .select("area")
+    .eq("market",market);
+
+  if(error){
+    console.error(error);
+    const o=document.createElement("option");
+    o.value="";
+    o.textContent="Keine Bereiche gefunden";
+    select.appendChild(o);
+    return;
+  }
+
+  const areas=[...new Set((data||[]).map(r=>r.area).filter(Boolean))]
+    .sort((a,b)=>a.localeCompare(b,"de"));
+
+  if(!areas.length){
+    const o=document.createElement("option");
+    o.value="";
+    o.textContent="Keine Bereiche vorhanden";
+    select.appendChild(o);
+    return;
+  }
+
+  areas.forEach(area=>{
     const o=document.createElement("option");
     o.value=area;
     o.textContent=area;
     select.appendChild(o);
   });
+
   if([...select.options].some(o=>o.value===current)) select.value=current;
 }
 
@@ -555,6 +585,4 @@ async function deleteTask(id){if(!adminUnlocked)return alert("Admin-PIN erforder
 const nameInput=document.getElementById("name");nameInput.value=localStorage.getItem("employeeName")||"";nameInput.addEventListener("input",function(){localStorage.setItem("employeeName",this.value)});const marketInput=document.getElementById("marketFilter"),areaInput=document.getElementById("areaFilter");marketInput.value=localStorage.getItem("selectedMarket")||"Freckenfeld";marketInput.addEventListener("change",function(){localStorage.setItem("selectedMarket",this.value)});document.getElementById("monthFilter").value=todayISO().slice(0,7);document.getElementById("controlDateFrom").value=todayISO();document.getElementById("controlDateTo").value=todayISO();document.getElementById("adminStartDate").value=todayISO();document.getElementById("adminEndDate").value=todayISO();document.getElementById("metricsUploadDate").value=todayISO();populateAllowedDays();loadAreas().then(()=>{handleAreaChange()});
 </script>
 </body>
-</html>
-
 </html>
