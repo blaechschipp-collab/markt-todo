@@ -24,10 +24,8 @@
   <section id="analyticsSection" style="display:none">
     <div class="box">
       <h2>📊 Auswertungen</h2>
-      <div class="small">Zugriff nur für freigegebene Markt-/Bereichskombinationen.</div>
+      <div class="small">Marktübergreifende Auswertung pro Bereich. Bitte Passwort eingeben.</div>
       <div class="control-grid" style="margin-top:14px">
-        <div><label>Markt</label><select id="analyticsMarket" onchange="fillAnalyticsAreas()"></select></div>
-        <div><label>Bereich</label><select id="analyticsArea"></select></div>
         <div><label>Passwort</label><input id="analyticsPassword" type="password" placeholder="Passwort"></div>
         <div><label>&nbsp;</label><button class="btn-yellow" onclick="loginAnalytics()">Auswertungen öffnen</button></div>
       </div>
@@ -35,19 +33,31 @@
     </div>
     <div id="analyticsDashboard" style="display:none">
       <div class="box">
-        <h2 id="analyticsTitle">Dashboard</h2>
+        <h2 id="analyticsTitle">Dashboard – Marktvergleich pro Bereich</h2>
         <div class="control-grid">
-          <div><label>Von</label><input id="analyticsDateFrom" type="date" onchange="loadAnalytics()"></div>
-          <div><label>Bis</label><input id="analyticsDateTo" type="date" onchange="loadAnalytics()"></div>
-          <div><label>Vergleich</label><select id="analyticsScope" onchange="loadAnalytics()"><option value="market">Nur ausgewählten Markt</option><option value="all">Alle Märkte (Vergleich)</option></select></div>
+          <div><label>Zeitraum</label><select id="analyticsPeriod" onchange="loadAnalytics()">
+            <option value="1">Letzte Kalenderwoche</option>
+            <option value="4">Letzte 4 Kalenderwochen</option>
+          </select></div>
+          <div><label>Bereich filtern</label><select id="analyticsBereich" onchange="loadAnalytics()"><option value="">Alle Bereiche</option></select></div>
           <div><label>&nbsp;</label><button class="btn-yellow" onclick="loadAnalytics()">Aktualisieren</button></div>
         </div>
+        <div id="analyticsPeriodLabel" class="small" style="margin-top:8px"></div>
+        <div class="small" style="margin-top:6px">Pfeile: <span style="color:#22c55e;font-weight:bold">↑</span> positive Entwicklung &nbsp; <span style="color:#f59e0b;font-weight:bold">→</span> stabil &nbsp; <span style="color:#ef4444;font-weight:bold">↓</span> Handlungsbedarf</div>
       </div>
-      <div id="analyticsCards" class="box"></div>
-      <div id="analyticsTable" class="box"></div>
-      <div id="analyticsNotes" class="box"></div>
+      <div id="analyticsContent"></div>
     </div>
   </section>
+  <!-- Modal fuer Artikel-Anzeige -->
+  <div id="articleModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.55);z-index:1000;align-items:center;justify-content:center;padding:16px">
+    <div style="background:white;border-radius:14px;max-width:1100px;width:100%;max-height:92vh;overflow:auto;padding:18px;box-shadow:0 12px 40px rgba(0,0,0,.4)">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px">
+        <h2 id="articleModalTitle" style="margin:0"></h2>
+        <button class="btn-dark" style="width:auto;padding:8px 14px" onclick="closeArticleModal()">Schließen ✕</button>
+      </div>
+      <div id="articleModalBody"></div>
+    </div>
+  </div>
   <section id="adminSection" style="display:none">
     <div class="box admin"><h2>Adminbereich – Aufgabe anlegen</h2><div class="control-grid"><div><label>Markt</label><select id="adminMarket" onchange="handleAdminMarketChange()"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="adminArea" onchange="toggleAdminPeriodFields()"></select><input id="adminCustomArea" placeholder="Neue Abteilung / Bereich" style="margin-top:8px"></div><div><label>Wichtigkeit</label><select id="adminPriority"><option>hoch</option><option>mittel</option><option>niedrig</option></select></div><div><label>Bezeichnung</label><input id="adminCustomTitle" placeholder="Aufgabe eingeben"></div><div><label>Art</label><select id="adminTaskMode" onchange="toggleAdminPeriodFields()"><option value="recurring">Wiederholend</option><option value="single">Einmalig / Zeitraum</option></select></div></div>
       <div id="adminDaysBox" style="margin-top:16px"><label>Tage</label><div class="days"><button type="button" class="btn-yellow" onclick="selectAllAdminDays()" style="width:auto;margin-bottom:8px">Täglich Mo–Sa</button><br><label><input type="checkbox" class="adminDay" value="Montag"> Montag</label><label><input type="checkbox" class="adminDay" value="Dienstag"> Dienstag</label><label><input type="checkbox" class="adminDay" value="Mittwoch"> Mittwoch</label><label><input type="checkbox" class="adminDay" value="Donnerstag"> Donnerstag</label><label><input type="checkbox" class="adminDay" value="Freitag"> Freitag</label><label><input type="checkbox" class="adminDay" value="Samstag"> Samstag</label></div></div>
@@ -177,13 +187,32 @@ async function loadAreas(){
   fillAnalyticsAreas();
 }
 let analyticsAccess = null;
+const ANALYTICS_MARKET_ORDER = ["Freckenfeld","Gossersweiler-Stein","Billigheim-Ingenheim","Steinfeld"];
+const ART_PREFIX = "__art__||";
 async function prepareAnalytics(){
-  const from=document.getElementById("analyticsDateFrom");
-  const to=document.getElementById("analyticsDateTo");
-  if(!from.value) from.value=todayISO().slice(0,8)+"01";
-  if(!to.value) to.value=todayISO();
-  await fillAnalyticsMarkets();
-  await fillAnalyticsAreas();
+  // Bereichs-Filter mit allen vorhandenen Bereichen befuellen
+  await fillAnalyticsBereichFilter();
+}
+async function fillAnalyticsBereichFilter(){
+  const select = document.getElementById("analyticsBereich");
+  if(!select) return;
+  const current = select.value;
+  select.innerHTML = '<option value="">Alle Bereiche</option>';
+  let data;
+  try{
+    data = await fetchAllPaged(()=>db.from("metrics").select("area"));
+  }catch(e){ console.error(e); return; }
+  const areas = [...new Set((data||[]).map(r=>r.area).filter(Boolean))]
+    .filter(a => a !== "Markt Gesamt")
+    .sort((a,b)=>a.localeCompare(b,"de"));
+  // Markt Gesamt nach vorne
+  if((data||[]).some(r => r.area === "Markt Gesamt")) areas.unshift("Markt Gesamt");
+  areas.forEach(a => {
+    const o = document.createElement("option");
+    o.value = a; o.textContent = a;
+    select.appendChild(o);
+  });
+  if([...select.options].some(o=>o.value===current)) select.value = current;
 }
 async function fetchAllPaged(buildQuery){
   // Supabase liefert standardmaessig nur 1000 Zeilen pro Anfrage. Wir holen alles in Seiten.
@@ -203,6 +232,8 @@ async function fetchAllPaged(buildQuery){
   return all;
 }
 async function fillAnalyticsMarkets(){
+  // Kompatibilitaets-Stub: in der neuen UI gibt es keinen Marktselektor mehr
+  await fillAnalyticsBereichFilter();
   const select=document.getElementById("analyticsMarket");
   if(!select) return;
   const current=select.value;
@@ -236,9 +267,10 @@ async function fillAnalyticsMarkets(){
   if([...select.options].some(o=>o.value===current)) select.value=current;
 }
 async function fillAnalyticsAreas(){
-  const market=document.getElementById("analyticsMarket").value;
+  // Kompatibilitaets-Stub: in der neuen UI keine markt-spezifische Bereichsauswahl mehr
   const select=document.getElementById("analyticsArea");
   if(!select) return;
+  const market=document.getElementById("analyticsMarket")?.value || "";
   const current=select.value;
   select.innerHTML="";
   if(!market){
@@ -277,75 +309,245 @@ async function fillAnalyticsAreas(){
   if([...select.options].some(o=>o.value===current)) select.value=current;
 }
 async function loginAnalytics(){
-  const market=document.getElementById("analyticsMarket").value;
-  const area=document.getElementById("analyticsArea").value;
   const password=document.getElementById("analyticsPassword").value.trim();
   const msg=document.getElementById("analyticsLoginMsg");
   msg.innerHTML="";
-  if(!market || !area){msg.innerHTML="Für diesen Markt wurden keine Kennzahlen/Bereiche gefunden.";return;}
   if(!password){alert("Bitte Passwort eingeben.");return;}
   const {data,error}=await db.from("access_codes").select("*").eq("password",password).limit(1);
   if(error){msg.innerHTML="Fehler: "+error.message;return;}
   if(!data||!data.length){msg.innerHTML="Passwort falsch.";return;}
-  analyticsAccess={market,area,role:data[0].role||"global"};
+  analyticsAccess={role:data[0].role||"global"};
   document.getElementById("analyticsDashboard").style.display="block";
-  document.getElementById("analyticsTitle").innerText=`Dashboard – ${market} / ${area}`;
+  await fillAnalyticsBereichFilter();
   loadAnalytics();
 }
-function isPercentUnit(unit){return String(unit||"").trim()==="%"}
-function aggregateMetric(values, unit){
-  // % -> Mittelwert, alles andere -> Summe
-  if(!values.length) return 0;
-  if(isPercentUnit(unit)){
-    return values.reduce((a,b)=>a+b,0)/values.length;
-  }
-  return values.reduce((a,b)=>a+b,0);
+function lastCompletedISOWeekThursday(){
+  const today = new Date();
+  const dow = today.getDay() || 7; // Mo=1 ... So=7
+  const lastSunday = new Date(today);
+  lastSunday.setDate(today.getDate() - dow); // letzter Sonntag = Ende der letzten KW
+  const thursday = new Date(lastSunday);
+  thursday.setDate(lastSunday.getDate() - 3); // Donnerstag dieser KW
+  return thursday;
 }
+function isoPeriodRange(periodWeeks){
+  const endThu = lastCompletedISOWeekThursday();
+  const startThu = new Date(endThu);
+  startThu.setDate(endThu.getDate() - (periodWeeks - 1) * 7);
+  const startMon = new Date(startThu); startMon.setDate(startThu.getDate() - 3);
+  const endSun = new Date(endThu); endSun.setDate(endThu.getDate() + 3);
+  return {
+    fromThuISO: formatDate(startThu),
+    toThuISO: formatDate(endThu),
+    fromDisplayISO: formatDate(startMon),
+    toDisplayISO: formatDate(endSun)
+  };
+}
+function computeArrow(kind, value, compareDiff){
+  // Liefert {arrow, color}
+  const GREEN = "#22c55e", YELLOW = "#f59e0b", RED = "#ef4444";
+  if(value === null || value === undefined || !Number.isFinite(value)) return {arrow:"", color:""};
+  if(kind === "info") return {arrow:"", color:""};
+  if(kind === "vs_vj"){
+    if(value > 2) return {arrow:"↑", color: GREEN};
+    if(value < -2) return {arrow:"↓", color: RED};
+    return {arrow:"→", color: YELLOW};
+  }
+  if(kind === "ertrag"){
+    const d = compareDiff;
+    if(d === null || d === undefined || !Number.isFinite(d)) return {arrow:"→", color: YELLOW};
+    if(d >= 0.5) return {arrow:"↑", color: GREEN};
+    if(d <= -0.5) return {arrow:"↓", color: RED};
+    return {arrow:"→", color: YELLOW};
+  }
+  if(kind === "abschr"){
+    if(value > -1.5) return {arrow:"↑", color: GREEN};
+    if(value < -2.5) return {arrow:"↓", color: RED};
+    return {arrow:"→", color: YELLOW};
+  }
+  return {arrow:"", color:""};
+}
+function formatKpiCell(value, unit, kind, compareDiff){
+  if(value === null || value === undefined || !Number.isFinite(value)) return `<span class="small">–</span>`;
+  const a = computeArrow(kind, value, compareDiff);
+  const num = value.toLocaleString("de-DE", {maximumFractionDigits: 2});
+  const arrowHTML = a.arrow ? ` <span style="color:${a.color};font-weight:bold;font-size:18px;vertical-align:middle">${a.arrow}</span>` : "";
+  return `${num} ${unit}${arrowHTML}`;
+}
+function sumArr(a){return a ? a.reduce((s,x)=>s+(Number(x)||0), 0) : 0;}
+function avgArr(a){return a && a.length ? (a.reduce((s,x)=>s+(Number(x)||0), 0) / a.length) : null;}
 async function loadAnalytics(){
   if(!analyticsAccess) return;
-  const from=document.getElementById("analyticsDateFrom").value;
-  const to=document.getElementById("analyticsDateTo").value;
-  const scope=document.getElementById("analyticsScope")?.value || "market";
-  const cards=document.getElementById("analyticsCards");
-  const table=document.getElementById("analyticsTable");
-  const notes=document.getElementById("analyticsNotes");
-  cards.innerHTML="";table.innerHTML="";notes.innerHTML="";
-  let metrics;
+  const periodWeeks = parseInt(document.getElementById("analyticsPeriod").value, 10) || 1;
+  const selectedBereich = document.getElementById("analyticsBereich").value;
+  const content = document.getElementById("analyticsContent");
+  const periodLabel = document.getElementById("analyticsPeriodLabel");
+  content.innerHTML = `<div class="box">Lade Daten ...</div>`;
+  const range = isoPeriodRange(periodWeeks);
+  periodLabel.innerHTML = `Zeitraum: ${formatDateDE(range.fromDisplayISO)} bis ${formatDateDE(range.toDisplayISO)} (${periodWeeks} Kalenderwoche${periodWeeks>1?"n":""})`;
+  let allRows;
   try{
-    metrics = await fetchAllPaged(()=>{
-      let q = db.from("metrics").select("*").eq("area",analyticsAccess.area).gte("metric_date",from).lte("metric_date",to);
-      if(scope==="market") q = q.eq("market",analyticsAccess.market);
+    allRows = await fetchAllPaged(()=>{
+      let q = db.from("metrics")
+        .select("*")
+        .gte("metric_date", range.fromThuISO)
+        .lte("metric_date", range.toThuISO)
+        .not("metric_name", "like", ART_PREFIX + "%");
+      if(selectedBereich) q = q.eq("area", selectedBereich);
       return q;
     });
   }catch(e){
-    cards.innerHTML="Fehler: "+(e.message||e);
+    content.innerHTML = `<div class="box">Fehler: ${e.message || e}</div>`;
     return;
   }
-  const titleSuffix = scope==="market" ? `Nur ${analyticsAccess.market}` : "Alle Märkte";
-  if(!metrics.length){cards.innerHTML=`<h2>Kennzahlen (${titleSuffix})</h2>Keine Kennzahlen für diesen Zeitraum.`;}
-  else{
-    const grouped={};
-    metrics.forEach(m=>{
-      const key=`${m.metric_name}||${m.metric_unit||""}`;
-      if(!grouped[key]) grouped[key]={name:m.metric_name,unit:m.metric_unit||"",values:[]};
-      const num=Number(m.metric_value||0);
-      if(Number.isFinite(num)) grouped[key].values.push(num);
-    });
-    const cardEntries = Object.values(grouped).map(g=>{
-      const value = aggregateMetric(g.values, g.unit);
-      const label = isPercentUnit(g.unit) ? " (Ø)" : " (Σ)";
-      return {name:g.name, unit:g.unit, value, label, count:g.values.length};
-    }).sort((a,b)=>a.name.localeCompare(b.name,"de"));
-    cards.innerHTML=`<h2>Kennzahlen (${titleSuffix})</h2><div class="metric-grid">${cardEntries.map(s=>`<div class="metric-card"><div class="small">${s.name}${s.label}</div><div class="metric-value">${s.value.toLocaleString("de-DE",{maximumFractionDigits:2})}</div><div class="small">${s.unit} · ${s.count} Werte</div></div>`).join("")}</div>`;
-    const sortedRows=metrics.slice().sort((a,b)=>a.metric_date.localeCompare(b.metric_date)||a.market.localeCompare(b.market,"de")||a.metric_name.localeCompare(b.metric_name,"de"));
-    table.innerHTML=`<h2>Details</h2><div class="table-wrap"><table><thead><tr><th>Datum</th><th>Markt</th><th>Bereich</th><th>Kennzahl</th><th>Wert</th><th>Einheit</th></tr></thead><tbody>${sortedRows.map(m=>`<tr><td>${formatDateDE(m.metric_date)}</td><td>${m.market}</td><td>${m.area}</td><td>${m.metric_name}</td><td>${Number(m.metric_value||0).toLocaleString("de-DE",{maximumFractionDigits:2})}</td><td>${m.metric_unit||""}</td></tr>`).join("")}</tbody></table></div>`;
+  if(!allRows.length){
+    content.innerHTML = `<div class="box">Keine Werte für diesen Zeitraum.</div>`;
+    return;
   }
-  let nq=db.from("metric_notes").select("*").eq("area",analyticsAccess.area).gte("note_date",from).lte("note_date",to);
-  const {data:noteData,error:noteError}=await nq;
-  if(noteError){notes.innerHTML="Fehler: "+noteError.message;return;}
-  const noteRows=noteData||[];
-  notes.innerHTML=`<h2>Hinweise</h2>${noteRows.length?noteRows.sort((a,b)=>a.note_date.localeCompare(b.note_date)).map(n=>`<div class="task info"><div><strong>${formatDateDE(n.note_date)} | ${n.area}</strong><div>${n.note}</div></div></div>`).join(""):"Keine Hinweise im Zeitraum."}`;
+  // Gruppierung: area -> market -> {kpi: [values]}
+  const groups = {};
+  allRows.forEach(m => {
+    const key = `${m.area}||${m.market}`;
+    if(!groups[key]) groups[key] = {area: m.area, market: m.market, vals: {}};
+    if(!groups[key].vals[m.metric_name]) groups[key].vals[m.metric_name] = [];
+    groups[key].vals[m.metric_name].push(Number(m.metric_value) || 0);
+  });
+  // Bereiche sortieren: "Markt Gesamt" zuerst, Rest alphabetisch
+  const areasInData = [...new Set(Object.values(groups).map(g => g.area))];
+  const areas = areasInData.filter(a => a !== "Markt Gesamt").sort((a,b)=>a.localeCompare(b,"de"));
+  if(areasInData.includes("Markt Gesamt")) areas.unshift("Markt Gesamt");
+  let html = "";
+  areas.forEach(area => {
+    const marketsForArea = ANALYTICS_MARKET_ORDER.filter(m => groups[`${area}||${m}`]);
+    if(!marketsForArea.length) return;
+    html += `<div class="box"><h2 style="margin-top:0">${area}</h2><div class="table-wrap"><table><thead><tr>
+      <th>Markt</th>
+      <th>Umsatz vs. Vorjahr</th>
+      <th>Kunden vs. Vorjahr</th>
+      <th>Nettoertragsspanne</th>
+      <th>Nettoertragssp. Vorjahr</th>
+      <th>Abschriften am Umsatz</th>
+      <th>Aktion</th>
+    </tr></thead><tbody>`;
+    marketsForArea.forEach(market => {
+      const g = groups[`${area}||${market}`];
+      const v = g.vals;
+      // Umsatz vs Vj
+      const umsatz = sumArr(v["Umsatz"]);
+      const umsatzVj = sumArr(v["Umsatz Vj"]);
+      const umsatzPct = (umsatzVj > 0) ? ((umsatz - umsatzVj) / umsatzVj * 100) : null;
+      // Kunden vs Vj
+      const kunden = sumArr(v["Kunden"]);
+      const kundenVj = sumArr(v["Kunden Vj"]);
+      const kundenPct = (kundenVj > 0) ? ((kunden - kundenVj) / kundenVj * 100) : null;
+      // Nettoertragsspanne (Mittelwert der wöchentlichen %-Werte)
+      const ertrag = avgArr(v["Nettoertragssp."]);
+      const ertragVj = avgArr(v["Nettoertragssp. Vj"]);
+      const ertragDiff = (ertrag !== null && ertragVj !== null) ? (ertrag - ertragVj) : null;
+      // Abschriften am Umsatz: lieber neu rechnen, sonst Mittel der %
+      const abschrSum = sumArr(v["Abschriften VK [br]"]);
+      let abschrPct;
+      if(umsatz > 0 && v["Abschriften VK [br]"]){
+        abschrPct = abschrSum / umsatz * 100;
+      } else if(v["Ant. Abschr. VK [br] am Umsatz %"]){
+        abschrPct = avgArr(v["Ant. Abschr. VK [br] am Umsatz %"]);
+      } else {
+        abschrPct = null;
+      }
+      const hasArticles = (area !== "Markt Gesamt"); // Artikel-Daten gibt es nur pro Bereich
+      const btn = hasArticles
+        ? `<button class="btn-blue" style="width:auto" onclick="showArticles('${market.replace(/'/g, "\\'")}','${area.replace(/'/g, "\\'")}',${periodWeeks})">Artikel anschauen</button>`
+        : `<span class="small">–</span>`;
+      html += `<tr>
+        <td><strong>${market}</strong></td>
+        <td>${formatKpiCell(umsatzPct, "%", "vs_vj")}</td>
+        <td>${formatKpiCell(kundenPct, "%", "vs_vj")}</td>
+        <td>${formatKpiCell(ertrag, "%", "ertrag", ertragDiff)}</td>
+        <td>${formatKpiCell(ertragVj, "%", "info")}</td>
+        <td>${formatKpiCell(abschrPct, "%", "abschr")}</td>
+        <td>${btn}</td>
+      </tr>`;
+    });
+    html += `</tbody></table></div></div>`;
+  });
+  if(!html) html = `<div class="box">Keine passenden Werte gefunden.</div>`;
+  content.innerHTML = html;
 }
+async function showArticles(market, area, periodWeeks){
+  const range = isoPeriodRange(periodWeeks);
+  const modalTitle = document.getElementById("articleModalTitle");
+  const modalBody = document.getElementById("articleModalBody");
+  modalTitle.textContent = `Artikel – ${area} / ${market}`;
+  modalBody.innerHTML = `<p class="small">Lade Artikel-Daten ...</p>`;
+  document.getElementById("articleModal").style.display = "flex";
+  let rows;
+  try{
+    rows = await fetchAllPaged(()=>db.from("metrics")
+      .select("*")
+      .eq("market", market)
+      .eq("area", area)
+      .gte("metric_date", range.fromThuISO)
+      .lte("metric_date", range.toThuISO)
+      .like("metric_name", ART_PREFIX + "%"));
+  }catch(e){
+    modalBody.innerHTML = `<p>Fehler: ${e.message || e}</p>`;
+    return;
+  }
+  if(!rows.length){
+    modalBody.innerHTML = `<p>Für ${area} in ${market} sind im Zeitraum ${formatDateDE(range.fromDisplayISO)} – ${formatDateDE(range.toDisplayISO)} keine Artikel-Daten in der Datenbank.<br><br><span class="small">Hinweis: Artikel-Daten kommen aus der Abschriften-Excel. Falls du diese vor dem letzten App-Update hochgeladen hast, lade sie im Adminbereich noch einmal hoch (vorher „Alle Kennzahlen löschen").</span></p>`;
+    return;
+  }
+  // Aggregation pro Artikel + Datum
+  const articles = {};
+  rows.forEach(r => {
+    const parts = (r.metric_name || "").split("||");
+    if(parts.length < 5) return; // [__art__, artNo, artName, gtin, kpiName]
+    const artNo = parts[1] || "";
+    const artName = parts[2] || "";
+    const gtin = parts[3] || "";
+    const kpi = parts[4] || "";
+    const key = `${artNo}||${artName}`;
+    if(!articles[key]) articles[key] = {artNo, artName, gtin, byDate: {}};
+    if(!articles[key].byDate[r.metric_date]) articles[key].byDate[r.metric_date] = {};
+    articles[key].byDate[r.metric_date][kpi] = Number(r.metric_value) || 0;
+  });
+  // Sortierung: nach Summe Abschriften aufsteigend (groesste Abschriften = stark negativ zuerst)
+  const list = Object.values(articles).map(a => {
+    let totalAbs = 0;
+    Object.values(a.byDate).forEach(kv => { totalAbs += (kv["Abschriften VK [br]"] || 0); });
+    return {...a, totalAbs};
+  }).sort((a,b) => a.totalAbs - b.totalAbs);
+  let html = `<p class="small">Zeitraum: ${formatDateDE(range.fromDisplayISO)} bis ${formatDateDE(range.toDisplayISO)} &nbsp;·&nbsp; ${list.length} Artikel · sortiert nach höchsten Abschriften zuerst</p>`;
+  html += `<div class="table-wrap"><table><thead><tr>
+    <th>Art.-Nr.</th><th>Bezeichnung</th><th>GTIN</th><th>Datum (KW-Do)</th>
+    <th style="text-align:right">Abschriften €</th><th style="text-align:right">% am Umsatz</th>
+  </tr></thead><tbody>`;
+  list.forEach(a => {
+    const dates = Object.keys(a.byDate).sort();
+    const span = dates.length;
+    dates.forEach((d, idx) => {
+      const kv = a.byDate[d];
+      const abs = kv["Abschriften VK [br]"];
+      const pct = kv["Ant. Abschr. VK [br] am Umsatz %"];
+      html += `<tr>`;
+      if(idx === 0){
+        html += `<td rowspan="${span}"><strong>${a.artNo}</strong></td>`;
+        html += `<td rowspan="${span}">${a.artName}</td>`;
+        html += `<td rowspan="${span}">${a.gtin}</td>`;
+      }
+      html += `<td>${formatDateDE(d)}</td>`;
+      html += `<td style="text-align:right">${abs !== undefined ? abs.toLocaleString("de-DE",{maximumFractionDigits:2}) : "–"}</td>`;
+      html += `<td style="text-align:right">${pct !== undefined ? pct.toLocaleString("de-DE",{maximumFractionDigits:2}) + " %" : "–"}</td>`;
+      html += `</tr>`;
+    });
+  });
+  html += `</tbody></table></div>`;
+  modalBody.innerHTML = html;
+}
+function closeArticleModal(){
+  document.getElementById("articleModal").style.display = "none";
+}
+/* alte Analytics-Funktion entfernt — neue Version weiter oben */
 function handleMarketChange(){
   const market=document.getElementById("marketFilter").value;
   localStorage.setItem("selectedMarket",market);
@@ -551,6 +753,7 @@ function detectEdekaBoFormat(matrix){
     return v === "Artikel" || v === "GTIN";
   });
   if(isAbschriften){
+    const gtinCol = row2.findIndex(c => String(c||"").trim() === "GTIN");
     return {
       type:"abschriften",
       marketRow: marktPos.row,
@@ -559,7 +762,9 @@ function detectEdekaBoFormat(matrix){
       dataStartRow: 3,
       dataStartCol,
       deptCol: 0,
-      articleCol: 1
+      articleCol: 1,
+      nameCol: 2,
+      gtinCol: gtinCol !== -1 ? gtinCol : 3
     };
   }
   return {
@@ -620,15 +825,35 @@ function parseEdekaBoSheet(matrix, format, year){
     if(!dept || dept === "#") continue;
     lastDept = dept;
     let umsatzKpi = null;
+    let isArticleRow = false;
+    let articleNo = "";
+    let articleName = "";
+    let articleGtin = "";
     if(format.type === "umsatz"){
       const kpiRaw = row[format.kpiCol];
       if(kpiRaw === null || kpiRaw === undefined || String(kpiRaw).trim() === "") continue;
       umsatzKpi = String(kpiRaw).trim();
     } else {
-      // Abschriften: nur Abteilungs-Summen, keine Artikel-Detailzeilen
+      // Abschriften: Abteilungssummen, Markt-Gesamt UND Artikel-Detailzeilen speichern
       const articleRaw = row[format.articleCol];
       const articleStr = articleRaw === null || articleRaw === undefined ? "" : String(articleRaw).trim();
-      if(dept !== "Gesamtergebnis" && articleStr !== "Ergebnis") continue;
+      if(dept === "Gesamtergebnis"){
+        // Markt Gesamt rollup
+      } else if(articleStr === "Ergebnis"){
+        // Abteilungs-Summe
+      } else if(articleStr !== "" && articleStr !== "Gesamtergebnis"){
+        // Artikel-Detailzeile (Artikel-Nummer in Spalte B)
+        isArticleRow = true;
+        articleNo = articleStr;
+        const nameCol = format.nameCol !== undefined ? format.nameCol : 2;
+        const gtinCol = format.gtinCol !== undefined ? format.gtinCol : 3;
+        articleName = String(row[nameCol] !== undefined && row[nameCol] !== null ? row[nameCol] : "").trim();
+        articleGtin = String(row[gtinCol] !== undefined && row[gtinCol] !== null ? row[gtinCol] : "").trim();
+        // Sonderzeichen | aus Artikelnamen entfernen, weil wir es als Trenner nutzen
+        articleName = articleName.replace(/\|\|/g, " ").replace(/\|/g, " ");
+      } else {
+        continue;
+      }
     }
     const maxC = Math.max(row.length, markets.length, weeks.length);
     for(let c = format.dataStartCol; c < maxC; c++){
@@ -663,10 +888,13 @@ function parseEdekaBoSheet(matrix, format, year){
       const area = (dept === "Gesamtergebnis") ? "Markt Gesamt" : dept;
       const thu = thursdayOfISOWeek(year, weekNum);
       const dateISO = formatDate(thu);
+      const storedName = isArticleRow
+        ? `${ART_PREFIX}${articleNo}||${articleName}||${articleGtin}||${kpiName}`
+        : kpiName;
       out.push({
         market,
         area,
-        metric_name: kpiName,
+        metric_name: storedName,
         metric_value: num,
         metric_unit: inferMetricUnit(kpiName),
         metric_date: dateISO
