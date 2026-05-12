@@ -1928,13 +1928,22 @@ async function loadDispo(){
   const latest = rows.filter(r => r.upload_seq === latestSeqByKey[`${r.market}||${r.list_type}`]);
   dispoState.items = latest;
   // Dokumente parallel laden
+  dispoState.documentsError = null;
   try{
     let dq = db.from("dispo_documents").select("*").order("upload_date", {ascending: false});
     if(market) dq = dq.eq("market", market);
     const dr = await dq;
-    dispoState.documents = dr.data || [];
+    if(dr.error){
+      console.error("Dispo documents fetch error:", dr.error);
+      dispoState.documents = [];
+      dispoState.documentsError = dr.error.message || String(dr.error);
+    } else {
+      dispoState.documents = dr.data || [];
+    }
   }catch(e){
+    console.error("Dispo documents fetch exception:", e);
     dispoState.documents = [];
+    dispoState.documentsError = e.message || String(e);
   }
   renderDispo();
 }
@@ -1970,20 +1979,24 @@ function renderDispo(){
   const totalDone = items.filter(i => i.done_date).length;
   const totalCool = items.filter(i => i.in_cooldown).length;
   document.getElementById("dispoSummary").innerHTML = `In der aktuellen Liste: <strong>${totalOpen} offen</strong>, ${totalDone} erledigt, ${totalCool} im Cooldown.`;
-  // Downloads-Bereich (Dashboards + WE-Prognosen)
+  // Downloads-Bereich (Dashboards + WE-Prognosen) – immer sichtbar, auch wenn leer
   let docHtml = "";
   const docs = dispoState.documents || [];
-  if(docs.length){
-    const ORDER = ["Dashboard", "WE_Prognose_Kolli", "WE_Prognose_Palette", "WE_Prognose_Rolli"];
-    const MARKET_ORDER = ["Freckenfeld","Gossersweiler-Stein","Billigheim-Ingenheim","Steinfeld"];
-    const sortedDocs = docs.slice().sort((a,b) => {
-      const ma = MARKET_ORDER.indexOf(a.market); const mb = MARKET_ORDER.indexOf(b.market);
-      const md = (ma === -1 ? 99 : ma) - (mb === -1 ? 99 : mb);
-      if(md !== 0) return md;
-      const ta = ORDER.indexOf(a.doc_type); const tb = ORDER.indexOf(b.doc_type);
-      return (ta === -1 ? 99 : ta) - (tb === -1 ? 99 : tb);
-    });
-    docHtml = `<div class="box"><h3 style="margin-top:0">📥 Downloads (${sortedDocs.length})</h3><div class="dispo-doc-grid">`;
+  const ORDER = ["Dashboard", "WE_Prognose_Kolli", "WE_Prognose_Palette", "WE_Prognose_Rolli"];
+  const MARKET_ORDER = ["Freckenfeld","Gossersweiler-Stein","Billigheim-Ingenheim","Steinfeld"];
+  const sortedDocs = docs.slice().sort((a,b) => {
+    const ma = MARKET_ORDER.indexOf(a.market); const mb = MARKET_ORDER.indexOf(b.market);
+    const md = (ma === -1 ? 99 : ma) - (mb === -1 ? 99 : mb);
+    if(md !== 0) return md;
+    const ta = ORDER.indexOf(a.doc_type); const tb = ORDER.indexOf(b.doc_type);
+    return (ta === -1 ? 99 : ta) - (tb === -1 ? 99 : tb);
+  });
+  docHtml = `<div class="box"><h3 style="margin-top:0">📥 Downloads (${sortedDocs.length})</h3>`;
+  if(dispoState.documentsError){
+    docHtml += `<div class="small" style="color:#c62828;background:#fff4f4;border:1px solid #fca5a5;border-radius:6px;padding:8px;margin-bottom:8px">⚠️ Datenbank-Fehler beim Lesen der Downloads: <strong>${dispoState.documentsError}</strong></div>`;
+  }
+  if(sortedDocs.length){
+    docHtml += `<div class="dispo-doc-grid">`;
     sortedDocs.forEach(d => {
       const label = DISPO_DOC_TYPE_LABEL[d.doc_type] || d.doc_type;
       const url = d.public_url || "#";
@@ -1994,8 +2007,11 @@ function renderDispo(){
         <a class="btn-doc" href="${url}" target="_blank" download="${d.file_name || ""}">Herunterladen ⬇</a>
       </div>`;
     });
-    docHtml += `</div></div>`;
+    docHtml += `</div>`;
+  } else {
+    docHtml += `<div class="small">Noch keine Downloads vorhanden.<br>Lade Dashboard- oder WE-Prognose-PDFs im Admin-Bereich hoch. Sie erscheinen dann hier.</div>`;
   }
+  docHtml += `</div>`;
   if(!Object.keys(groups).length){
     content.innerHTML = docHtml + `<div class="box">Keine Einträge für diesen Filter.</div>`;
     return;
