@@ -11,7 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <style>
     :root{--blue:#004f9e;--blue-dark:#00315f;--yellow:#ffdd00;--red:#ef4444;--orange:#f59e0b;--green:#22c55e;--border:#d8e2ef;--text:#08213f}
-    *{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(180deg,var(--blue-dark),var(--blue));color:var(--text);min-height:100vh}.header{background:linear-gradient(135deg,#002b55,#0059ad);padding:22px 26px 18px;border-bottom:6px solid var(--yellow)}.brand{max-width:1300px;margin:0 auto}.logo{max-width:520px;width:100%;height:auto;display:block}.brand-title{font-size:44px;font-weight:900;font-style:italic;color:#fff}.brand-subtitle{font-size:18px;color:#d9ecff}.main{max-width:1300px;margin:0 auto;padding:24px}.tabs{display:flex;gap:10px;margin-bottom:18px}.tab{border:2px solid var(--yellow);background:transparent;color:#fff;padding:14px 24px;border-radius:12px 12px 0 0;font-weight:bold;cursor:pointer}.tab.active{background:var(--yellow);color:var(--blue-dark)}.todo-tab{flex:7}.analytics-tab{flex:2}.admin-tab{flex:1;min-width:92px}.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:14px}.metric-card{background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:16px}.metric-value{font-size:28px;font-weight:900;color:var(--blue-dark)}.locked{opacity:.75}.box{background:#fff;border-radius:14px;padding:18px;margin-bottom:18px;box-shadow:0 8px 24px rgba(0,0,0,.14)}.admin{border:3px solid var(--yellow)}.control-grid{display:grid;grid-template-columns:repeat(5,minmax(160px,1fr));gap:14px;align-items:end}label{font-weight:bold;font-size:14px;display:block;margin-bottom:6px}input,select,textarea,button{padding:12px;border-radius:8px;border:1px solid #b8c7d9;font-size:15px;width:100%}textarea{min-height:86px;resize:vertical}button{cursor:pointer;font-weight:bold;border:none}.btn-yellow{background:var(--yellow);color:var(--blue-dark)}.btn-blue{background:var(--blue);color:#fff}.btn-dark{background:var(--blue-dark);color:#fff}.btn-red{background:#c62828;color:#fff}.btn-green{background:#2e7d32;color:#fff}.task{padding:14px;border-radius:10px;margin-bottom:10px;border:1px solid var(--border);display:flex;gap:12px;align-items:flex-start}.high{background:#ffe5e5;border-color:#ffb3b3}.medium{background:#fff5cc;border-color:#ffe480}.low{background:#e8f5e9;border-color:#bde8c3}.info{background:#e0f2fe;border-color:#7dd3fc}.done{text-decoration:line-through;color:#6b7280}.pill{display:inline-block;padding:3px 8px;border-radius:999px;color:#fff;font-size:12px;font-weight:bold;margin-left:6px}.high-p{background:var(--red)}.medium-p{background:var(--orange)}.low-p{background:var(--green)}.open-p{background:#64748b}.done-p{background:var(--green)}.info-p{background:#0284c7}.small{font-size:13px;color:#64748b;margin-top:4px}.days label,.months label{display:inline-flex;align-items:center;gap:6px;margin:6px 12px 6px 0;font-weight:normal}.days input,.months input{width:auto}.admin-actions{display:flex;gap:8px;flex-wrap:wrap}.admin-actions button{width:auto}.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px}table{border-collapse:collapse;width:100%;min-width:900px;background:#fff}th,td{border:1px solid #e1e8f0;padding:9px;text-align:left;font-size:13px}th{background:#f1f5f9}.footer{background:var(--yellow);color:var(--blue-dark);text-align:center;padding:18px;font-weight:bold;margin-top:30px}
+    *{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(180deg,var(--blue-dark),var(--blue));color:var(--text);min-height:100vh}.header{background:linear-gradient(135deg,#002b55,#0059ad);padding:22px 26px 18px;border-bottom:6px solid var(--yellow)}.brand{max-width:1300px;margin:0 auto}.logo{max-width:520px;width:100%;height:auto;display:block}.brand-title{font-size:44px;font-weight:900;font-style:italic;color:#fff}.brand-subtitle{font-size:18px;color:#d9ecff}.main{max-width:1300px;margin:0 auto;padding:24px}.tabs{display:flex;gap:10px;margin-bottom:18px}.tab{border:2px solid var(--yellow);background:transparent;color:#fff;padding:14px 24px;border-radius:12px 12px 0 0;font-weight:bold;cursor:pointer}.tab.active{background:var(--yellow);color:var(--blue-dark)}.todo-tab{flex:3}.analytics-tab{flex:3}.admin-tab{flex:1;min-width:92px}.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:14px}.metric-card{background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:16px}.metric-value{font-size:28px;font-weight:900;color:var(--blue-dark)}.locked{opacity:.75}.box{background:#fff;border-radius:14px;padding:18px;margin-bottom:18px;box-shadow:0 8px 24px rgba(0,0,0,.14)}.admin{border:3px solid var(--yellow)}.control-grid{display:grid;grid-template-columns:repeat(5,minmax(160px,1fr));gap:14px;align-items:end}label{font-weight:bold;font-size:14px;display:block;margin-bottom:6px}input,select,textarea,button{padding:12px;border-radius:8px;border:1px solid #b8c7d9;font-size:15px;width:100%}textarea{min-height:86px;resize:vertical}button{cursor:pointer;font-weight:bold;border:none}.btn-yellow{background:var(--yellow);color:var(--blue-dark)}.btn-blue{background:var(--blue);color:#fff}.btn-dark{background:var(--blue-dark);color:#fff}.btn-red{background:#c62828;color:#fff}.btn-green{background:#2e7d32;color:#fff}.task{padding:14px;border-radius:10px;margin-bottom:10px;border:1px solid var(--border);display:flex;gap:12px;align-items:flex-start}.high{background:#ffe5e5;border-color:#ffb3b3}.medium{background:#fff5cc;border-color:#ffe480}.low{background:#e8f5e9;border-color:#bde8c3}.info{background:#e0f2fe;border-color:#7dd3fc}.done{text-decoration:line-through;color:#6b7280}.pill{display:inline-block;padding:3px 8px;border-radius:999px;color:#fff;font-size:12px;font-weight:bold;margin-left:6px}.high-p{background:var(--red)}.medium-p{background:var(--orange)}.low-p{background:var(--green)}.open-p{background:#64748b}.done-p{background:var(--green)}.info-p{background:#0284c7}.small{font-size:13px;color:#64748b;margin-top:4px}.days label,.months label{display:inline-flex;align-items:center;gap:6px;margin:6px 12px 6px 0;font-weight:normal}.days input,.months input{width:auto}.admin-actions{display:flex;gap:8px;flex-wrap:wrap}.admin-actions button{width:auto}.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px}table{border-collapse:collapse;width:100%;min-width:900px;background:#fff}th,td{border:1px solid #e1e8f0;padding:9px;text-align:left;font-size:13px}th{background:#f1f5f9}.footer{background:var(--yellow);color:var(--blue-dark);text-align:center;padding:18px;font-weight:bold;margin-top:30px}
     .kpi-block .kpi-cards{display:none}
     .kpi-mobile-card{background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px}
     .kpi-mobile-card h3{margin:0 0 8px;font-size:16px;color:var(--blue-dark)}
@@ -20,7 +20,7 @@
     .kpi-mobile-row .label{color:#475569;flex:1;min-width:0}
     .kpi-mobile-row .value{font-weight:bold;text-align:right;white-space:nowrap}
     .kpi-mobile-card .kpi-mobile-action{margin-top:10px}
-    .dispo-tab{flex:2}
+    .dispo-tab{flex:3}
     .dispo-list-group{margin-bottom:18px}
     .dispo-list-group h3{margin:6px 0 10px;color:var(--blue-dark);font-size:17px}
     .dispo-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px;box-shadow:0 4px 12px rgba(0,0,0,.06)}
@@ -56,7 +56,7 @@
     .article-card details summary{cursor:pointer;color:var(--blue);font-size:13px;font-weight:bold}
     .article-card .a-detail-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dotted #cbd5e1;font-size:13px}
     .article-card .a-detail-row:last-child{border-bottom:none}
-    @media(max-width:900px){body{background:var(--blue-dark)}.header{padding:14px 12px 12px}.main{padding:12px}.logo{max-width:280px}.tabs{position:sticky;top:0;z-index:10;background:var(--blue-dark);padding-top:8px}.todo-tab{flex:6}.analytics-tab{flex:3}.admin-tab{flex:1;min-width:70px}.tab{padding:12px 8px;font-size:14px}.metric-grid{grid-template-columns:1fr}.box{padding:12px;border-radius:12px;margin-bottom:12px}.control-grid{grid-template-columns:1fr;gap:10px}input,select,textarea,button{font-size:16px;padding:13px}.task{padding:12px;gap:10px}.task input[type="checkbox"]{width:24px;height:24px;flex:0 0 24px}.admin-actions{display:grid;grid-template-columns:1fr 1fr}.admin-actions button{width:100%}.footer{font-size:13px;padding:12px}}
+    @media(max-width:900px){body{background:var(--blue-dark)}.header{padding:14px 12px 12px}.main{padding:12px}.logo{max-width:280px}.tabs{position:sticky;top:0;z-index:10;background:var(--blue-dark);padding-top:8px}.todo-tab{flex:3}.dispo-tab{flex:3}.analytics-tab{flex:3}.admin-tab{flex:1;min-width:70px}.tab{padding:12px 6px;font-size:13px}.metric-grid{grid-template-columns:1fr}.box{padding:12px;border-radius:12px;margin-bottom:12px}.control-grid{grid-template-columns:1fr;gap:10px}input,select,textarea,button{font-size:16px;padding:13px}.task{padding:12px;gap:10px}.task input[type="checkbox"]{width:24px;height:24px;flex:0 0 24px}.admin-actions{display:grid;grid-template-columns:1fr 1fr}.admin-actions button{width:100%}.footer{font-size:13px;padding:12px}}
     @media(max-width:700px){.kpi-block .kpi-table{display:none}.kpi-block .kpi-cards{display:block}.article-block .article-table{display:none}.article-block .article-cards{display:block}.article-block .article-sort-mobile{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}.article-block .article-sort-mobile label{margin:0}}
   </style>
 </head>
@@ -1495,29 +1495,40 @@ function dispoParseFilename(name){
 }
 
 async function dispoExtractText(pdf){
-  // PDF.js Text-Extraktion pro Seite
+  // PDF.js Text-Extraktion pro Seite – robust per Y-Toleranz
   const allLines = [];
+  const TOL = 3; // Pixel-Toleranz fuer "gleiche Zeile"
   for(let p = 1; p <= pdf.numPages; p++){
     const page = await pdf.getPage(p);
     const content = await page.getTextContent();
-    // Items nach Y-Koordinate gruppieren (Zeilen rekonstruieren)
-    const items = content.items.map(it => ({
-      str: it.str,
-      x: it.transform[4],
-      y: Math.round(it.transform[5])
-    }));
-    const linesByY = {};
-    items.forEach(it => {
-      if(!linesByY[it.y]) linesByY[it.y] = [];
-      linesByY[it.y].push(it);
+    const items = (content.items || []).filter(it => it.str !== undefined && it.transform);
+    // Sortiere: Y absteigend (top-to-bottom), bei Gleichheit X aufsteigend
+    items.sort((a,b) => {
+      const yA = a.transform[5], yB = b.transform[5];
+      if(Math.abs(yA - yB) > TOL) return yB - yA;
+      return a.transform[4] - b.transform[4];
     });
-    const yKeys = Object.keys(linesByY).map(Number).sort((a,b)=>b-a);
-    yKeys.forEach(y => {
-      const line = linesByY[y].sort((a,b)=>a.x-b.x).map(it => it.str).join(" ").replace(/\s+/g," ").trim();
+    let currentLineItems = [];
+    let currentY = null;
+    const flush = () => {
+      if(!currentLineItems.length) return;
+      const line = currentLineItems.map(x => x.str).join(" ").replace(/\s+/g, " ").trim();
       if(line) allLines.push(line);
-    });
+      currentLineItems = [];
+    };
+    for(const it of items){
+      const y = it.transform[5];
+      if(currentY === null){ currentY = y; }
+      if(Math.abs(y - currentY) > TOL){ flush(); currentY = y; }
+      currentLineItems.push(it);
+    }
+    flush();
   }
   return allLines;
+}
+// Hilfsfunktion fuer Diagnose: liefert die ersten N Zeilen formatiert
+function dispoFormatDebugLines(lines, n){
+  return lines.slice(0, n).map((l, i) => `[${i+1}] ${l}`).join("<br>");
 }
 
 function dispoParseFEA(lines, ctx){
@@ -1664,7 +1675,11 @@ async function uploadDispoPdfs(){
       else if(/Aktionsartikel/i.test(ctx.listType)) parsed = dispoParseAktionsartikel(lines, ctx);
       else if(/Distributionsanalyse/i.test(ctx.listType)) parsed = dispoParseDistribution(lines, ctx);
       else { debug.push(`⚠️ ${file.name}: Listentyp "${ctx.listType}" wird (noch) nicht erkannt.`); continue; }
-      debug.push(`✅ ${file.name} → ${ctx.market} / ${ctx.listType} → ${parsed.length} Artikel`);
+      if(parsed.length === 0){
+        debug.push(`⚠️ ${file.name} → 0 Artikel. Erste extrahierte Zeilen zur Diagnose:<br><pre style="background:#f1f5f9;padding:8px;border-radius:6px;font-size:11px;white-space:pre-wrap;word-break:break-word">${dispoFormatDebugLines(lines, 30).replace(/</g,"&lt;")}</pre>`);
+      } else {
+        debug.push(`✅ ${file.name} → ${ctx.market} / ${ctx.listType} → ${parsed.length} Artikel`);
+      }
       allInserts.push({ctx, items: parsed});
     }catch(e){
       debug.push(`❌ ${file.name}: Fehler beim Parsen – ${e.message || e}`);
