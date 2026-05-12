@@ -49,7 +49,13 @@
     .dispo-doc-card .doc-name{font-weight:bold;color:var(--text);font-size:15px}
     .dispo-doc-card .doc-meta{color:#64748b;font-size:12px}
     .dispo-doc-card a.btn-doc{display:inline-block;background:var(--blue);color:#fff;text-align:center;padding:10px 12px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;margin-top:4px}
-    .bs-headline{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .bs-headline{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+    .bs-bigcard.bs-tomorrow{background:linear-gradient(135deg,#e0f2fe,#bae6fd);border-color:var(--blue)}
+    .bs-table tr.bs-top10{background:#fef3c7}
+    .bs-table tr.bs-top10 td:first-child{border-left:5px solid #f59e0b;font-weight:bold}
+    .bs-table tr.bs-top10 td:first-child::before{content:"⭐ ";margin-right:2px}
+    .bs-mobile-card.bs-top10{border-left:5px solid #f59e0b;background:#fef9c3}
+    .bs-mobile-card.bs-top10 .name::before{content:"⭐ ";margin-right:2px}
     .bs-bigcard{background:linear-gradient(135deg,#fefce8,#fef3c7);border:2px solid var(--yellow);border-radius:14px;padding:18px;text-align:center}
     .bs-bigcard .bs-lbl{font-size:13px;color:#78716c;font-weight:bold;text-transform:uppercase;letter-spacing:.5px}
     .bs-bigcard .bs-val{font-size:42px;font-weight:900;color:var(--blue-dark);line-height:1;margin-top:6px}
@@ -1517,9 +1523,14 @@ async function deleteTask(id){if(!adminUnlocked)return alert("Admin-PIN erforder
    BACKSHOP: Frequenz-Prognose
    =========================== */
 const BACKSHOP_HALFLIFE_WEEKS = 4;       // Halbwertszeit fuer exponentielle Gewichtung
-const BACKSHOP_HORIZON_HOURS = 3;        // "Naechste X Stunden" inkl. aktueller Stunde
+const BACKSHOP_HORIZON_HOURS = 5;        // "Naechste X Stunden" inkl. aktueller Stunde
 const BACKSHOP_MARKETS = ["Billigheim-Ingenheim", "Steinfeld"];
 const WEEKDAYS_DE = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
+const WEEKDAYS_DE_ORDERED = ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
+function nextWeekday(d){
+  const i = WEEKDAYS_DE_ORDERED.indexOf(d);
+  return WEEKDAYS_DE_ORDERED[(i + 1) % 7];
+}
 let backshopState = { rows: [] };
 
 function berlinNow(){
@@ -1790,6 +1801,24 @@ function renderBackshop(){
     }
     return {...a, forecast};
   });
+  // Forecast fuer MORGEN ZU BEGINN: erste BACKSHOP_HORIZON_HOURS Stunden ab minHour des Folgetags
+  const tomorrowWeekday = nextWeekday(weekday);
+  const tomorrowRows = (backshopState.rows || []).filter(r => r.weekday === tomorrowWeekday);
+  const tomByArticle = {};
+  tomorrowRows.forEach(r => {
+    const key = r.article_no;
+    if(!tomByArticle[key]) tomByArticle[key] = {};
+    if(!tomByArticle[key][r.hour]) tomByArticle[key][r.hour] = [];
+    tomByArticle[key][r.hour].push({week: r.iso_week, year: r.year, menge: Number(r.menge) || 0});
+  });
+  let tomMinHour = 23, tomMaxHour = 0;
+  tomorrowRows.forEach(r => {
+    if(r.hour < tomMinHour) tomMinHour = r.hour;
+    if(r.hour > tomMaxHour) tomMaxHour = r.hour;
+  });
+  if(tomMinHour > tomMaxHour){ tomMinHour = minHour; tomMaxHour = maxHour; }
+  const tomMorningFrom = tomMinHour;
+  const tomMorningTo = Math.min(tomMinHour + BACKSHOP_HORIZON_HOURS - 1, tomMaxHour);
   // Pro Artikel Summen berechnen
   articles.forEach(a => {
     let todayLeft = 0, next3 = 0;
@@ -1799,13 +1828,27 @@ function renderBackshop(){
     }
     a.todayLeft = todayLeft;
     a.next3 = next3;
+    // Morgen-Morgen-Forecast
+    let tomMorning = 0;
+    const tomHours = tomByArticle[a.article_no] || {};
+    for(let h = tomMorningFrom; h <= tomMorningTo; h++){
+      const pts = tomHours[h] || [];
+      let ws = 0, wsum = 0;
+      pts.forEach(p => {
+        const w = weightFor(p.year, p.week);
+        ws += w * p.menge;
+        wsum += w;
+      });
+      tomMorning += wsum > 0 ? ws / wsum : 0;
+    }
+    a.tomMorning = tomMorning;
   });
-  // Sortieren: groesste todayLeft zuerst, dann Bezeichnung
-  articles.sort((a,b) => b.todayLeft - a.todayLeft || a.article_name.localeCompare(b.article_name, "de"));
-  // Filter: nur Artikel mit todayLeft > 0 + optional Suche
+  // Sortieren: groesste Menge in den naechsten 5 Stunden zuerst, dann Bezeichnung
+  articles.sort((a,b) => b.next3 - a.next3 || b.todayLeft - a.todayLeft || a.article_name.localeCompare(b.article_name, "de"));
+  // Filter: Artikel mit nennenswerter Menge heute oder morgen früh + optional Suche
   const searchRaw = (document.getElementById("backshopSearch")?.value || "").toLowerCase().trim();
   const visibleArticles = articles.filter(a => {
-    if(a.todayLeft < 0.05) return false;
+    if(a.todayLeft < 0.05 && a.tomMorning < 0.05) return false;
     if(!searchRaw) return true;
     const hay = `${a.article_name || ""} ${a.article_no || ""} ${a.ean || ""}`.toLowerCase();
     return hay.includes(searchRaw);
@@ -1813,34 +1856,44 @@ function renderBackshop(){
   // Gesamt-Summen
   const totalToday = visibleArticles.reduce((s, a) => s + a.todayLeft, 0);
   const totalNext3 = visibleArticles.reduce((s, a) => s + a.next3, 0);
+  const totalTomMorning = visibleArticles.reduce((s, a) => s + a.tomMorning, 0);
   summary.innerHTML = `<div class="bs-headline">
     <div class="bs-bigcard">
       <div class="bs-lbl">Nächste ${BACKSHOP_HORIZON_HOURS} Stunden</div>
       <div class="bs-val">~${Math.round(totalNext3)}</div>
-      <div class="bs-sub">Stück über ${visibleArticles.length} Artikel</div>
+      <div class="bs-sub">Stück · ${visibleArticles.length} Artikel</div>
     </div>
     <div class="bs-bigcard">
       <div class="bs-lbl">Heute noch insgesamt</div>
       <div class="bs-val">~${Math.round(totalToday)}</div>
       <div class="bs-sub">${String(currentHour).padStart(2,"0")}:00 bis ${String(maxHour).padStart(2,"0")}:59</div>
     </div>
+    <div class="bs-bigcard bs-tomorrow">
+      <div class="bs-lbl">Morgen zu Beginn</div>
+      <div class="bs-val">~${Math.round(totalTomMorning)}</div>
+      <div class="bs-sub">${tomorrowWeekday} ${String(tomMorningFrom).padStart(2,"0")}:00 bis ${String(tomMorningTo).padStart(2,"0")}:59</div>
+    </div>
   </div>`;
   // Stunden ab jetzt - die Vergangenheit wird nicht angezeigt
   const fromHour = Math.max(currentHour, minHour);
+  // Top-10-Highlight ab 16:00
+  const highlightTop10 = currentHour >= 16;
   // Tabelle Desktop
-  let table = `<div class="box bs-desktop"><h3 style="margin-top:0">Prognose je Artikel</h3>`;
+  let table = `<div class="box bs-desktop"><h3 style="margin-top:0">Prognose je Artikel${highlightTop10 ? ` <span class="small" style="font-weight:normal">· Top 10 ab 16 Uhr farblich markiert (⭐)</span>` : ""}</h3>`;
   if(visibleArticles.length === 0){
     table += `<p>${searchRaw ? `Keine Treffer für „${searchRaw}".` : "Keine Artikel mit erwartetem Restverkauf."}</p></div>`;
   } else {
-    table += `<div class="table-wrap"><table class="bs-table"><thead><tr><th>Artikel</th><th>Nächste ${BACKSHOP_HORIZON_HOURS}h</th><th>Heute noch</th>`;
+    table += `<div class="table-wrap"><table class="bs-table"><thead><tr><th>Artikel</th><th>Nächste ${BACKSHOP_HORIZON_HOURS}h</th><th>Heute noch</th><th>Morgen früh</th>`;
     for(let h = fromHour; h <= maxHour; h++){
       table += `<th>${String(h).padStart(2,"0")}</th>`;
     }
     table += `</tr></thead><tbody>`;
-    visibleArticles.forEach(a => {
-      table += `<tr><td>${a.article_name || a.article_no}<br><span class="small">Art. ${a.article_no}${a.ean ? " · EAN " + a.ean : ""}</span></td>`;
+    visibleArticles.forEach((a, idx) => {
+      const isTop10 = highlightTop10 && idx < 10;
+      table += `<tr class="${isTop10 ? "bs-top10" : ""}"><td>${a.article_name || a.article_no}<br><span class="small">Art. ${a.article_no}${a.ean ? " · EAN " + a.ean : ""}</span></td>`;
       table += `<td class="bs-next3"><strong>${a.next3 < 1 ? a.next3.toFixed(1) : Math.round(a.next3)}</strong></td>`;
       table += `<td><strong>${a.todayLeft < 1 ? a.todayLeft.toFixed(1) : Math.round(a.todayLeft)}</strong></td>`;
+      table += `<td><strong>${a.tomMorning < 1 ? a.tomMorning.toFixed(1) : Math.round(a.tomMorning)}</strong></td>`;
       for(let h = fromHour; h <= maxHour; h++){
         const v = a.forecast[h] || 0;
         let cls = "";
@@ -1858,13 +1911,18 @@ function renderBackshop(){
   if(visibleArticles.length === 0){
     mobile += `<div class="box">${searchRaw ? `Keine Treffer für „${searchRaw}".` : "Keine Artikel mit erwartetem Restverkauf."}</div>`;
   } else {
-    visibleArticles.forEach(a => {
-      mobile += `<div class="bs-mobile-card">
+    if(highlightTop10){
+      mobile += `<div class="small" style="margin-bottom:8px;padding:6px 10px;background:#fef9c3;border-radius:6px">⭐ Top 10 ab 16 Uhr markiert — Fokus für die letzten Stunden + Frühstück morgen.</div>`;
+    }
+    visibleArticles.forEach((a, idx) => {
+      const isTop10 = highlightTop10 && idx < 10;
+      mobile += `<div class="bs-mobile-card ${isTop10 ? "bs-top10" : ""}">
         <div class="name">${a.article_name || a.article_no}</div>
         <div class="meta">Art. ${a.article_no}${a.ean ? " · EAN " + a.ean : ""}</div>
         <div class="totals">
           <div><div class="lbl">Nächste ${BACKSHOP_HORIZON_HOURS}h</div><div class="val">${a.next3 < 1 ? a.next3.toFixed(1) : Math.round(a.next3)}</div></div>
           <div><div class="lbl">Heute noch</div><div class="val">${a.todayLeft < 1 ? a.todayLeft.toFixed(1) : Math.round(a.todayLeft)}</div></div>
+          <div><div class="lbl">Morgen früh</div><div class="val">${a.tomMorning < 1 ? a.tomMorning.toFixed(1) : Math.round(a.tomMorning)}</div></div>
         </div>
         <div class="hours">`;
       for(let h = currentHour; h <= maxHour; h++){
