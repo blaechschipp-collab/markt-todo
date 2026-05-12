@@ -51,6 +51,10 @@
     .dispo-doc-card a.btn-doc{display:inline-block;background:var(--blue);color:#fff;text-align:center;padding:10px 12px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;margin-top:4px}
     .bs-headline{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
     .bs-bigcard.bs-tomorrow{background:linear-gradient(135deg,#e0f2fe,#bae6fd);border-color:var(--blue)}
+    .bs-bigcard.bs-clickable{cursor:pointer;transition:transform .1s ease, box-shadow .1s ease;user-select:none}
+    .bs-bigcard.bs-clickable:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.12)}
+    .bs-bigcard.bs-clickable:active{transform:translateY(0)}
+    .bs-bigcard.bs-clickable .bs-hint{font-size:11px;color:var(--blue);font-weight:bold;margin-top:6px;text-transform:uppercase;letter-spacing:.5px}
     .bs-table tr.bs-top10{background:#fef3c7}
     .bs-table tr.bs-top10 td:first-child{border-left:5px solid #f59e0b;font-weight:bold}
     .bs-table tr.bs-top10 td:first-child::before{content:"⭐ ";margin-right:2px}
@@ -1708,6 +1712,18 @@ function resetBackshopToNow(){
   document.getElementById("backshopTime").value = `${hh}:${mm}`;
   renderBackshop();
 }
+function jumpToTomorrowMorning(){
+  // Wochentag-Auswahl auf den Tag nach der aktuell ausgewaehlten Anzeige stellen, Zeit 08:00
+  const wdSel = document.getElementById("backshopWeekday");
+  const current = wdSel.value;
+  const tomorrow = nextWeekday(current);
+  wdSel.value = tomorrow;
+  document.getElementById("backshopTime").value = "08:00";
+  renderBackshop();
+  // Sanft nach oben scrollen, damit man die neuen Empfehlungen direkt sieht
+  const sec = document.getElementById("backshopSection");
+  if(sec) sec.scrollIntoView({behavior: "smooth", block: "start"});
+}
 function handleBackshopMarketChange(){
   const m = document.getElementById("backshopMarket").value;
   localStorage.setItem("backshopMarket", m);
@@ -1868,10 +1884,11 @@ function renderBackshop(){
       <div class="bs-val">~${Math.round(totalToday)}</div>
       <div class="bs-sub">${String(currentHour).padStart(2,"0")}:00 bis ${String(maxHour).padStart(2,"0")}:59</div>
     </div>
-    <div class="bs-bigcard bs-tomorrow">
+    <div class="bs-bigcard bs-tomorrow bs-clickable" onclick="jumpToTomorrowMorning()" title="Klicken: Tab auf Morgen 08:00 stellen">
       <div class="bs-lbl">Morgen zu Beginn</div>
       <div class="bs-val">~${Math.round(totalTomMorning)}</div>
       <div class="bs-sub">${tomorrowWeekday} ${String(tomMorningFrom).padStart(2,"0")}:00 bis ${String(tomMorningTo).padStart(2,"0")}:59</div>
+      <div class="bs-hint">→ Empfehlungen für morgen ansehen</div>
     </div>
   </div>`;
   // Stunden ab jetzt - die Vergangenheit wird nicht angezeigt
