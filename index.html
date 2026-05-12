@@ -103,6 +103,18 @@
   </style>
 </head>
 <body>
+<!-- App-Passwort-Schutz: Overlay erscheint, bis korrektes Passwort eingegeben wurde -->
+<div id="appGate" style="position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(180deg,#00315f,#004f9e);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;font-family:Arial,Helvetica,sans-serif">
+  <div style="background:white;border-radius:14px;padding:28px;max-width:380px;width:100%;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.4)">
+    <div style="font-size:42px;margin-bottom:6px">🔐</div>
+    <h2 style="margin:0 0 6px;color:#00315f">EDEKA Paul App</h2>
+    <p style="margin:0 0 18px;color:#64748b;font-size:14px">Bitte das Markt-Passwort eingeben.</p>
+    <input id="appGatePwd" type="password" placeholder="Passwort" autocomplete="off" style="width:100%;padding:14px;border-radius:8px;border:1px solid #b8c7d9;font-size:16px;margin-bottom:10px" onkeydown="if(event.key==='Enter') checkAppGate()">
+    <label style="display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:16px;color:#475569;font-size:13px"><input type="checkbox" id="appGateRemember" checked style="width:auto;margin:0"> <span>Auf diesem Gerät gespeichert lassen</span></label>
+    <button onclick="checkAppGate()" style="background:#ffdd00;color:#00315f;border:none;padding:14px 28px;border-radius:8px;font-weight:bold;font-size:16px;cursor:pointer;width:100%">Anmelden</button>
+    <div id="appGateMsg" style="margin-top:12px;color:#c62828;font-size:13px;min-height:16px"></div>
+  </div>
+</div>
 <header class="header"><div class="brand"><img src="logo.png" alt="EDEKA Paul Logo" class="logo" onerror="this.style.display='none';document.getElementById('fallbackBrand').style.display='block';"><div id="fallbackBrand" style="display:none"><div class="brand-title">Paul.</div><div class="brand-subtitle">Regional. Frisch. Freundlich.</div></div></div></header>
 <main class="main">
   <div class="tabs"><button id="todoTab" class="tab active todo-tab" onclick="showTab('todo')">☑ ToDo</button><button id="dispoTab" class="tab dispo-tab" onclick="showTab('dispo')">📦 Dispo <span class="beta-pill">Beta</span></button><button id="backshopTab" class="tab backshop-tab" onclick="showTab('backshop')">🥐 Backshop <span class="beta-pill">Beta</span></button><button id="analyticsTab" class="tab analytics-tab" onclick="showTab('analytics')">📊 Auswertungen</button><button id="adminTab" class="tab admin-tab" onclick="openAdminPin()">🔒 Admin</button></div>
@@ -241,7 +253,140 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const ADMIN_PIN="4711"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false; const DAY_NAMES=["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
+const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const ADMIN_PIN="4711"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
+
+/* ===========================
+   VIEW-MODUS: voll oder nur Backshop (für Bäckerei)
+   Erkannt am URL-Hash, z.B.   ...markt-todo.html#backshop
+   =========================== */
+function getAppViewMode(){
+  const hash = (window.location.hash || "").replace("#","").toLowerCase();
+  if(hash === "backshop") return "backshop";
+  const params = new URLSearchParams(window.location.search);
+  if((params.get("view") || "").toLowerCase() === "backshop") return "backshop";
+  return "full";
+}
+const APP_VIEW = getAppViewMode();
+const APP_PWD_KEY = APP_VIEW === "backshop" ? "app_password_backshop" : "app_password";
+
+function applyAppViewMode(){
+  if(APP_VIEW !== "backshop") return;
+  // Andere Tabs ausblenden – nur Backshop sichtbar
+  const hideIds = ["todoTab","dispoTab","analyticsTab","adminTab"];
+  hideIds.forEach(id => { const el = document.getElementById(id); if(el) el.style.display = "none"; });
+  const bsBtn = document.getElementById("backshopTab");
+  if(bsBtn){ bsBtn.style.flex = "1"; bsBtn.style.minWidth = "0"; }
+  // Direkt auf Backshop-Tab umschalten
+  try{ showTab("backshop"); }catch(e){}
+  // Login-Maske einen Hinweis verpassen
+  const gateTitle = document.querySelector("#appGate h2");
+  if(gateTitle) gateTitle.textContent = "EDEKA Paul – Bäckerei";
+  const gateSub = document.querySelector("#appGate p");
+  if(gateSub) gateSub.textContent = "Bitte das Bäckerei-Passwort eingeben.";
+}
+
+/* ===========================
+   APP-PASSWORT-SCHUTZ
+   =========================== */
+function appPwdHash(str){
+  // Simple Obfuskierung – nicht kryptografisch, aber Klartext-frei in localStorage
+  let h = 0;
+  for(let i = 0; i < str.length; i++){
+    h = ((h << 5) - h) + str.charCodeAt(i);
+    h |= 0;
+  }
+  return "h:" + h;
+}
+async function fetchCurrentAppPwdHash(){
+  try{
+    const {data, error} = await db.from("app_settings").select("value").eq("key", APP_PWD_KEY).maybeSingle();
+    if(error || !data || !data.value) return null;
+    return appPwdHash(data.value);
+  }catch(e){ return null; }
+}
+async function initAppGate(){
+  // Passwort-Schutz ist aktuell deaktiviert für alle Views.
+  // Um den Schutz wieder zu aktivieren: die folgende Zeile auskommentieren.
+  document.getElementById("appGate").style.display = "none"; return;
+  // Bäckerei-Modus: kein Passwort erforderlich
+  if(APP_VIEW === "backshop"){
+    document.getElementById("appGate").style.display = "none";
+    return;
+  }
+  const saved = localStorage.getItem("appAuthHash");
+  const current = await fetchCurrentAppPwdHash();
+  if(!current){
+    // Kann nicht prüfen → Standard: durchlassen, aber Hinweis (selten, nur bei DB-Ausfall)
+    document.getElementById("appGate").style.display = "none";
+    return;
+  }
+  if(saved && saved === current){
+    document.getElementById("appGate").style.display = "none";
+    // Periodische Re-Prüfung alle 5 Minuten: wenn Admin Passwort ändert, lockt die App
+    setInterval(async ()=>{
+      const cur = await fetchCurrentAppPwdHash();
+      const stored = localStorage.getItem("appAuthHash");
+      if(cur && stored && cur !== stored){
+        localStorage.removeItem("appAuthHash");
+        document.getElementById("appGate").style.display = "flex";
+      }
+    }, 5 * 60 * 1000);
+    return;
+  }
+  // Sonst: Gate bleibt sichtbar; setze Focus
+  setTimeout(()=>document.getElementById("appGatePwd")?.focus(), 100);
+}
+async function checkAppGate(){
+  const input = document.getElementById("appGatePwd");
+  const msg = document.getElementById("appGateMsg");
+  const remember = document.getElementById("appGateRemember").checked;
+  const entered = (input.value || "").trim();
+  if(!entered) return;
+  // Brute-Force-Schutz: 5 Versuche, dann 60 Sek. Sperre
+  const attempts = parseInt(localStorage.getItem("appAuthAttempts") || "0", 10);
+  const lockUntil = parseInt(localStorage.getItem("appAuthLockUntil") || "0", 10);
+  if(Date.now() < lockUntil){
+    const sec = Math.ceil((lockUntil - Date.now()) / 1000);
+    msg.textContent = `Zu viele Fehlversuche. Bitte ${sec} Sekunden warten.`;
+    return;
+  }
+  const {data, error} = await db.from("app_settings").select("value").eq("key", APP_PWD_KEY).maybeSingle();
+  if(error || !data){
+    msg.textContent = "Verbindungsfehler. Bitte erneut versuchen.";
+    return;
+  }
+  if(entered === data.value){
+    if(remember){
+      localStorage.setItem("appAuthHash", appPwdHash(data.value));
+    }
+    localStorage.removeItem("appAuthAttempts");
+    localStorage.removeItem("appAuthLockUntil");
+    document.getElementById("appGate").style.display = "none";
+    input.value = "";
+    msg.textContent = "";
+    // Periodische Re-Prüfung starten (siehe initAppGate)
+    setInterval(async ()=>{
+      const cur = await fetchCurrentAppPwdHash();
+      const stored = localStorage.getItem("appAuthHash");
+      if(cur && stored && cur !== stored){
+        localStorage.removeItem("appAuthHash");
+        document.getElementById("appGate").style.display = "flex";
+      }
+    }, 5 * 60 * 1000);
+  } else {
+    const newAttempts = attempts + 1;
+    localStorage.setItem("appAuthAttempts", String(newAttempts));
+    if(newAttempts >= 5){
+      localStorage.setItem("appAuthLockUntil", String(Date.now() + 60 * 1000));
+      msg.textContent = "5 Fehlversuche. Bitte 60 Sekunden warten.";
+    } else {
+      msg.textContent = `Falsches Passwort. Versuch ${newAttempts}/5.`;
+    }
+  }
+}
+// Sofort beim Laden View-Modus + Gate setzen
+applyAppViewMode();
+initAppGate(); const DAY_NAMES=["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
 const KNOWN_EDEKA_MARKETS=["Billigheim-Ingenheim","Steinfeld","Freckenfeld","Gossersweiler-Stein"];
 function todayISO(){return formatDate(new Date())} function formatDate(date){const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,"0"),d=String(date.getDate()).padStart(2,"0");return `${y}-${m}-${d}`} function formatDateDE(s){if(!s)return"";const[y,m,d]=s.split("-");return`${d}.${m}.${y}`} function formatDateTimeDE(v){if(!v)return"";return new Date(v).toLocaleString("de-DE",{timeZone:"Europe/Berlin",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"})} function berlinNowForDB(){const parts=new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Berlin",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}).formatToParts(new Date()).reduce((a,p)=>(a[p.type]=p.value,a),{});return`${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`} function berlinDateISO(v){return new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Berlin",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(v))} function isLateLog(log){return Boolean(log&&log.done_at&&log.done_date&&berlinDateISO(log.done_at)>log.done_date)} function addDays(date,days){const d=new Date(date);d.setDate(d.getDate()+days);return d} function getMonday(date){const d=new Date(date),day=d.getDay(),diff=day===0?-6:1-day;d.setDate(d.getDate()+diff);d.setHours(0,0,0,0);return d} function dateForDayName(day){const select=document.getElementById("day");const selected=select?.options[select.selectedIndex];if(selected?.dataset?.date)return selected.dataset.date;return formatDate(addDays(getMonday(new Date()),DAY_NAMES.indexOf(day)))} function dayNameFromISO(s){const idx=new Date(s+"T00:00:00").getDay();return idx===0?"Sonntag":DAY_NAMES[idx-1]} function monthFromISO(s){return s.slice(0,7)} function tomorrowISO(){const today=new Date();const dow=today.getDay();if(dow===6)return formatDate(addDays(today,2));return formatDate(addDays(today,1))} function tomorrowDayName(){return dayNameFromISO(tomorrowISO())}
 function priorityClass(p){if(!p)return"";if(p==="info")return"info";if(p.toLowerCase()==="hoch")return"high";if(p.toLowerCase()==="mittel")return"medium";return"low"} function priorityPill(p){if(!p)return"";const c=p==="info"?"info-p":p.toLowerCase()+"-p";return`<span class="pill ${c}">${p}</span>`} function statusPill(done){return done?`<span class="pill done-p">erledigt</span>`:`<span class="pill open-p">offen</span>`} function prioritySort(a,b){const o={hoch:1,mittel:2,niedrig:3,info:4};return(o[a.priority?.toLowerCase()]||99)-(o[b.priority?.toLowerCase()]||99)} function daySort(a,b){const o={Montag:1,Dienstag:2,Mittwoch:3,Donnerstag:4,Freitag:5,Samstag:6};return(o[a.day]||99)-(o[b.day]||99)}
