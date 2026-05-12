@@ -74,6 +74,7 @@
     .bs-mobile-card .hour-box.h-now{background:#fef3c7;font-weight:bold}
     .bs-mobile-card .hour-box.h-next3{background:#fef9c3}
     @media(max-width:700px){.bs-desktop{display:none}.bs-mobile{display:block}.bs-headline{grid-template-columns:1fr}}
+    .beta-pill{background:#dc2626;color:#fff;font-size:9px;font-weight:bold;padding:2px 5px;border-radius:8px;margin-left:4px;vertical-align:middle;letter-spacing:.5px}
     .article-block .article-cards{display:none}
     .article-block .article-sort-mobile{display:none}
     .article-card{background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px}
@@ -94,7 +95,7 @@
 <body>
 <header class="header"><div class="brand"><img src="logo.png" alt="EDEKA Paul Logo" class="logo" onerror="this.style.display='none';document.getElementById('fallbackBrand').style.display='block';"><div id="fallbackBrand" style="display:none"><div class="brand-title">Paul.</div><div class="brand-subtitle">Regional. Frisch. Freundlich.</div></div></div></header>
 <main class="main">
-  <div class="tabs"><button id="todoTab" class="tab active todo-tab" onclick="showTab('todo')">☑ ToDo</button><button id="dispoTab" class="tab dispo-tab" onclick="showTab('dispo')">📦 Dispo</button><button id="backshopTab" class="tab backshop-tab" onclick="showTab('backshop')">🥐 Backshop</button><button id="analyticsTab" class="tab analytics-tab" onclick="showTab('analytics')">📊 Auswertungen</button><button id="adminTab" class="tab admin-tab" onclick="openAdminPin()">🔒 Admin</button></div>
+  <div class="tabs"><button id="todoTab" class="tab active todo-tab" onclick="showTab('todo')">☑ ToDo</button><button id="dispoTab" class="tab dispo-tab" onclick="showTab('dispo')">📦 Dispo <span class="beta-pill">Beta</span></button><button id="backshopTab" class="tab backshop-tab" onclick="showTab('backshop')">🥐 Backshop <span class="beta-pill">Beta</span></button><button id="analyticsTab" class="tab analytics-tab" onclick="showTab('analytics')">📊 Auswertungen</button><button id="adminTab" class="tab admin-tab" onclick="openAdminPin()">🔒 Admin</button></div>
   <section id="todoSection">
     <div class="box"><div class="control-grid"><div><label>Dein Name</label><input id="name" placeholder="Dein Name"></div><div><label>Markt</label><select id="marketFilter" onchange="handleMarketChange()"><option value="ALLE">Alle Märkte</option><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="areaFilter" onchange="handleAreaChange()"><option value="">Alle Bereiche außer Hausmeister</option></select></div><div id="dayControl"><label>Tag</label><select id="day" onchange="loadTasks()"></select></div><div id="monthControl" style="display:none"><label>Monat</label><input id="monthFilter" type="month" onchange="loadTasks()"></div><div><label>&nbsp;</label><button class="btn-yellow" onclick="loadTasks()">Aktualisieren</button></div></div></div>
     <div id="tasks" class="box"></div>
@@ -169,6 +170,7 @@
         </select></div>
         <div><label>Bezugszeit</label><input id="backshopTime" type="time" onchange="renderBackshop()"></div>
         <div><label>&nbsp;</label><button class="btn-yellow" onclick="resetBackshopToNow()">Jetzt</button></div>
+        <div style="grid-column:1/-1"><label>Artikel suchen</label><input id="backshopSearch" placeholder="z.B. Brötchen, Croissant, 4311501..." oninput="renderBackshop()"></div>
       </div>
       <div id="backshopHeaderLine" class="small" style="margin-top:6px"></div>
     </div>
@@ -1800,8 +1802,14 @@ function renderBackshop(){
   });
   // Sortieren: groesste todayLeft zuerst, dann Bezeichnung
   articles.sort((a,b) => b.todayLeft - a.todayLeft || a.article_name.localeCompare(b.article_name, "de"));
-  // Filter: nur Artikel mit todayLeft > 0
-  const visibleArticles = articles.filter(a => a.todayLeft >= 0.05);
+  // Filter: nur Artikel mit todayLeft > 0 + optional Suche
+  const searchRaw = (document.getElementById("backshopSearch")?.value || "").toLowerCase().trim();
+  const visibleArticles = articles.filter(a => {
+    if(a.todayLeft < 0.05) return false;
+    if(!searchRaw) return true;
+    const hay = `${a.article_name || ""} ${a.article_no || ""} ${a.ean || ""}`.toLowerCase();
+    return hay.includes(searchRaw);
+  });
   // Gesamt-Summen
   const totalToday = visibleArticles.reduce((s, a) => s + a.todayLeft, 0);
   const totalNext3 = visibleArticles.reduce((s, a) => s + a.next3, 0);
@@ -1817,46 +1825,56 @@ function renderBackshop(){
       <div class="bs-sub">${String(currentHour).padStart(2,"0")}:00 bis ${String(maxHour).padStart(2,"0")}:59</div>
     </div>
   </div>`;
+  // Stunden ab jetzt - die Vergangenheit wird nicht angezeigt
+  const fromHour = Math.max(currentHour, minHour);
   // Tabelle Desktop
-  let table = `<div class="box bs-desktop"><h3 style="margin-top:0">Prognose je Artikel</h3><div class="table-wrap"><table class="bs-table"><thead><tr><th>Artikel</th><th>Nächste ${BACKSHOP_HORIZON_HOURS}h</th><th>Heute noch</th>`;
-  for(let h = minHour; h <= maxHour; h++){
-    table += `<th>${String(h).padStart(2,"0")}</th>`;
-  }
-  table += `</tr></thead><tbody>`;
-  visibleArticles.forEach(a => {
-    table += `<tr><td>${a.article_name || a.article_no}<br><span class="small">Art. ${a.article_no}${a.ean ? " · EAN " + a.ean : ""}</span></td>`;
-    table += `<td class="bs-next3"><strong>${a.next3 < 1 ? a.next3.toFixed(1) : Math.round(a.next3)}</strong></td>`;
-    table += `<td><strong>${a.todayLeft < 1 ? a.todayLeft.toFixed(1) : Math.round(a.todayLeft)}</strong></td>`;
-    for(let h = minHour; h <= maxHour; h++){
-      const v = a.forecast[h] || 0;
-      let cls = "";
-      if(h < currentHour) cls = "bs-past";
-      else if(h === currentHour) cls = "bs-now";
-      else if(h < currentHour + BACKSHOP_HORIZON_HOURS) cls = "bs-next3";
-      const display = v < 0.1 ? "" : (v < 1 ? v.toFixed(1) : Math.round(v));
-      table += `<td class="${cls}" style="${h<currentHour?'opacity:.3':''}">${display}</td>`;
+  let table = `<div class="box bs-desktop"><h3 style="margin-top:0">Prognose je Artikel</h3>`;
+  if(visibleArticles.length === 0){
+    table += `<p>${searchRaw ? `Keine Treffer für „${searchRaw}".` : "Keine Artikel mit erwartetem Restverkauf."}</p></div>`;
+  } else {
+    table += `<div class="table-wrap"><table class="bs-table"><thead><tr><th>Artikel</th><th>Nächste ${BACKSHOP_HORIZON_HOURS}h</th><th>Heute noch</th>`;
+    for(let h = fromHour; h <= maxHour; h++){
+      table += `<th>${String(h).padStart(2,"0")}</th>`;
     }
-    table += `</tr>`;
-  });
-  table += `</tbody></table></div></div>`;
+    table += `</tr></thead><tbody>`;
+    visibleArticles.forEach(a => {
+      table += `<tr><td>${a.article_name || a.article_no}<br><span class="small">Art. ${a.article_no}${a.ean ? " · EAN " + a.ean : ""}</span></td>`;
+      table += `<td class="bs-next3"><strong>${a.next3 < 1 ? a.next3.toFixed(1) : Math.round(a.next3)}</strong></td>`;
+      table += `<td><strong>${a.todayLeft < 1 ? a.todayLeft.toFixed(1) : Math.round(a.todayLeft)}</strong></td>`;
+      for(let h = fromHour; h <= maxHour; h++){
+        const v = a.forecast[h] || 0;
+        let cls = "";
+        if(h === currentHour) cls = "bs-now";
+        else if(h < currentHour + BACKSHOP_HORIZON_HOURS) cls = "bs-next3";
+        const display = v < 0.1 ? "" : (v < 1 ? v.toFixed(1) : Math.round(v));
+        table += `<td class="${cls}">${display}</td>`;
+      }
+      table += `</tr>`;
+    });
+    table += `</tbody></table></div></div>`;
+  }
   // Mobile Cards
   let mobile = `<div class="bs-mobile">`;
-  visibleArticles.forEach(a => {
-    mobile += `<div class="bs-mobile-card">
-      <div class="name">${a.article_name || a.article_no}</div>
-      <div class="meta">Art. ${a.article_no}${a.ean ? " · EAN " + a.ean : ""}</div>
-      <div class="totals">
-        <div><div class="lbl">Nächste ${BACKSHOP_HORIZON_HOURS}h</div><div class="val">${a.next3 < 1 ? a.next3.toFixed(1) : Math.round(a.next3)}</div></div>
-        <div><div class="lbl">Heute noch</div><div class="val">${a.todayLeft < 1 ? a.todayLeft.toFixed(1) : Math.round(a.todayLeft)}</div></div>
-      </div>
-      <div class="hours">`;
-    for(let h = currentHour; h <= maxHour; h++){
-      const v = a.forecast[h] || 0;
-      let cls = h === currentHour ? "h-now" : (h < currentHour + BACKSHOP_HORIZON_HOURS ? "h-next3" : "");
-      mobile += `<div class="hour-box ${cls}"><div>${String(h).padStart(2,"0")}</div><strong>${v < 0.1 ? "–" : (v < 1 ? v.toFixed(1) : Math.round(v))}</strong></div>`;
-    }
-    mobile += `</div></div>`;
-  });
+  if(visibleArticles.length === 0){
+    mobile += `<div class="box">${searchRaw ? `Keine Treffer für „${searchRaw}".` : "Keine Artikel mit erwartetem Restverkauf."}</div>`;
+  } else {
+    visibleArticles.forEach(a => {
+      mobile += `<div class="bs-mobile-card">
+        <div class="name">${a.article_name || a.article_no}</div>
+        <div class="meta">Art. ${a.article_no}${a.ean ? " · EAN " + a.ean : ""}</div>
+        <div class="totals">
+          <div><div class="lbl">Nächste ${BACKSHOP_HORIZON_HOURS}h</div><div class="val">${a.next3 < 1 ? a.next3.toFixed(1) : Math.round(a.next3)}</div></div>
+          <div><div class="lbl">Heute noch</div><div class="val">${a.todayLeft < 1 ? a.todayLeft.toFixed(1) : Math.round(a.todayLeft)}</div></div>
+        </div>
+        <div class="hours">`;
+      for(let h = currentHour; h <= maxHour; h++){
+        const v = a.forecast[h] || 0;
+        let cls = h === currentHour ? "h-now" : (h < currentHour + BACKSHOP_HORIZON_HOURS ? "h-next3" : "");
+        mobile += `<div class="hour-box ${cls}"><div>${String(h).padStart(2,"0")}</div><strong>${v < 0.1 ? "–" : (v < 1 ? v.toFixed(1) : Math.round(v))}</strong></div>`;
+      }
+      mobile += `</div></div>`;
+    });
+  }
   mobile += `</div>`;
   content.innerHTML = table + mobile;
 }
