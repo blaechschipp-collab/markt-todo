@@ -43,6 +43,12 @@
     .dispo-pair{border:1px dashed #cbd5e1;border-radius:14px;padding:8px;margin-bottom:14px;background:#f8fafc}
     .dispo-pair .pair-title{font-weight:bold;font-size:13px;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
     .dispo-section-header{margin:14px 0 8px;padding:6px 10px;background:var(--blue-dark);color:var(--yellow);border-radius:6px;font-weight:bold;font-size:14px}
+    .dispo-doc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;margin-top:10px}
+    .dispo-doc-card{background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:6px}
+    .dispo-doc-card .doc-market{font-weight:bold;color:var(--blue-dark);font-size:13px}
+    .dispo-doc-card .doc-name{font-weight:bold;color:var(--text);font-size:15px}
+    .dispo-doc-card .doc-meta{color:#64748b;font-size:12px}
+    .dispo-doc-card a.btn-doc{display:inline-block;background:var(--blue);color:#fff;text-align:center;padding:10px 12px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;margin-top:4px}
     .article-block .article-cards{display:none}
     .article-block .article-sort-mobile{display:none}
     .article-card{background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px}
@@ -1468,6 +1474,13 @@ const DISPO_LIST_TYPE_LABEL = {
   "Aktionsartikel_ohne_Regalplatz": "Aktionsartikel ohne Regalplatz",
   "Distributionsanalyse_nach_SKZ": "Distributionsanalyse nach SKZ"
 };
+const DISPO_DOC_TYPE_LABEL = {
+  "Dashboard": "📊 Dashboard",
+  "WE_Prognose_Kolli": "📦 WE-Prognose (Kolli)",
+  "WE_Prognose_Palette": "📦 WE-Prognose (Palette)",
+  "WE_Prognose_Rolli": "📦 WE-Prognose (Rolli)"
+};
+const DISPO_DOC_TYPES = new Set(Object.keys(DISPO_DOC_TYPE_LABEL));
 const DISPO_COOLDOWN_UPLOADS = 2;
 let dispoState = { items: [], filteredOpen: 0, filteredDone: 0, filteredCooldown: 0 };
 
@@ -1730,6 +1743,39 @@ async function uploadDispoPdfs(){
   for(const file of inputEl.files){
     const ctx = dispoParseFilename(file.name);
     if(!ctx){ debug.push(`⚠️ ${file.name}: Dateiname nicht erkannt – wird übersprungen.`); continue; }
+    // Info-PDFs (Dashboard, WE_Prognose): hochladen statt parsen
+    if(DISPO_DOC_TYPES.has(ctx.listType)){
+      try{
+        const storagePath = `${ctx.market}/${ctx.listType}/${Date.now()}_${file.name}`;
+        // alte Versionen des selben (market, doc_type) entfernen
+        const oldQ = await db.from("dispo_documents").select("id, file_path").eq("market", ctx.market).eq("doc_type", ctx.listType);
+        if(oldQ.data && oldQ.data.length){
+          for(const od of oldQ.data){
+            try{ await db.storage.from("dispo-docs").remove([od.file_path]); }catch(e){}
+            await db.from("dispo_documents").delete().eq("id", od.id);
+          }
+        }
+        // Hochladen
+        const up = await db.storage.from("dispo-docs").upload(storagePath, file, {cacheControl: "3600", upsert: true, contentType: "application/pdf"});
+        if(up.error) throw up.error;
+        const pub = db.storage.from("dispo-docs").getPublicUrl(storagePath);
+        const publicUrl = pub?.data?.publicUrl || "";
+        const ins = await db.from("dispo_documents").insert({
+          market: ctx.market,
+          doc_type: ctx.listType,
+          upload_date: ctx.upload_date,
+          file_name: file.name,
+          file_size: file.size,
+          file_path: storagePath,
+          public_url: publicUrl
+        });
+        if(ins.error) throw ins.error;
+        debug.push(`📥 ${file.name} → ${ctx.market} / ${DISPO_DOC_TYPE_LABEL[ctx.listType] || ctx.listType} hochgeladen`);
+      }catch(e){
+        debug.push(`❌ ${file.name}: Download-Datei – ${e.message || e}`);
+      }
+      continue;
+    }
     try{
       const buf = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({data: buf}).promise;
@@ -1799,13 +1845,26 @@ async function uploadDispoPdfs(){
 
 async function clearAllDispo(){
   if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
-  if(!confirm("Wirklich ALLE Dispo-Einträge löschen?\n\nDie Liste ist danach leer, bis du wieder PDFs hochlädst.")) return;
+  if(!confirm("Wirklich ALLE Dispo-Einträge löschen (inkl. Downloads)?\n\nDie Liste ist danach leer, bis du wieder PDFs hochlädst.")) return;
   const msg = document.getElementById("dispoUploadMsg");
   msg.innerHTML = "Lösche ...";
+  // 1. Dokumente aus Storage entfernen
+  try{
+    const dq = await db.from("dispo_documents").select("file_path");
+    if(dq.data && dq.data.length){
+      const paths = dq.data.map(d => d.file_path).filter(Boolean);
+      if(paths.length){
+        try{ await db.storage.from("dispo-docs").remove(paths); }catch(e){}
+      }
+      await db.from("dispo_documents").delete().gte("uploaded_at", "1900-01-01");
+    }
+  }catch(e){}
+  // 2. Items loeschen
   const r = await db.from("dispo_items").delete().gte("upload_seq", 0);
   if(r.error){ msg.innerHTML = "Fehler: " + r.error.message; return; }
-  msg.innerHTML = "Alle Dispo-Einträge wurden gelöscht.";
+  msg.innerHTML = "Alle Dispo-Einträge (Listen + Downloads) wurden gelöscht.";
   dispoState.items = [];
+  dispoState.documents = [];
   renderDispo();
 }
 
@@ -1868,6 +1927,15 @@ async function loadDispo(){
   });
   const latest = rows.filter(r => r.upload_seq === latestSeqByKey[`${r.market}||${r.list_type}`]);
   dispoState.items = latest;
+  // Dokumente parallel laden
+  try{
+    let dq = db.from("dispo_documents").select("*").order("upload_date", {ascending: false});
+    if(market) dq = dq.eq("market", market);
+    const dr = await dq;
+    dispoState.documents = dr.data || [];
+  }catch(e){
+    dispoState.documents = [];
+  }
   renderDispo();
 }
 
@@ -1902,8 +1970,34 @@ function renderDispo(){
   const totalDone = items.filter(i => i.done_date).length;
   const totalCool = items.filter(i => i.in_cooldown).length;
   document.getElementById("dispoSummary").innerHTML = `In der aktuellen Liste: <strong>${totalOpen} offen</strong>, ${totalDone} erledigt, ${totalCool} im Cooldown.`;
+  // Downloads-Bereich (Dashboards + WE-Prognosen)
+  let docHtml = "";
+  const docs = dispoState.documents || [];
+  if(docs.length){
+    const ORDER = ["Dashboard", "WE_Prognose_Kolli", "WE_Prognose_Palette", "WE_Prognose_Rolli"];
+    const MARKET_ORDER = ["Freckenfeld","Gossersweiler-Stein","Billigheim-Ingenheim","Steinfeld"];
+    const sortedDocs = docs.slice().sort((a,b) => {
+      const ma = MARKET_ORDER.indexOf(a.market); const mb = MARKET_ORDER.indexOf(b.market);
+      const md = (ma === -1 ? 99 : ma) - (mb === -1 ? 99 : mb);
+      if(md !== 0) return md;
+      const ta = ORDER.indexOf(a.doc_type); const tb = ORDER.indexOf(b.doc_type);
+      return (ta === -1 ? 99 : ta) - (tb === -1 ? 99 : tb);
+    });
+    docHtml = `<div class="box"><h3 style="margin-top:0">📥 Downloads (${sortedDocs.length})</h3><div class="dispo-doc-grid">`;
+    sortedDocs.forEach(d => {
+      const label = DISPO_DOC_TYPE_LABEL[d.doc_type] || d.doc_type;
+      const url = d.public_url || "#";
+      docHtml += `<div class="dispo-doc-card">
+        <div class="doc-market">${d.market}</div>
+        <div class="doc-name">${label}</div>
+        <div class="doc-meta">Stand: ${formatDateDE(d.upload_date)}${d.file_size ? " · " + Math.round(d.file_size/1024) + " KB" : ""}</div>
+        <a class="btn-doc" href="${url}" target="_blank" download="${d.file_name || ""}">Herunterladen ⬇</a>
+      </div>`;
+    });
+    docHtml += `</div></div>`;
+  }
   if(!Object.keys(groups).length){
-    content.innerHTML = `<div class="box">Keine Einträge für diesen Filter.</div>`;
+    content.innerHTML = docHtml + `<div class="box">Keine Einträge für diesen Filter.</div>`;
     return;
   }
   const groupKeys = Object.keys(groups).sort((a,b) => {
@@ -1975,7 +2069,7 @@ function renderDispo(){
     });
     html += `</div>`;
   });
-  content.innerHTML = html;
+  content.innerHTML = docHtml + html;
   // Barcodes nachrendern
   barcodesToRender.forEach(({id, ean}) => {
     const el = document.getElementById(id);
