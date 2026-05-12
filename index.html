@@ -6,6 +6,9 @@
   <title>Markt ToDo</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/pdf.min.js"></script>
+  <script>if(window.pdfjsLib){pdfjsLib.GlobalWorkerOptions.workerSrc="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/pdf.worker.min.js";}</script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <style>
     :root{--blue:#004f9e;--blue-dark:#00315f;--yellow:#ffdd00;--red:#ef4444;--orange:#f59e0b;--green:#22c55e;--border:#d8e2ef;--text:#08213f}
     *{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(180deg,var(--blue-dark),var(--blue));color:var(--text);min-height:100vh}.header{background:linear-gradient(135deg,#002b55,#0059ad);padding:22px 26px 18px;border-bottom:6px solid var(--yellow)}.brand{max-width:1300px;margin:0 auto}.logo{max-width:520px;width:100%;height:auto;display:block}.brand-title{font-size:44px;font-weight:900;font-style:italic;color:#fff}.brand-subtitle{font-size:18px;color:#d9ecff}.main{max-width:1300px;margin:0 auto;padding:24px}.tabs{display:flex;gap:10px;margin-bottom:18px}.tab{border:2px solid var(--yellow);background:transparent;color:#fff;padding:14px 24px;border-radius:12px 12px 0 0;font-weight:bold;cursor:pointer}.tab.active{background:var(--yellow);color:var(--blue-dark)}.todo-tab{flex:7}.analytics-tab{flex:2}.admin-tab{flex:1;min-width:92px}.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:14px}.metric-card{background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:16px}.metric-value{font-size:28px;font-weight:900;color:var(--blue-dark)}.locked{opacity:.75}.box{background:#fff;border-radius:14px;padding:18px;margin-bottom:18px;box-shadow:0 8px 24px rgba(0,0,0,.14)}.admin{border:3px solid var(--yellow)}.control-grid{display:grid;grid-template-columns:repeat(5,minmax(160px,1fr));gap:14px;align-items:end}label{font-weight:bold;font-size:14px;display:block;margin-bottom:6px}input,select,textarea,button{padding:12px;border-radius:8px;border:1px solid #b8c7d9;font-size:15px;width:100%}textarea{min-height:86px;resize:vertical}button{cursor:pointer;font-weight:bold;border:none}.btn-yellow{background:var(--yellow);color:var(--blue-dark)}.btn-blue{background:var(--blue);color:#fff}.btn-dark{background:var(--blue-dark);color:#fff}.btn-red{background:#c62828;color:#fff}.btn-green{background:#2e7d32;color:#fff}.task{padding:14px;border-radius:10px;margin-bottom:10px;border:1px solid var(--border);display:flex;gap:12px;align-items:flex-start}.high{background:#ffe5e5;border-color:#ffb3b3}.medium{background:#fff5cc;border-color:#ffe480}.low{background:#e8f5e9;border-color:#bde8c3}.info{background:#e0f2fe;border-color:#7dd3fc}.done{text-decoration:line-through;color:#6b7280}.pill{display:inline-block;padding:3px 8px;border-radius:999px;color:#fff;font-size:12px;font-weight:bold;margin-left:6px}.high-p{background:var(--red)}.medium-p{background:var(--orange)}.low-p{background:var(--green)}.open-p{background:#64748b}.done-p{background:var(--green)}.info-p{background:#0284c7}.small{font-size:13px;color:#64748b;margin-top:4px}.days label,.months label{display:inline-flex;align-items:center;gap:6px;margin:6px 12px 6px 0;font-weight:normal}.days input,.months input{width:auto}.admin-actions{display:flex;gap:8px;flex-wrap:wrap}.admin-actions button{width:auto}.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px}table{border-collapse:collapse;width:100%;min-width:900px;background:#fff}th,td{border:1px solid #e1e8f0;padding:9px;text-align:left;font-size:13px}th{background:#f1f5f9}.footer{background:var(--yellow);color:var(--blue-dark);text-align:center;padding:18px;font-weight:bold;margin-top:30px}
@@ -17,6 +20,29 @@
     .kpi-mobile-row .label{color:#475569;flex:1;min-width:0}
     .kpi-mobile-row .value{font-weight:bold;text-align:right;white-space:nowrap}
     .kpi-mobile-card .kpi-mobile-action{margin-top:10px}
+    .dispo-tab{flex:2}
+    .dispo-list-group{margin-bottom:18px}
+    .dispo-list-group h3{margin:6px 0 10px;color:var(--blue-dark);font-size:17px}
+    .dispo-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px;box-shadow:0 4px 12px rgba(0,0,0,.06)}
+    .dispo-card.done{opacity:.55}
+    .dispo-card.role-Ordersatz,.dispo-card.role-Ursprung{border-left:4px solid var(--blue)}
+    .dispo-card.role-Ersatz,.dispo-card.role-Folge{border-left:4px solid var(--orange)}
+    .dispo-card .d-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+    .dispo-card .d-name{font-weight:bold;color:var(--blue-dark);font-size:15px;line-height:1.25}
+    .dispo-card .d-meta{color:#64748b;font-size:12px;margin-top:2px}
+    .dispo-card .d-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px dotted #cbd5e1;font-size:13px;gap:8px}
+    .dispo-card .d-row:last-of-type{border-bottom:none}
+    .dispo-card .d-row .lbl{color:#64748b}
+    .dispo-card .d-row .val{font-weight:bold;text-align:right}
+    .dispo-card .d-anm{margin-top:6px;font-style:italic;color:#0369a1}
+    .dispo-card .d-barcode{margin-top:10px;background:#fff;padding:6px;text-align:center;border:1px dashed #cbd5e1;border-radius:8px}
+    .dispo-card .d-barcode svg{max-width:100%;height:60px}
+    .dispo-card .d-actions{margin-top:10px;display:flex;gap:8px;align-items:center}
+    .dispo-card .d-check{width:28px;height:28px;flex:0 0 28px}
+    .dispo-card .d-check-label{font-size:14px;font-weight:bold;color:var(--blue-dark)}
+    .dispo-pair{border:1px dashed #cbd5e1;border-radius:14px;padding:8px;margin-bottom:14px;background:#f8fafc}
+    .dispo-pair .pair-title{font-weight:bold;font-size:13px;color:#475569;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+    .dispo-section-header{margin:14px 0 8px;padding:6px 10px;background:var(--blue-dark);color:var(--yellow);border-radius:6px;font-weight:bold;font-size:14px}
     .article-block .article-cards{display:none}
     .article-block .article-sort-mobile{display:none}
     .article-card{background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px}
@@ -37,7 +63,7 @@
 <body>
 <header class="header"><div class="brand"><img src="logo.png" alt="EDEKA Paul Logo" class="logo" onerror="this.style.display='none';document.getElementById('fallbackBrand').style.display='block';"><div id="fallbackBrand" style="display:none"><div class="brand-title">Paul.</div><div class="brand-subtitle">Regional. Frisch. Freundlich.</div></div></div></header>
 <main class="main">
-  <div class="tabs"><button id="todoTab" class="tab active todo-tab" onclick="showTab('todo')">☑ ToDo</button><button id="analyticsTab" class="tab analytics-tab" onclick="showTab('analytics')">📊 Auswertungen</button><button id="adminTab" class="tab admin-tab" onclick="openAdminPin()">🔒 Admin</button></div>
+  <div class="tabs"><button id="todoTab" class="tab active todo-tab" onclick="showTab('todo')">☑ ToDo</button><button id="dispoTab" class="tab dispo-tab" onclick="showTab('dispo')">📦 Dispo</button><button id="analyticsTab" class="tab analytics-tab" onclick="showTab('analytics')">📊 Auswertungen</button><button id="adminTab" class="tab admin-tab" onclick="openAdminPin()">🔒 Admin</button></div>
   <section id="todoSection">
     <div class="box"><div class="control-grid"><div><label>Dein Name</label><input id="name" placeholder="Dein Name"></div><div><label>Markt</label><select id="marketFilter" onchange="handleMarketChange()"><option value="ALLE">Alle Märkte</option><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="areaFilter" onchange="handleAreaChange()"><option value="">Alle Bereiche außer Hausmeister</option></select></div><div id="dayControl"><label>Tag</label><select id="day" onchange="loadTasks()"></select></div><div id="monthControl" style="display:none"><label>Monat</label><input id="monthFilter" type="month" onchange="loadTasks()"></div><div><label>&nbsp;</label><button class="btn-yellow" onclick="loadTasks()">Aktualisieren</button></div></div></div>
     <div id="tasks" class="box"></div>
@@ -81,6 +107,26 @@
       <div id="articleModalBody"></div>
     </div>
   </div>
+  <section id="dispoSection" style="display:none">
+    <div class="box">
+      <h2 style="margin-top:0">📦 Dispo</h2>
+      <div class="small">Wöchentliche Listen aus dem System (FEA, Aktionsartikel, Distributionsanalyse). Hier abhaken, sobald der Artikel im Markt bearbeitet wurde.</div>
+      <div class="control-grid" style="margin-top:14px">
+        <div><label>Markt</label><select id="dispoMarketFilter" onchange="handleDispoMarketChange()"><option value="">Alle Märkte</option><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
+        <div><label>Listentyp</label><select id="dispoListTypeFilter" onchange="loadDispo()"><option value="">Alle Listen</option></select></div>
+        <div><label>Sortierung</label><select id="dispoSort" onchange="renderDispo()">
+          <option value="abteilung">Abteilung (Warengruppe)</option>
+          <option value="regal">Regalplatz</option>
+          <option value="artText">Bezeichnung A → Z</option>
+          <option value="artNo">Artikelnummer</option>
+        </select></div>
+        <div><label>Suche (Art.-Nr. / EAN / Text)</label><input id="dispoSearch" placeholder="z.B. 4005900..." oninput="renderDispo()"></div>
+        <div><label>Status</label><select id="dispoStatus" onchange="renderDispo()"><option value="open">Offen</option><option value="done">Erledigt (letzte 30 Tage)</option><option value="cooldown">Im Cooldown</option></select></div>
+      </div>
+      <div id="dispoSummary" class="small" style="margin-top:10px"></div>
+    </div>
+    <div id="dispoContent"></div>
+  </section>
   <section id="adminSection" style="display:none">
     <div class="box admin"><h2>Adminbereich – Aufgabe anlegen</h2><div class="control-grid"><div><label>Markt</label><select id="adminMarket" onchange="handleAdminMarketChange()"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="adminArea" onchange="toggleAdminPeriodFields()"></select><input id="adminCustomArea" placeholder="Neue Abteilung / Bereich" style="margin-top:8px"></div><div><label>Wichtigkeit</label><select id="adminPriority"><option>hoch</option><option>mittel</option><option>niedrig</option></select></div><div><label>Bezeichnung</label><input id="adminCustomTitle" placeholder="Aufgabe eingeben"></div><div><label>Art</label><select id="adminTaskMode" onchange="toggleAdminPeriodFields()"><option value="recurring">Wiederholend</option><option value="single">Einmalig / Zeitraum</option></select></div></div>
       <div id="adminDaysBox" style="margin-top:16px"><label>Tage</label><div class="days"><button type="button" class="btn-yellow" onclick="selectAllAdminDays()" style="width:auto;margin-bottom:8px">Täglich Mo–Sa</button><br><label><input type="checkbox" class="adminDay" value="Montag"> Montag</label><label><input type="checkbox" class="adminDay" value="Dienstag"> Dienstag</label><label><input type="checkbox" class="adminDay" value="Mittwoch"> Mittwoch</label><label><input type="checkbox" class="adminDay" value="Donnerstag"> Donnerstag</label><label><input type="checkbox" class="adminDay" value="Freitag"> Freitag</label><label><input type="checkbox" class="adminDay" value="Samstag"> Samstag</label></div></div>
@@ -102,6 +148,16 @@
         <button class="btn-red" onclick="clearAllMetrics()" style="width:auto">Alle Kennzahlen löschen (Reset)</button>
       </div>
       <div id="metricsUploadMsg" class="small"></div>
+    </div>
+    <div class="box admin">
+      <h2>📦 Dispo – PDF-Listen hochladen</h2>
+      <div class="small">Mehrere PDFs gleichzeitig auswählbar. Erkannt werden automatisch: FEA-Listen (5 Sorten), Aktionsartikel ohne Regalplatz, Distributionsanalyse nach SKZ. Marktnummern werden aus dem Dateinamen gelesen (043028 = Freckenfeld, 045311 = Gossersweiler-Stein, 046206 = Steinfeld, 046336 = Billigheim-Ingenheim).</div>
+      <input id="dispoPdfFiles" type="file" accept=".pdf" multiple style="margin-top:10px" />
+      <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn-green" style="width:auto" onclick="uploadDispoPdfs()">PDFs einlesen &amp; speichern</button>
+        <button class="btn-red" style="width:auto" onclick="clearAllDispo()">Alle Dispo-Einträge löschen (Reset)</button>
+      </div>
+      <div id="dispoUploadMsg" class="small" style="margin-top:8px"></div>
     </div>
     <div class="box admin"><h2>Adminbereich – bestehende Aufgaben</h2><div class="small">Vorlagen, Einmalaufgaben und Übergaben als Tabelle.</div>
       <div class="control-grid" style="margin-top:14px">
@@ -804,13 +860,16 @@ function handleControlMarketChange(){
 }
 function showTab(tab){
   document.getElementById("todoSection").style.display=tab==="todo"?"block":"none";
+  document.getElementById("dispoSection").style.display=tab==="dispo"?"block":"none";
   document.getElementById("analyticsSection").style.display=tab==="analytics"?"block":"none";
   document.getElementById("adminSection").style.display=tab==="admin"?"block":"none";
   document.getElementById("todoTab").classList.toggle("active",tab==="todo");
+  document.getElementById("dispoTab").classList.toggle("active",tab==="dispo");
   document.getElementById("analyticsTab").classList.toggle("active",tab==="analytics");
   document.getElementById("adminTab").classList.toggle("active",tab==="admin");
   if(tab==="admin"){loadAdminTasks();loadControlTasks()}
   else if(tab==="analytics"){prepareAnalytics()}
+  else if(tab==="dispo"){loadDispo()}
   else loadTasks()
 }
 function openAdminPin(){if(!adminUnlocked){const pin=prompt("Admin-PIN eingeben:");if(pin===ADMIN_PIN)adminUnlocked=true;else if(pin!==null)return alert("Falsche PIN.");else return}showTab("admin")}
@@ -1390,6 +1449,506 @@ async function uploadMetricsExcel(){
 
 async function editTask(id){if(!adminUnlocked)return alert("Admin-PIN erforderlich.");const{data,error}=await db.from("tasks").select("*").eq("id",id).single();if(error)return alert("Fehler: "+error.message);const title=prompt("Bezeichnung:",data.title||"");if(title===null)return;const area=prompt("Bereich:",data.area||"");if(area===null)return;const priority=prompt("Wichtigkeit (hoch, mittel, niedrig, info):",data.priority||"");if(priority===null)return;const{error:e}=await db.from("tasks").update({title:title.trim(),area:area.trim(),priority:priority.trim()}).eq("id",id);if(e)return alert("Fehler: "+e.message);await loadAreas();loadTasks();loadAdminTasks();loadControlTasks()}
 async function deleteTask(id){if(!adminUnlocked)return alert("Admin-PIN erforderlich.");if(!confirm("Diese Aufgabe wirklich löschen?"))return;await db.from("task_logs").delete().eq("task_id",id);await db.from("tasks").delete().eq("id",id);loadTasks();loadAdminTasks();loadControlTasks()}
+
+/* ===========================
+   DISPO: PDF-Listen verwalten
+   =========================== */
+const DISPO_MARKET_BY_NUMBER = {
+  "043028": "Freckenfeld",
+  "045311": "Gossersweiler-Stein",
+  "046206": "Steinfeld",
+  "046336": "Billigheim-Ingenheim"
+};
+const DISPO_LIST_TYPE_LABEL = {
+  "FEA_Ersatzartikel_ohne_RGP_Bestellartikel": "FEA · Ersatzartikel ohne Regalplatz",
+  "FEA_Ersatzartikel_mit_falsch_best": "FEA · Ersatzartikel mit falschem Bestand",
+  "FEA_Regalplatzloeschung_Umlistung_ohne_best_mit_RGP": "FEA · Regalplatzlöschung (Umlistung)",
+  "FEA_Bestandsbereinigung_Umlistung_mit_falsch_best_mit_RGP": "FEA · Bestandsbereinigung mit Regalplatz",
+  "FEA_Bestandsbereinigung_Umlistung_mit_falsch_best_ohne_RGP": "FEA · Bestandsbereinigung ohne Regalplatz",
+  "Aktionsartikel_ohne_Regalplatz": "Aktionsartikel ohne Regalplatz",
+  "Distributionsanalyse_nach_SKZ": "Distributionsanalyse nach SKZ"
+};
+const DISPO_COOLDOWN_UPLOADS = 2;
+let dispoState = { items: [], filteredOpen: 0, filteredDone: 0, filteredCooldown: 0 };
+
+function dispoParseFilename(name){
+  // FEA: 20260511_046206_FEA_<rest>.pdf
+  let m = name.match(/^(\d{8})_(\d{6})_(FEA_[^.]+?)(?:\s*\(\d+\))?\.pdf$/i);
+  if(m){
+    const dateStr = m[1]; // YYYYMMDD
+    const marketNo = m[2];
+    const listType = m[3];
+    const upload_date = `${dateStr.slice(0,4)}-${dateStr.slice(4,6)}-${dateStr.slice(6,8)}`;
+    const market = DISPO_MARKET_BY_NUMBER[marketNo] || marketNo;
+    return {market, listType, upload_date, marketNo};
+  }
+  // Marktnummer-PDFs: 043028_<Listentyp>.pdf
+  m = name.match(/^(\d{6})_([^.]+?)(?:\s*\(\d+\))?\.pdf$/i);
+  if(m){
+    const marketNo = m[1];
+    const listType = m[2];
+    const upload_date = todayISO();
+    const market = DISPO_MARKET_BY_NUMBER[marketNo] || marketNo;
+    return {market, listType, upload_date, marketNo};
+  }
+  return null;
+}
+
+async function dispoExtractText(pdf){
+  // PDF.js Text-Extraktion pro Seite
+  const allLines = [];
+  for(let p = 1; p <= pdf.numPages; p++){
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    // Items nach Y-Koordinate gruppieren (Zeilen rekonstruieren)
+    const items = content.items.map(it => ({
+      str: it.str,
+      x: it.transform[4],
+      y: Math.round(it.transform[5])
+    }));
+    const linesByY = {};
+    items.forEach(it => {
+      if(!linesByY[it.y]) linesByY[it.y] = [];
+      linesByY[it.y].push(it);
+    });
+    const yKeys = Object.keys(linesByY).map(Number).sort((a,b)=>b-a);
+    yKeys.forEach(y => {
+      const line = linesByY[y].sort((a,b)=>a.x-b.x).map(it => it.str).join(" ").replace(/\s+/g," ").trim();
+      if(line) allLines.push(line);
+    });
+  }
+  return allLines;
+}
+
+function dispoParseFEA(lines, ctx){
+  // Erwartet Zeilen mit Rolle (Ordersatz/Ersatz/Ursprung/Folge): *artNo* text DMK *EAN* Bestand RGNR RGP Anmerkung
+  const items = [];
+  let currentWG = "";
+  const wgPattern = /^(TS|FD|TK|FW)$/;
+  const rolePattern = /^(Ordersatz|Ersatz|Ursprung|Folge):\s+\*(\d+)\*\s+(.+?)\s+([A-Z]{2})\s+\*(\d+)\*\s+(-?\d+)\s+(\d+)\s+(\d+)\s*(.*)$/;
+  for(let i = 0; i < lines.length; i++){
+    const ln = lines[i];
+    if(wgPattern.test(ln)){ currentWG = ln; continue; }
+    const m = ln.match(rolePattern);
+    if(m){
+      let anmerkung = (m[9] || "").trim();
+      // Anmerkung kann auf naechsten Zeilen weitergehen (z.B. "Bestand prüfen/korrigieren")
+      // Heuristik: wenn folgende Zeile NICHT mit artNo+EAN beginnt UND nicht Rolle hat, ggf. anhängen
+      let j = i + 1;
+      while(j < lines.length){
+        const nxt = lines[j];
+        if(rolePattern.test(nxt)) break;
+        if(wgPattern.test(nxt)) break;
+        // Wenn naechste Zeile artNo + EAN ist (= "1234567 4012345..."), ueberspringen
+        if(/^\d{6,}\s+\d{8,}$/.test(nxt)){ j++; continue; }
+        if(/^Dieser Bericht/.test(nxt)) break;
+        // Tabellen-Header?
+        if(/^Artikelnummer/.test(nxt) || /^TS$|^FD$|^TK$|^FW$/.test(nxt)) break;
+        // Sonst anhaengen (Anmerkung-Fortsetzung)
+        anmerkung = (anmerkung ? anmerkung + " " : "") + nxt;
+        j++;
+        if(j - i > 4) break; // safety
+      }
+      items.push({
+        market: ctx.market,
+        list_type: ctx.listType,
+        upload_date: ctx.upload_date,
+        warengruppe: currentWG,
+        role: m[1],
+        article_no: m[2],
+        article_text: m[3].trim(),
+        ean: m[5],
+        bestand: m[6],
+        regal_nr: m[7],
+        regal_platz: m[8],
+        anmerkung: anmerkung || ""
+      });
+    }
+  }
+  return items;
+}
+
+function dispoParseAktionsartikel(lines, ctx){
+  // Zwei Zeilenformen:
+  //   A) <Warengruppe> <ArtNo> [<ArtText>] <GTIN> *<GTIN>* <Bestand|-> <Empfehlung> <SKZ> <AKW>
+  //   B) <ArtNo> [<ArtText>] <GTIN> *<GTIN>* <Bestand|-> <Empfehlung> <SKZ> <AKW>   (WG erbt von letzter A)
+  const items = [];
+  const formA = /^([A-Za-zäöüÄÖÜß][^*]*?)\s+(\d{6,12})(?:\s+(.+?))?\s+(\d{8,14})\s+\*(\d{8,14})\*\s+(\S+)\s+(.+?)\s+(\d+)\s+(\d+)$/;
+  const formB = /^(\d{6,12})(?:\s+(.+?))?\s+(\d{8,14})\s+\*(\d{8,14})\*\s+(\S+)\s+(.+?)\s+(\d+)\s+(\d+)$/;
+  const isJunk = (s) => {
+    const t = (s || "").trim();
+    if(!t || t === "*") return true;
+    if(/^(Frischdienst|Tiefkühl|Trockensortiment)$/.test(t)) return true;
+    if(/^(Aktionsartikel|Betrieb:|Warenguppe|Dieser Bericht|Achtung:|Kurzbeschreibung|Übersicht|Nachstehend|Insgesamt|Sortiment|Sie erhalten|Diese|Wir empfehlen|Artikel ohne)/.test(t)) return true;
+    if(/^\d{6,}\s+\d{8,}/.test(t)) return true;
+    return false;
+  };
+  let currentWG = "";
+  for(let i = 0; i < lines.length; i++){
+    const ln = lines[i];
+    let wg, artNo, textInline, gtin, bestand, empf, skz, akw;
+    let m = ln.match(formA);
+    if(m){
+      wg = m[1].trim(); artNo = m[2]; textInline = m[3] || ""; gtin = m[5];
+      bestand = m[6]; empf = m[7]; skz = m[8]; akw = m[9];
+      currentWG = wg;
+    } else {
+      m = ln.match(formB);
+      if(!m) continue;
+      wg = currentWG; artNo = m[1]; textInline = m[2] || ""; gtin = m[4];
+      bestand = m[5]; empf = m[6]; skz = m[7]; akw = m[8];
+    }
+    let text = textInline.trim();
+    if(!text){
+      const before = (i > 0 && !lines[i-1].match(formA) && !lines[i-1].match(formB) && !isJunk(lines[i-1])) ? lines[i-1].trim() : "";
+      const after = (i < lines.length - 1 && !lines[i+1].match(formA) && !lines[i+1].match(formB) && !isJunk(lines[i+1])) ? lines[i+1].trim() : "";
+      text = (before + " " + after).trim() || "(siehe Bürosystem)";
+    }
+    items.push({
+      market: ctx.market,
+      list_type: ctx.listType,
+      upload_date: ctx.upload_date,
+      warengruppe: wg,
+      article_no: artNo,
+      article_text: text,
+      ean: gtin,
+      bestand: (bestand === "-") ? null : bestand,
+      anmerkung: (empf || "").trim() + " · SKZ " + skz + " · AKW " + akw
+    });
+  }
+  return items;
+}
+
+function dispoParseDistribution(lines, ctx){
+  // Zeilen: <Warengruppe> <GTIN> <Artikeltext> *<GTIN>* <SKZ> <Listung> [<Distribution>] [<Bestand>]
+  const items = [];
+  const rowRe = /^(.+?)\s+(\d{8,})\s+(.+?)\s+\*(\d{8,})\*\s+(\d+)\s+(\S+)(?:\s+(\d+))?(?:\s+(\d+))?$/;
+  for(const ln of lines){
+    if(/^Distributionsanalyse/.test(ln) || /^Betrieb:/.test(ln) || /^Warenguppe/.test(ln) || /^Dieser Bericht/.test(ln) || /^Prüfen Sie/.test(ln)) continue;
+    const m = ln.match(rowRe);
+    if(m){
+      items.push({
+        market: ctx.market,
+        list_type: ctx.listType,
+        upload_date: ctx.upload_date,
+        warengruppe: (m[1] || "").trim(),
+        article_no: m[2],
+        article_text: m[3].trim(),
+        ean: m[4],
+        bestand: m[8] || null,
+        anmerkung: "SKZ " + m[5] + " · " + (m[6] || "")
+      });
+    }
+  }
+  return items;
+}
+
+async function uploadDispoPdfs(){
+  if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
+  if(typeof pdfjsLib === "undefined"){ alert("PDF-Bibliothek nicht geladen. Seite neu laden und nochmal versuchen."); return; }
+  const inputEl = document.getElementById("dispoPdfFiles");
+  const msg = document.getElementById("dispoUploadMsg");
+  if(!inputEl.files || !inputEl.files.length){ alert("Bitte mindestens eine PDF auswählen."); return; }
+  msg.innerHTML = "Lese PDFs ...";
+  const allInserts = [];
+  const debug = [];
+  for(const file of inputEl.files){
+    const ctx = dispoParseFilename(file.name);
+    if(!ctx){ debug.push(`⚠️ ${file.name}: Dateiname nicht erkannt – wird übersprungen.`); continue; }
+    try{
+      const buf = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+      const lines = await dispoExtractText(pdf);
+      let parsed;
+      if(ctx.listType.startsWith("FEA_")) parsed = dispoParseFEA(lines, ctx);
+      else if(/Aktionsartikel/i.test(ctx.listType)) parsed = dispoParseAktionsartikel(lines, ctx);
+      else if(/Distributionsanalyse/i.test(ctx.listType)) parsed = dispoParseDistribution(lines, ctx);
+      else { debug.push(`⚠️ ${file.name}: Listentyp "${ctx.listType}" wird (noch) nicht erkannt.`); continue; }
+      debug.push(`✅ ${file.name} → ${ctx.market} / ${ctx.listType} → ${parsed.length} Artikel`);
+      allInserts.push({ctx, items: parsed});
+    }catch(e){
+      debug.push(`❌ ${file.name}: Fehler beim Parsen – ${e.message || e}`);
+    }
+  }
+  if(!allInserts.length){
+    msg.innerHTML = "Keine verwertbaren PDFs.<br>" + debug.join("<br>");
+    return;
+  }
+  // Pro (market, listType) eine neue Upload-Sequenz vergeben
+  msg.innerHTML = "Speichere ...";
+  let totalRows = 0;
+  for(const group of allInserts){
+    const {market, listType, upload_date} = group.ctx;
+    // Naechste upload_seq fuer (market, list_type)
+    const seqQ = await db.from("dispo_items").select("upload_seq").eq("market", market).eq("list_type", listType).order("upload_seq", {ascending: false}).limit(1);
+    const nextSeq = (seqQ.data && seqQ.data.length) ? (seqQ.data[0].upload_seq + 1) : 1;
+    // Cooldown-Check: fuer jeden Artikel pruefen, ob er in den letzten 2 Uploads erledigt wurde
+    const cooldownThresholdSeq = nextSeq - DISPO_COOLDOWN_UPLOADS; // alles >= dieser seq mit done_date counts als cooldown
+    const rows = [];
+    for(const it of group.items){
+      // letztes Done pro (market, art-no, list_type, anmerkung) im aktuellen Markt
+      let inCooldown = false;
+      const dq = await db.from("dispo_items")
+        .select("upload_seq")
+        .eq("market", it.market)
+        .eq("list_type", it.list_type)
+        .eq("article_no", it.article_no || "")
+        .eq("anmerkung", it.anmerkung || "")
+        .not("done_date", "is", null)
+        .order("upload_seq", {ascending: false})
+        .limit(1);
+      if(dq.data && dq.data.length){
+        const lastDoneSeq = dq.data[0].upload_seq;
+        if((nextSeq - lastDoneSeq) <= DISPO_COOLDOWN_UPLOADS) inCooldown = true;
+      }
+      rows.push({...it, upload_seq: nextSeq, in_cooldown: inCooldown});
+    }
+    // In Batches einfuegen
+    const BATCH = 500;
+    for(let i = 0; i < rows.length; i += BATCH){
+      const slice = rows.slice(i, i + BATCH);
+      const r = await db.from("dispo_items").insert(slice);
+      if(r.error){ msg.innerHTML = "Fehler beim Speichern: " + r.error.message + "<br>" + debug.join("<br>"); return; }
+      totalRows += slice.length;
+    }
+  }
+  msg.innerHTML = `✅ ${totalRows} Artikel gespeichert.<br>` + debug.join("<br>");
+  inputEl.value = "";
+  await fillDispoListTypeFilter();
+  if(document.getElementById("dispoSection").style.display !== "none") loadDispo();
+}
+
+async function clearAllDispo(){
+  if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
+  if(!confirm("Wirklich ALLE Dispo-Einträge löschen?\n\nDie Liste ist danach leer, bis du wieder PDFs hochlädst.")) return;
+  const msg = document.getElementById("dispoUploadMsg");
+  msg.innerHTML = "Lösche ...";
+  const r = await db.from("dispo_items").delete().gte("upload_seq", 0);
+  if(r.error){ msg.innerHTML = "Fehler: " + r.error.message; return; }
+  msg.innerHTML = "Alle Dispo-Einträge wurden gelöscht.";
+  dispoState.items = [];
+  renderDispo();
+}
+
+async function fillDispoListTypeFilter(){
+  const sel = document.getElementById("dispoListTypeFilter");
+  if(!sel) return;
+  const current = sel.value;
+  const data = await fetchAllPaged(()=>db.from("dispo_items").select("list_type"));
+  const types = [...new Set((data||[]).map(r=>r.list_type).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">Alle Listen</option>';
+  types.forEach(t => {
+    const o = document.createElement("option");
+    o.value = t;
+    o.textContent = DISPO_LIST_TYPE_LABEL[t] || t;
+    sel.appendChild(o);
+  });
+  if([...sel.options].some(o => o.value === current)) sel.value = current;
+}
+
+function handleDispoMarketChange(){
+  const m = document.getElementById("dispoMarketFilter").value;
+  localStorage.setItem("dispoSelectedMarket", m);
+  loadDispo();
+}
+async function loadDispo(){
+  await fillDispoListTypeFilter();
+  // Markt-Auswahl aus localStorage uebernehmen falls noch keine getroffen
+  const mSel = document.getElementById("dispoMarketFilter");
+  if(!mSel.dataset.initDone){
+    const saved = localStorage.getItem("dispoSelectedMarket");
+    if(saved !== null && [...mSel.options].some(o => o.value === saved)) mSel.value = saved;
+    else {
+      // Fallback: heimischer Markt vom ToDo-Tab
+      const fromTodo = localStorage.getItem("selectedMarket");
+      if(fromTodo && fromTodo !== "ALLE" && [...mSel.options].some(o => o.value === fromTodo)) mSel.value = fromTodo;
+    }
+    mSel.dataset.initDone = "1";
+  }
+  const market = mSel.value;
+  const listType = document.getElementById("dispoListTypeFilter").value;
+  const content = document.getElementById("dispoContent");
+  content.innerHTML = `<div class="box">Lade Dispo-Daten ...</div>`;
+  let rows;
+  try{
+    rows = await fetchAllPaged(()=>{
+      let q = db.from("dispo_items").select("*");
+      if(market) q = q.eq("market", market);
+      if(listType) q = q.eq("list_type", listType);
+      return q.order("upload_seq", {ascending: false}).order("warengruppe", {ascending: true}).order("article_text", {ascending: true});
+    });
+  }catch(e){
+    content.innerHTML = `<div class="box">Fehler: ${e.message || e}</div>`;
+    return;
+  }
+  // Nur Eintraege der LATEST Upload-Sequenz je (market, list_type) anzeigen
+  const latestSeqByKey = {};
+  rows.forEach(r => {
+    const k = `${r.market}||${r.list_type}`;
+    if(!latestSeqByKey[k] || r.upload_seq > latestSeqByKey[k]) latestSeqByKey[k] = r.upload_seq;
+  });
+  const latest = rows.filter(r => r.upload_seq === latestSeqByKey[`${r.market}||${r.list_type}`]);
+  dispoState.items = latest;
+  renderDispo();
+}
+
+function renderDispo(){
+  const content = document.getElementById("dispoContent");
+  const status = document.getElementById("dispoStatus").value;
+  const search = (document.getElementById("dispoSearch").value || "").toLowerCase().trim();
+  const sortMode = document.getElementById("dispoSort")?.value || "abteilung";
+  const items = dispoState.items || [];
+  const now = Date.now();
+  const filtered = items.filter(it => {
+    // Status-Filter
+    if(status === "open"){ if(it.in_cooldown) return false; if(it.done_date) return false; }
+    else if(status === "done"){ if(!it.done_date) return false; const t = new Date(it.done_date).getTime(); if(now - t > 30*24*3600*1000) return false; }
+    else if(status === "cooldown"){ if(!it.in_cooldown) return false; }
+    // Suche
+    if(search){
+      const hay = `${it.article_no||""} ${it.ean||""} ${it.article_text||""} ${it.warengruppe||""} ${it.anmerkung||""}`.toLowerCase();
+      if(!hay.includes(search)) return false;
+    }
+    return true;
+  });
+  // Gruppieren nach (market, list_type)
+  const groups = {};
+  filtered.forEach(it => {
+    const k = `${it.market}||${it.list_type}`;
+    if(!groups[k]) groups[k] = {market: it.market, list_type: it.list_type, upload_seq: it.upload_seq, upload_date: it.upload_date, items: []};
+    groups[k].items.push(it);
+  });
+  // Summary
+  const totalOpen = items.filter(i => !i.in_cooldown && !i.done_date).length;
+  const totalDone = items.filter(i => i.done_date).length;
+  const totalCool = items.filter(i => i.in_cooldown).length;
+  document.getElementById("dispoSummary").innerHTML = `In der aktuellen Liste: <strong>${totalOpen} offen</strong>, ${totalDone} erledigt, ${totalCool} im Cooldown.`;
+  if(!Object.keys(groups).length){
+    content.innerHTML = `<div class="box">Keine Einträge für diesen Filter.</div>`;
+    return;
+  }
+  const groupKeys = Object.keys(groups).sort((a,b) => {
+    const ga = groups[a], gb = groups[b];
+    return ga.market.localeCompare(gb.market, "de") || ga.list_type.localeCompare(gb.list_type, "de");
+  });
+  let html = "";
+  const barcodesToRender = [];
+  groupKeys.forEach(k => {
+    const g = groups[k];
+    const label = DISPO_LIST_TYPE_LABEL[g.list_type] || g.list_type;
+    // 1. Paare zusammenbauen (Ursprung/Folge, Ordersatz/Ersatz)
+    const blocks = [];
+    const used = new Set();
+    g.items.forEach(it => {
+      if(used.has(it.id)) return;
+      if(it.role && (it.role === "Ordersatz" || it.role === "Ursprung")){
+        const idx = g.items.indexOf(it);
+        let partner = null;
+        for(let j = idx + 1; j < Math.min(idx + 3, g.items.length); j++){
+          const cand = g.items[j];
+          if(cand.role === "Ersatz" || cand.role === "Folge"){ partner = cand; break; }
+        }
+        blocks.push({primary: it, partner});
+        used.add(it.id);
+        if(partner) used.add(partner.id);
+      } else {
+        blocks.push({primary: it, partner: null});
+        used.add(it.id);
+      }
+    });
+    // 2. Bloecke nach gewaehlter Sortierung ordnen
+    const padNum = (v) => String(v||"").padStart(8,"0");
+    const sortKeyOf = (b) => {
+      const it = b.primary;
+      if(sortMode === "abteilung") return [it.warengruppe || "ZZ_unbekannt", it.article_text || "", it.article_no || ""];
+      if(sortMode === "regal") return [padNum(it.regal_nr), padNum(it.regal_platz), it.article_text || ""];
+      if(sortMode === "artNo") return [it.article_no || ""];
+      if(sortMode === "artText") return [it.article_text || ""];
+      return [it.article_text || ""];
+    };
+    blocks.sort((a,b)=>{
+      const ka = sortKeyOf(a), kb = sortKeyOf(b);
+      for(let i = 0; i < Math.max(ka.length, kb.length); i++){
+        const cmp = String(ka[i] || "").localeCompare(String(kb[i] || ""), "de", {numeric: true});
+        if(cmp !== 0) return cmp;
+      }
+      return 0;
+    });
+    // 3. Rendering mit optionalen Abteilungs-Zwischenheadern
+    html += `<div class="box dispo-list-group"><h3>${g.market} · ${label} <span class="small" style="font-weight:normal">(Stand ${formatDateDE(g.upload_date)}, Upload #${g.upload_seq}, ${g.items.length} Einträge)</span></h3>`;
+    let lastWG = null;
+    blocks.forEach(b => {
+      if(sortMode === "abteilung"){
+        const wg = b.primary.warengruppe || "(ohne Warengruppe)";
+        if(wg !== lastWG){
+          html += `<div class="dispo-section-header">${wg}</div>`;
+          lastWG = wg;
+        }
+      }
+      if(b.partner){
+        html += `<div class="dispo-pair"><div class="pair-title">${b.primary.role} ↔ ${b.partner.role}</div>`;
+        html += dispoCardHTML(b.primary, barcodesToRender);
+        html += dispoCardHTML(b.partner, barcodesToRender);
+        html += `</div>`;
+      } else {
+        html += dispoCardHTML(b.primary, barcodesToRender);
+      }
+    });
+    html += `</div>`;
+  });
+  content.innerHTML = html;
+  // Barcodes nachrendern
+  barcodesToRender.forEach(({id, ean}) => {
+    const el = document.getElementById(id);
+    if(!el || typeof JsBarcode === "undefined") return;
+    try{
+      const isValidEAN = /^\d{13}$/.test(ean) || /^\d{8}$/.test(ean);
+      const format = isValidEAN ? (ean.length === 13 ? "EAN13" : "EAN8") : "CODE128";
+      JsBarcode(el, ean, {format, height: 50, displayValue: true, fontSize: 12, margin: 0});
+    }catch(e){ /* falls EAN ungueltig fuer EAN13, fallback CODE128 */
+      try{ JsBarcode(el, ean, {format: "CODE128", height: 50, displayValue: true, fontSize: 12, margin: 0}); }catch(e2){ /* still */ }
+    }
+  });
+}
+
+function dispoCardHTML(it, barcodesToRender){
+  const checked = it.done_date ? "checked" : "";
+  const doneClass = it.done_date ? "done" : "";
+  const cool = it.in_cooldown ? `<span class="pill" style="background:#94a3b8">Cooldown</span>` : "";
+  const roleClass = it.role ? `role-${it.role}` : "";
+  const barcodeId = `bc_${it.id}`;
+  if(it.ean){ barcodesToRender.push({id: barcodeId, ean: it.ean}); }
+  return `<div class="dispo-card ${doneClass} ${roleClass}">
+    <div class="d-head">
+      <div>
+        <div class="d-name">${it.article_text || "(ohne Bezeichnung)"} ${it.role ? `<span class="pill" style="background:#0284c7">${it.role}</span>` : ""} ${cool}</div>
+        <div class="d-meta">Art.-Nr. ${it.article_no || "–"}${it.warengruppe ? " · " + it.warengruppe : ""}${it.ean ? " · EAN " + it.ean : ""}</div>
+      </div>
+    </div>
+    <div class="d-row"><span class="lbl">Bestand</span><span class="val">${it.bestand !== null && it.bestand !== undefined ? it.bestand : "–"}</span></div>
+    ${(it.regal_nr || it.regal_platz) ? `<div class="d-row"><span class="lbl">Regal</span><span class="val">Nr. ${it.regal_nr || "–"} / Platz ${it.regal_platz || "–"}</span></div>` : ""}
+    ${it.anmerkung ? `<div class="d-anm">${it.anmerkung}</div>` : ""}
+    ${it.ean ? `<div class="d-barcode"><svg id="${barcodeId}"></svg></div>` : ""}
+    <div class="d-actions">
+      <input type="checkbox" class="d-check" ${checked} onchange="toggleDispoItem('${it.id}', this.checked)">
+      <label class="d-check-label">${it.done_date ? "Erledigt am " + formatDateTimeDE(it.done_date) + (it.done_by ? " von " + it.done_by : "") : "Erledigt"}</label>
+    </div>
+  </div>`;
+}
+
+async function toggleDispoItem(id, checked){
+  const name = document.getElementById("name").value.trim();
+  if(!name){ alert("Bitte oben deinen Namen eingeben."); renderDispo(); return; }
+  const ok = confirm(checked ? "Diesen Artikel als erledigt markieren?" : "Erledigt-Markierung wirklich entfernen?");
+  if(!ok){ renderDispo(); return; }
+  const update = checked ? {done_date: berlinNowForDB(), done_by: name} : {done_date: null, done_by: null};
+  const r = await db.from("dispo_items").update(update).eq("id", id);
+  if(r.error){ alert("Fehler: " + r.error.message); return; }
+  // State lokal updaten
+  const it = (dispoState.items || []).find(x => x.id === id);
+  if(it){ it.done_date = update.done_date; it.done_by = update.done_by; }
+  renderDispo();
+}
 const nameInput=document.getElementById("name");nameInput.value=localStorage.getItem("employeeName")||"";nameInput.addEventListener("input",function(){localStorage.setItem("employeeName",this.value)});const marketInput=document.getElementById("marketFilter"),areaInput=document.getElementById("areaFilter");marketInput.value=localStorage.getItem("selectedMarket")||"Freckenfeld";marketInput.addEventListener("change",function(){localStorage.setItem("selectedMarket",this.value)});document.getElementById("monthFilter").value=todayISO().slice(0,7);document.getElementById("controlDateFrom").value=todayISO();document.getElementById("controlDateTo").value=todayISO();document.getElementById("adminStartDate").value=todayISO();document.getElementById("adminEndDate").value=todayISO();document.getElementById("metricsUploadDate").value=todayISO();populateAllowedDays();loadAreas().then(()=>{handleAreaChange()});
 </script>
 </body>
