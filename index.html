@@ -1532,89 +1532,136 @@ function dispoFormatDebugLines(lines, n){
 }
 
 function dispoParseFEA(lines, ctx){
-  // Erwartet Zeilen mit Rolle (Ordersatz/Ersatz/Ursprung/Folge): *artNo* text DMK *EAN* Bestand RGNR RGP Anmerkung
+  // PDF.js-Struktur (aus der Diagnose abgeleitet):
+  //   [...]  Anmerkungs-Vorzeile (optional, z.B. "Bestand + Etikett")
+  //   [N]    <Rolle>: <Artikeltext> <DMK> <Bestand> <RGNR> <RGP> [<Anmerkung-Teil1>]
+  //   [N+1]  *<ArtNr>* *<EAN>* [<Anmerkung-Teil2>]
+  //   [N+2]  Anmerkungs-Nachzeile (optional, z.B. "Regalplatz löschen")
+  //   [N+3]  <ArtNr> <EAN>   (Wiederholung ohne Sterne)
   const items = [];
   let currentWG = "";
-  const wgPattern = /^(TS|FD|TK|FW)$/;
-  const rolePattern = /^(Ordersatz|Ersatz|Ursprung|Folge):\s+\*(\d+)\*\s+(.+?)\s+([A-Z]{2})\s+\*(\d+)\*\s+(-?\d+)\s+(\d+)\s+(\d+)\s*(.*)$/;
+  const wgPattern = /^(TS|FD|TK|FW|GT)$/;
+  const rolePattern = /^(Ordersatz|Ersatz|Ursprung|Folge):\s+(.+?)\s+([A-Z]{2})\s+(-?\d+|\*)\s+(\d+|\*)\s+(\d+|\*)\s*(.*)$/;
+  const starPattern = /^\*(\d+)\*\s+\*(\d+)\*\s*(.*)$/;
+  const isStructural = (ln) => {
+    if(!ln) return true;
+    const t = ln.trim();
+    if(wgPattern.test(t)) return true;
+    if(rolePattern.test(t)) return true;
+    if(starPattern.test(t)) return true;
+    if(/^\d{6,}\s+\d{8,}$/.test(t)) return true;
+    if(/^(Artikelnummer Artikeltext|Dieser Bericht|Betrieb:|Bestandsbereinigung|Regalplatzpflege|Regalplatzlöschung|Kurzbeschreibung|Diese Artikelliste|Bearbeitungshinweis|Prüfen Sie|Artikelkombinationen|Warenbeschaffung|Etikettierung|korrekte|Diese Liste|Wir empfehlen|Stand der Auswertung|Ø-Wochenabsatz|Langsamdreher|Sie erhalten|Insgesamt|Sortiment|Bei diesen|automatischen|Preisauszeichnung|Ersatzartikel|Folgeartikel|Restbestand|Negativbestände|Löschen Sie|Regalplätze|Regalen|Korrigieren|Diese Ordersatz|gepflegt|fehlende|ggs|Etiketten)/.test(t)) return true;
+    return false;
+  };
   for(let i = 0; i < lines.length; i++){
     const ln = lines[i];
-    if(wgPattern.test(ln)){ currentWG = ln; continue; }
+    const t = ln.trim();
+    if(wgPattern.test(t)){ currentWG = t; continue; }
     const m = ln.match(rolePattern);
-    if(m){
-      let anmerkung = (m[9] || "").trim();
-      // Anmerkung kann auf naechsten Zeilen weitergehen (z.B. "Bestand prüfen/korrigieren")
-      // Heuristik: wenn folgende Zeile NICHT mit artNo+EAN beginnt UND nicht Rolle hat, ggf. anhängen
-      let j = i + 1;
-      while(j < lines.length){
-        const nxt = lines[j];
-        if(rolePattern.test(nxt)) break;
-        if(wgPattern.test(nxt)) break;
-        // Wenn naechste Zeile artNo + EAN ist (= "1234567 4012345..."), ueberspringen
-        if(/^\d{6,}\s+\d{8,}$/.test(nxt)){ j++; continue; }
-        if(/^Dieser Bericht/.test(nxt)) break;
-        // Tabellen-Header?
-        if(/^Artikelnummer/.test(nxt) || /^TS$|^FD$|^TK$|^FW$/.test(nxt)) break;
-        // Sonst anhaengen (Anmerkung-Fortsetzung)
-        anmerkung = (anmerkung ? anmerkung + " " : "") + nxt;
-        j++;
-        if(j - i > 4) break; // safety
+    if(!m) continue;
+    const role = m[1];
+    const text = m[2].trim();
+    const dmk = m[3];
+    const bestand = m[4];
+    const rgnr = m[5];
+    const rgp = m[6];
+    let anmerkung = (m[7] || "").trim();
+    // Naechste 1-3 Zeilen nach *ArtNr* *EAN* absuchen
+    let artNr = "", ean = "", starIdx = -1;
+    for(let j = i+1; j <= Math.min(i+3, lines.length-1); j++){
+      const sm = lines[j].match(starPattern);
+      if(sm){
+        artNr = sm[1]; ean = sm[2]; starIdx = j;
+        const extra = (sm[3] || "").trim();
+        if(extra) anmerkung = (anmerkung ? anmerkung + " " : "") + extra;
+        break;
       }
-      items.push({
-        market: ctx.market,
-        list_type: ctx.listType,
-        upload_date: ctx.upload_date,
-        warengruppe: currentWG,
-        role: m[1],
-        article_no: m[2],
-        article_text: m[3].trim(),
-        ean: m[5],
-        bestand: m[6],
-        regal_nr: m[7],
-        regal_platz: m[8],
-        anmerkung: anmerkung || ""
-      });
     }
+    if(!artNr || !ean){
+      // Fallback: plain "ArtNr EAN"-Zeile
+      for(let j = i+1; j <= Math.min(i+4, lines.length-1); j++){
+        const pm = lines[j].trim().match(/^(\d{6,12})\s+(\d{8,14})$/);
+        if(pm){ artNr = pm[1]; ean = pm[2]; break; }
+      }
+    }
+    if(!artNr || !ean) continue;
+    // Anmerkungs-Wrap davor und danach
+    if(i > 0){
+      const prev = lines[i-1];
+      if(!isStructural(prev)){
+        anmerkung = (prev.trim() + (anmerkung ? " " + anmerkung : "")).trim();
+      }
+    }
+    if(starIdx >= 0 && starIdx + 1 < lines.length){
+      const after = lines[starIdx + 1];
+      if(!isStructural(after)){
+        anmerkung = (anmerkung ? anmerkung + " " : "") + after.trim();
+      }
+    }
+    items.push({
+      market: ctx.market,
+      list_type: ctx.listType,
+      upload_date: ctx.upload_date,
+      warengruppe: currentWG,
+      role,
+      article_no: artNr,
+      article_text: text,
+      ean,
+      bestand,
+      regal_nr: (rgnr === "*") ? null : rgnr,
+      regal_platz: (rgp === "*") ? null : rgp,
+      anmerkung: anmerkung || ""
+    });
   }
   return items;
 }
 
 function dispoParseAktionsartikel(lines, ctx){
-  // Zwei Zeilenformen:
-  //   A) <Warengruppe> <ArtNo> [<ArtText>] <GTIN> *<GTIN>* <Bestand|-> <Empfehlung> <SKZ> <AKW>
-  //   B) <ArtNo> [<ArtText>] <GTIN> *<GTIN>* <Bestand|-> <Empfehlung> <SKZ> <AKW>   (WG erbt von letzter A)
+  // PDF.js-Struktur:
+  //   [N-1] <ArtikelText Anfang>           (optional, kann wegfallen)
+  //   [N]   <WG> <ArtNo> <GTIN> <Bestand|-> <Empfehlung> <SKZ> <AKW>
+  //         (oder ohne WG, dann WG vom letzten Block geerbt)
+  //   [N+1] <ArtikelText Rest> *<GTIN>*    (manchmal nur *<GTIN>*)
   const items = [];
-  const formA = /^([A-Za-zäöüÄÖÜß][^*]*?)\s+(\d{6,12})(?:\s+(.+?))?\s+(\d{8,14})\s+\*(\d{8,14})\*\s+(\S+)\s+(.+?)\s+(\d+)\s+(\d+)$/;
-  const formB = /^(\d{6,12})(?:\s+(.+?))?\s+(\d{8,14})\s+\*(\d{8,14})\*\s+(\S+)\s+(.+?)\s+(\d+)\s+(\d+)$/;
+  const formA = /^([A-Za-zäöüÄÖÜß][^*]*?)\s+(\d{6,12})\s+(\d{8,14})\s+(\S+)\s+(.+?)\s+(\d+)\s+(\d+)$/;
+  const formB = /^(\d{6,12})\s+(\d{8,14})\s+(\S+)\s+(.+?)\s+(\d+)\s+(\d+)$/;
+  const starOnlyRe = /^\s*\*(\d{8,14})\*\s*$/;
   const isJunk = (s) => {
     const t = (s || "").trim();
     if(!t || t === "*") return true;
     if(/^(Frischdienst|Tiefkühl|Trockensortiment)$/.test(t)) return true;
     if(/^(Aktionsartikel|Betrieb:|Warenguppe|Dieser Bericht|Achtung:|Kurzbeschreibung|Übersicht|Nachstehend|Insgesamt|Sortiment|Sie erhalten|Diese|Wir empfehlen|Artikel ohne)/.test(t)) return true;
-    if(/^\d{6,}\s+\d{8,}/.test(t)) return true;
+    if(/^\d{6,}\s+\d{8,}$/.test(t)) return true;
+    if(formA.test(t) || formB.test(t)) return true;
+    if(starOnlyRe.test(t)) return true;
     return false;
   };
   let currentWG = "";
   for(let i = 0; i < lines.length; i++){
     const ln = lines[i];
-    let wg, artNo, textInline, gtin, bestand, empf, skz, akw;
+    let wg, artNo, gtin, bestand, empf, skz, akw;
     let m = ln.match(formA);
     if(m){
-      wg = m[1].trim(); artNo = m[2]; textInline = m[3] || ""; gtin = m[5];
-      bestand = m[6]; empf = m[7]; skz = m[8]; akw = m[9];
+      wg = m[1].trim(); artNo = m[2]; gtin = m[3];
+      bestand = m[4]; empf = m[5]; skz = m[6]; akw = m[7];
       currentWG = wg;
     } else {
       m = ln.match(formB);
       if(!m) continue;
-      wg = currentWG; artNo = m[1]; textInline = m[2] || ""; gtin = m[4];
-      bestand = m[5]; empf = m[6]; skz = m[7]; akw = m[8];
+      wg = currentWG; artNo = m[1]; gtin = m[2];
+      bestand = m[3]; empf = m[4]; skz = m[5]; akw = m[6];
     }
-    let text = textInline.trim();
-    if(!text){
-      const before = (i > 0 && !lines[i-1].match(formA) && !lines[i-1].match(formB) && !isJunk(lines[i-1])) ? lines[i-1].trim() : "";
-      const after = (i < lines.length - 1 && !lines[i+1].match(formA) && !lines[i+1].match(formB) && !isJunk(lines[i+1])) ? lines[i+1].trim() : "";
-      text = (before + " " + after).trim() || "(siehe Bürosystem)";
+    // Text-Anfang: Zeile davor (wenn nicht Junk)
+    const before = (i > 0 && !isJunk(lines[i-1])) ? lines[i-1].trim() : "";
+    // Text-Rest: Zeile danach, ohne den *GTIN*-Anhang
+    let after = "";
+    if(i + 1 < lines.length){
+      const nxt = lines[i+1];
+      if(!starOnlyRe.test(nxt) && !isJunk(nxt)){
+        after = nxt.replace(/\s*\*\d+\*\s*$/, "").trim();
+      }
     }
+    const text = (before + " " + after).trim() || "(siehe Bürosystem)";
     items.push({
       market: ctx.market,
       list_type: ctx.listType,
@@ -1631,25 +1678,42 @@ function dispoParseAktionsartikel(lines, ctx){
 }
 
 function dispoParseDistribution(lines, ctx){
-  // Zeilen: <Warengruppe> <GTIN> <Artikeltext> *<GTIN>* <SKZ> <Listung> [<Distribution>] [<Bestand>]
+  // PDF.js-Struktur:
+  //   [N]   <WG> <GTIN> <Artikeltext> <SKZ> <Listung> [<Distribution>] [<Bestand>]
+  //   [N+1] *<GTIN>*
   const items = [];
-  const rowRe = /^(.+?)\s+(\d{8,})\s+(.+?)\s+\*(\d{8,})\*\s+(\d+)\s+(\S+)(?:\s+(\d+))?(?:\s+(\d+))?$/;
-  for(const ln of lines){
-    if(/^Distributionsanalyse/.test(ln) || /^Betrieb:/.test(ln) || /^Warenguppe/.test(ln) || /^Dieser Bericht/.test(ln) || /^Prüfen Sie/.test(ln)) continue;
+  // ArtikelText kann inline drinstehen oder leer sein. Optional Distribution/Bestand am Ende.
+  const rowRe = /^([A-Za-zäöüÄÖÜß][^*]*?)\s+(\d{8,14})\s+(.+?)\s+(\d+)\s+(\S+)(?:\s+(.+?))?$/;
+  const isJunk = (s) => {
+    const t = (s || "").trim();
+    if(!t) return true;
+    if(/^Distributionsanalyse|^Betrieb:|^Warenguppe|^Dieser Bericht|^Prüfen Sie|^Diese Liste|^Bearbeitungshinweis|^Stand der Auswertung|^Sortiment|^Frischdienst$|^Tiefkühl$|^Trockensortiment$|^Fleischwerk$|^Getränke Markt$|^Legende|^Neu =|^sichern =|^erweitern =|^gelb =|^mit oder ohne|^Wochen lang|^Artikel$|^Kurzbeschreibung|^Übersicht|^Diese Liste|^Großhandlung|^Sortimentskennzeichen|^Regalplatz/.test(t)) return true;
+    // Aggregat-Zeilen wie "Frischdienst 266"
+    if(/^(Frischdienst|Tiefkühl|Trockensortiment|Fleischwerk|Insgesamt)\s*[:]?\s*[\d.]+$/.test(t)) return true;
+    return false;
+  };
+  for(let i = 0; i < lines.length; i++){
+    const ln = lines[i];
+    if(isJunk(ln)) continue;
     const m = ln.match(rowRe);
-    if(m){
-      items.push({
-        market: ctx.market,
-        list_type: ctx.listType,
-        upload_date: ctx.upload_date,
-        warengruppe: (m[1] || "").trim(),
-        article_no: m[2],
-        article_text: m[3].trim(),
-        ean: m[4],
-        bestand: m[8] || null,
-        anmerkung: "SKZ " + m[5] + " · " + (m[6] || "")
-      });
-    }
+    if(!m) continue;
+    const wg = m[1].trim();
+    const gtin = m[2];
+    const text = m[3].trim();
+    const skz = m[4];
+    const listung = m[5];
+    const rest = (m[6] || "").trim(); // kann Distribution und/oder Bestand sein
+    items.push({
+      market: ctx.market,
+      list_type: ctx.listType,
+      upload_date: ctx.upload_date,
+      warengruppe: wg,
+      article_no: gtin, // Distri-Liste hat nur GTIN, keine separate Art.-Nr.
+      article_text: text,
+      ean: gtin,
+      bestand: rest || null,
+      anmerkung: "SKZ " + skz + " · " + listung + (rest ? " · " + rest : "")
+    });
   }
   return items;
 }
