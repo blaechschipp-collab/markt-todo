@@ -11,7 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <style>
     :root{--blue:#004f9e;--blue-dark:#00315f;--yellow:#ffdd00;--red:#ef4444;--orange:#f59e0b;--green:#22c55e;--border:#d8e2ef;--text:#08213f}
-    *{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(180deg,var(--blue-dark),var(--blue));color:var(--text);min-height:100vh}.header{background:linear-gradient(135deg,#002b55,#0059ad);padding:22px 26px 18px;border-bottom:6px solid var(--yellow)}.brand{max-width:1300px;margin:0 auto}.logo{max-width:520px;width:100%;height:auto;display:block}.brand-title{font-size:44px;font-weight:900;font-style:italic;color:#fff}.brand-subtitle{font-size:18px;color:#d9ecff}.main{max-width:1300px;margin:0 auto;padding:24px}.tabs{display:flex;gap:10px;margin-bottom:18px}.tab{border:2px solid var(--yellow);background:transparent;color:#fff;padding:14px 24px;border-radius:12px 12px 0 0;font-weight:bold;cursor:pointer}.tab.active{background:var(--yellow);color:var(--blue-dark)}.todo-tab{flex:3}.analytics-tab{flex:3}.admin-tab{flex:1;min-width:92px}.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:14px}.metric-card{background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:16px}.metric-value{font-size:28px;font-weight:900;color:var(--blue-dark)}.locked{opacity:.75}.box{background:#fff;border-radius:14px;padding:18px;margin-bottom:18px;box-shadow:0 8px 24px rgba(0,0,0,.14)}.admin{border:3px solid var(--yellow)}.control-grid{display:grid;grid-template-columns:repeat(5,minmax(160px,1fr));gap:14px;align-items:end}label{font-weight:bold;font-size:14px;display:block;margin-bottom:6px}input,select,textarea,button{padding:12px;border-radius:8px;border:1px solid #b8c7d9;font-size:15px;width:100%}textarea{min-height:86px;resize:vertical}button{cursor:pointer;font-weight:bold;border:none}.btn-yellow{background:var(--yellow);color:var(--blue-dark)}.btn-blue{background:var(--blue);color:#fff}.btn-dark{background:var(--blue-dark);color:#fff}.btn-red{background:#c62828;color:#fff}.btn-green{background:#2e7d32;color:#fff}.task{padding:14px;border-radius:10px;margin-bottom:10px;border:1px solid var(--border);display:flex;gap:12px;align-items:flex-start}.high{background:#ffe5e5;border-color:#ffb3b3}.medium{background:#fff5cc;border-color:#ffe480}.low{background:#e8f5e9;border-color:#bde8c3}.info{background:#e0f2fe;border-color:#7dd3fc}.done{text-decoration:line-through;color:#6b7280}.pill{display:inline-block;padding:3px 8px;border-radius:999px;color:#fff;font-size:12px;font-weight:bold;margin-left:6px}.high-p{background:var(--red)}.medium-p{background:var(--orange)}.low-p{background:var(--green)}.open-p{background:#64748b}.done-p{background:var(--green)}.info-p{background:#0284c7}.small{font-size:13px;color:#64748b;margin-top:4px}.days label,.months label{display:inline-flex;align-items:center;gap:6px;margin:6px 12px 6px 0;font-weight:normal}.days input,.months input{width:auto}.admin-actions{display:flex;gap:8px;flex-wrap:wrap}.admin-actions button{width:auto}.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px}table{border-collapse:collapse;width:100%;min-width:900px;background:#fff}th,td{border:1px solid #e1e8f0;padding:9px;text-align:left;font-size:13px}th{background:#f1f5f9}.footer{background:var(--yellow);color:var(--blue-dark);text-align:center;padding:18px;font-weight:bold;margin-top:30px}
+    *{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(180deg,var(--blue-dark),var(--blue));color:var(--text);min-height:100vh}.header{background:linear-gradient(135deg,#002b55,#0059ad);padding:22px 26px 18px;border-bottom:6px solid var(--yellow)}.brand{max-width:1300px;margin:0 auto}.logo{max-width:520px;width:100%;height:auto;display:block}.brand-title{font-size:44px;font-weight:900;font-style:italic;color:#fff}.brand-subtitle{font-size:18px;color:#d9ecff}.main{max-width:1300px;margin:0 auto;padding:24px}.tabs{display:flex;gap:10px;margin-bottom:18px}.tab{border:2px solid var(--yellow);background:transparent;color:#fff;padding:14px 24px;border-radius:12px 12px 0 0;font-weight:bold;cursor:pointer}.tab.active{background:var(--yellow);color:var(--blue-dark)}.todo-tab{flex:3}.analytics-tab{flex:3}.backshop-tab{flex:3}.admin-tab{flex:1;min-width:92px}.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:14px}.metric-card{background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:16px}.metric-value{font-size:28px;font-weight:900;color:var(--blue-dark)}.locked{opacity:.75}.box{background:#fff;border-radius:14px;padding:18px;margin-bottom:18px;box-shadow:0 8px 24px rgba(0,0,0,.14)}.admin{border:3px solid var(--yellow)}.control-grid{display:grid;grid-template-columns:repeat(5,minmax(160px,1fr));gap:14px;align-items:end}label{font-weight:bold;font-size:14px;display:block;margin-bottom:6px}input,select,textarea,button{padding:12px;border-radius:8px;border:1px solid #b8c7d9;font-size:15px;width:100%}textarea{min-height:86px;resize:vertical}button{cursor:pointer;font-weight:bold;border:none}.btn-yellow{background:var(--yellow);color:var(--blue-dark)}.btn-blue{background:var(--blue);color:#fff}.btn-dark{background:var(--blue-dark);color:#fff}.btn-red{background:#c62828;color:#fff}.btn-green{background:#2e7d32;color:#fff}.task{padding:14px;border-radius:10px;margin-bottom:10px;border:1px solid var(--border);display:flex;gap:12px;align-items:flex-start}.high{background:#ffe5e5;border-color:#ffb3b3}.medium{background:#fff5cc;border-color:#ffe480}.low{background:#e8f5e9;border-color:#bde8c3}.info{background:#e0f2fe;border-color:#7dd3fc}.done{text-decoration:line-through;color:#6b7280}.pill{display:inline-block;padding:3px 8px;border-radius:999px;color:#fff;font-size:12px;font-weight:bold;margin-left:6px}.high-p{background:var(--red)}.medium-p{background:var(--orange)}.low-p{background:var(--green)}.open-p{background:#64748b}.done-p{background:var(--green)}.info-p{background:#0284c7}.small{font-size:13px;color:#64748b;margin-top:4px}.days label,.months label{display:inline-flex;align-items:center;gap:6px;margin:6px 12px 6px 0;font-weight:normal}.days input,.months input{width:auto}.admin-actions{display:flex;gap:8px;flex-wrap:wrap}.admin-actions button{width:auto}.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px}table{border-collapse:collapse;width:100%;min-width:900px;background:#fff}th,td{border:1px solid #e1e8f0;padding:9px;text-align:left;font-size:13px}th{background:#f1f5f9}.footer{background:var(--yellow);color:var(--blue-dark);text-align:center;padding:18px;font-weight:bold;margin-top:30px}
     .kpi-block .kpi-cards{display:none}
     .kpi-mobile-card{background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px}
     .kpi-mobile-card h3{margin:0 0 8px;font-size:16px;color:var(--blue-dark)}
@@ -49,6 +49,31 @@
     .dispo-doc-card .doc-name{font-weight:bold;color:var(--text);font-size:15px}
     .dispo-doc-card .doc-meta{color:#64748b;font-size:12px}
     .dispo-doc-card a.btn-doc{display:inline-block;background:var(--blue);color:#fff;text-align:center;padding:10px 12px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;margin-top:4px}
+    .bs-headline{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .bs-bigcard{background:linear-gradient(135deg,#fefce8,#fef3c7);border:2px solid var(--yellow);border-radius:14px;padding:18px;text-align:center}
+    .bs-bigcard .bs-lbl{font-size:13px;color:#78716c;font-weight:bold;text-transform:uppercase;letter-spacing:.5px}
+    .bs-bigcard .bs-val{font-size:42px;font-weight:900;color:var(--blue-dark);line-height:1;margin-top:6px}
+    .bs-bigcard .bs-sub{font-size:13px;color:#78716c;margin-top:4px}
+    .bs-table{width:100%;border-collapse:collapse;background:#fff;font-size:13px}
+    .bs-table th,.bs-table td{padding:8px;border-bottom:1px solid #e2e8f0;text-align:right}
+    .bs-table th:first-child,.bs-table td:first-child{text-align:left}
+    .bs-table th{background:#f1f5f9;position:sticky;top:0;z-index:1}
+    .bs-table td.bs-now{background:#fef3c7;font-weight:bold}
+    .bs-table td.bs-next3{background:#fef9c3}
+    .bs-table tr.bs-total{background:#e0f2fe;font-weight:bold}
+    .bs-mobile{display:none}
+    .bs-mobile-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px}
+    .bs-mobile-card .name{font-weight:bold;color:var(--blue-dark);font-size:15px}
+    .bs-mobile-card .meta{color:#64748b;font-size:12px;margin-top:2px}
+    .bs-mobile-card .totals{display:flex;gap:8px;margin-top:8px}
+    .bs-mobile-card .totals > div{flex:1;background:#fef3c7;border-radius:8px;padding:8px;text-align:center}
+    .bs-mobile-card .totals .lbl{font-size:11px;color:#78716c}
+    .bs-mobile-card .totals .val{font-size:20px;font-weight:bold;color:var(--blue-dark)}
+    .bs-mobile-card .hours{margin-top:8px;display:grid;grid-template-columns:repeat(auto-fill,minmax(60px,1fr));gap:6px}
+    .bs-mobile-card .hour-box{background:#f8fafc;border:1px solid var(--border);border-radius:6px;padding:4px 2px;text-align:center;font-size:11px}
+    .bs-mobile-card .hour-box.h-now{background:#fef3c7;font-weight:bold}
+    .bs-mobile-card .hour-box.h-next3{background:#fef9c3}
+    @media(max-width:700px){.bs-desktop{display:none}.bs-mobile{display:block}.bs-headline{grid-template-columns:1fr}}
     .article-block .article-cards{display:none}
     .article-block .article-sort-mobile{display:none}
     .article-card{background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px}
@@ -62,14 +87,14 @@
     .article-card details summary{cursor:pointer;color:var(--blue);font-size:13px;font-weight:bold}
     .article-card .a-detail-row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dotted #cbd5e1;font-size:13px}
     .article-card .a-detail-row:last-child{border-bottom:none}
-    @media(max-width:900px){body{background:var(--blue-dark)}.header{padding:14px 12px 12px}.main{padding:12px}.logo{max-width:280px}.tabs{position:sticky;top:0;z-index:10;background:var(--blue-dark);padding-top:8px}.todo-tab{flex:3}.dispo-tab{flex:3}.analytics-tab{flex:3}.admin-tab{flex:1;min-width:70px}.tab{padding:12px 6px;font-size:13px}.metric-grid{grid-template-columns:1fr}.box{padding:12px;border-radius:12px;margin-bottom:12px}.control-grid{grid-template-columns:1fr;gap:10px}input,select,textarea,button{font-size:16px;padding:13px}.task{padding:12px;gap:10px}.task input[type="checkbox"]{width:24px;height:24px;flex:0 0 24px}.admin-actions{display:grid;grid-template-columns:1fr 1fr}.admin-actions button{width:100%}.footer{font-size:13px;padding:12px}}
+    @media(max-width:900px){body{background:var(--blue-dark)}.header{padding:14px 12px 12px}.main{padding:12px}.logo{max-width:280px}.tabs{position:sticky;top:0;z-index:10;background:var(--blue-dark);padding-top:8px}.todo-tab{flex:3}.dispo-tab{flex:3}.backshop-tab{flex:3}.analytics-tab{flex:3}.admin-tab{flex:1;min-width:70px}.tab{padding:10px 4px;font-size:12px}.metric-grid{grid-template-columns:1fr}.box{padding:12px;border-radius:12px;margin-bottom:12px}.control-grid{grid-template-columns:1fr;gap:10px}input,select,textarea,button{font-size:16px;padding:13px}.task{padding:12px;gap:10px}.task input[type="checkbox"]{width:24px;height:24px;flex:0 0 24px}.admin-actions{display:grid;grid-template-columns:1fr 1fr}.admin-actions button{width:100%}.footer{font-size:13px;padding:12px}}
     @media(max-width:700px){.kpi-block .kpi-table{display:none}.kpi-block .kpi-cards{display:block}.article-block .article-table{display:none}.article-block .article-cards{display:block}.article-block .article-sort-mobile{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}.article-block .article-sort-mobile label{margin:0}}
   </style>
 </head>
 <body>
 <header class="header"><div class="brand"><img src="logo.png" alt="EDEKA Paul Logo" class="logo" onerror="this.style.display='none';document.getElementById('fallbackBrand').style.display='block';"><div id="fallbackBrand" style="display:none"><div class="brand-title">Paul.</div><div class="brand-subtitle">Regional. Frisch. Freundlich.</div></div></div></header>
 <main class="main">
-  <div class="tabs"><button id="todoTab" class="tab active todo-tab" onclick="showTab('todo')">☑ ToDo</button><button id="dispoTab" class="tab dispo-tab" onclick="showTab('dispo')">📦 Dispo</button><button id="analyticsTab" class="tab analytics-tab" onclick="showTab('analytics')">📊 Auswertungen</button><button id="adminTab" class="tab admin-tab" onclick="openAdminPin()">🔒 Admin</button></div>
+  <div class="tabs"><button id="todoTab" class="tab active todo-tab" onclick="showTab('todo')">☑ ToDo</button><button id="dispoTab" class="tab dispo-tab" onclick="showTab('dispo')">📦 Dispo</button><button id="backshopTab" class="tab backshop-tab" onclick="showTab('backshop')">🥐 Backshop</button><button id="analyticsTab" class="tab analytics-tab" onclick="showTab('analytics')">📊 Auswertungen</button><button id="adminTab" class="tab admin-tab" onclick="openAdminPin()">🔒 Admin</button></div>
   <section id="todoSection">
     <div class="box"><div class="control-grid"><div><label>Dein Name</label><input id="name" placeholder="Dein Name"></div><div><label>Markt</label><select id="marketFilter" onchange="handleMarketChange()"><option value="ALLE">Alle Märkte</option><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="areaFilter" onchange="handleAreaChange()"><option value="">Alle Bereiche außer Hausmeister</option></select></div><div id="dayControl"><label>Tag</label><select id="day" onchange="loadTasks()"></select></div><div id="monthControl" style="display:none"><label>Monat</label><input id="monthFilter" type="month" onchange="loadTasks()"></div><div><label>&nbsp;</label><button class="btn-yellow" onclick="loadTasks()">Aktualisieren</button></div></div></div>
     <div id="tasks" class="box"></div>
@@ -133,6 +158,23 @@
     </div>
     <div id="dispoContent"></div>
   </section>
+  <section id="backshopSection" style="display:none">
+    <div class="box">
+      <h2 style="margin-top:0">🥐 Backshop – Nachback-Hilfe</h2>
+      <div class="small">Auf Basis historischer Verkaufsdaten (gewichteter Mittelwert über vergangene Wochen, jüngste Wochen zählen stärker). Standard: aktueller Wochentag und aktuelle Uhrzeit.</div>
+      <div class="control-grid" style="margin-top:14px">
+        <div><label>Markt</label><select id="backshopMarket" onchange="handleBackshopMarketChange()"><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
+        <div><label>Wochentag</label><select id="backshopWeekday" onchange="renderBackshop()">
+          <option value="Montag">Montag</option><option value="Dienstag">Dienstag</option><option value="Mittwoch">Mittwoch</option><option value="Donnerstag">Donnerstag</option><option value="Freitag">Freitag</option><option value="Samstag">Samstag</option><option value="Sonntag">Sonntag</option>
+        </select></div>
+        <div><label>Bezugszeit</label><input id="backshopTime" type="time" onchange="renderBackshop()"></div>
+        <div><label>&nbsp;</label><button class="btn-yellow" onclick="resetBackshopToNow()">Jetzt</button></div>
+      </div>
+      <div id="backshopHeaderLine" class="small" style="margin-top:6px"></div>
+    </div>
+    <div id="backshopSummary" class="box"></div>
+    <div id="backshopContent"></div>
+  </section>
   <section id="adminSection" style="display:none">
     <div class="box admin"><h2>Adminbereich – Aufgabe anlegen</h2><div class="control-grid"><div><label>Markt</label><select id="adminMarket" onchange="handleAdminMarketChange()"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="adminArea" onchange="toggleAdminPeriodFields()"></select><input id="adminCustomArea" placeholder="Neue Abteilung / Bereich" style="margin-top:8px"></div><div><label>Wichtigkeit</label><select id="adminPriority"><option>hoch</option><option>mittel</option><option>niedrig</option></select></div><div><label>Bezeichnung</label><input id="adminCustomTitle" placeholder="Aufgabe eingeben"></div><div><label>Art</label><select id="adminTaskMode" onchange="toggleAdminPeriodFields()"><option value="recurring">Wiederholend</option><option value="single">Einmalig / Zeitraum</option></select></div></div>
       <div id="adminDaysBox" style="margin-top:16px"><label>Tage</label><div class="days"><button type="button" class="btn-yellow" onclick="selectAllAdminDays()" style="width:auto;margin-bottom:8px">Täglich Mo–Sa</button><br><label><input type="checkbox" class="adminDay" value="Montag"> Montag</label><label><input type="checkbox" class="adminDay" value="Dienstag"> Dienstag</label><label><input type="checkbox" class="adminDay" value="Mittwoch"> Mittwoch</label><label><input type="checkbox" class="adminDay" value="Donnerstag"> Donnerstag</label><label><input type="checkbox" class="adminDay" value="Freitag"> Freitag</label><label><input type="checkbox" class="adminDay" value="Samstag"> Samstag</label></div></div>
@@ -154,6 +196,16 @@
         <button class="btn-red" onclick="clearAllMetrics()" style="width:auto">Alle Kennzahlen löschen (Reset)</button>
       </div>
       <div id="metricsUploadMsg" class="small"></div>
+    </div>
+    <div class="box admin">
+      <h2>🥐 Backshop – Frequenz-Excel hochladen</h2>
+      <div class="small">Wöchentliche EDEKA-BO „Frequenzbericht (historisch)" Excel. Mehrere Dateien gleichzeitig möglich. Identische (Markt + Artikel + KW + Wochentag + Stunde)-Kombinationen werden überschrieben; neue Wochen werden ergänzt; alte Wochen bleiben erhalten.</div>
+      <input id="backshopExcelFile" type="file" accept=".xlsx,.xls" multiple style="margin-top:10px" />
+      <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn-green" style="width:auto" onclick="uploadBackshopExcel()">Excel einlesen &amp; speichern</button>
+        <button class="btn-red" style="width:auto" onclick="clearAllBackshop()">Alle Backshop-Daten löschen (Reset)</button>
+      </div>
+      <div id="backshopUploadMsg" class="small" style="margin-top:8px"></div>
     </div>
     <div class="box admin">
       <h2>📦 Dispo – PDF-Listen hochladen</h2>
@@ -867,15 +919,18 @@ function handleControlMarketChange(){
 function showTab(tab){
   document.getElementById("todoSection").style.display=tab==="todo"?"block":"none";
   document.getElementById("dispoSection").style.display=tab==="dispo"?"block":"none";
+  document.getElementById("backshopSection").style.display=tab==="backshop"?"block":"none";
   document.getElementById("analyticsSection").style.display=tab==="analytics"?"block":"none";
   document.getElementById("adminSection").style.display=tab==="admin"?"block":"none";
   document.getElementById("todoTab").classList.toggle("active",tab==="todo");
   document.getElementById("dispoTab").classList.toggle("active",tab==="dispo");
+  document.getElementById("backshopTab").classList.toggle("active",tab==="backshop");
   document.getElementById("analyticsTab").classList.toggle("active",tab==="analytics");
   document.getElementById("adminTab").classList.toggle("active",tab==="admin");
   if(tab==="admin"){loadAdminTasks();loadControlTasks()}
   else if(tab==="analytics"){prepareAnalytics()}
   else if(tab==="dispo"){loadDispo()}
+  else if(tab==="backshop"){loadBackshop()}
   else loadTasks()
 }
 function openAdminPin(){if(!adminUnlocked){const pin=prompt("Admin-PIN eingeben:");if(pin===ADMIN_PIN)adminUnlocked=true;else if(pin!==null)return alert("Falsche PIN.");else return}showTab("admin")}
@@ -1455,6 +1510,356 @@ async function uploadMetricsExcel(){
 
 async function editTask(id){if(!adminUnlocked)return alert("Admin-PIN erforderlich.");const{data,error}=await db.from("tasks").select("*").eq("id",id).single();if(error)return alert("Fehler: "+error.message);const title=prompt("Bezeichnung:",data.title||"");if(title===null)return;const area=prompt("Bereich:",data.area||"");if(area===null)return;const priority=prompt("Wichtigkeit (hoch, mittel, niedrig, info):",data.priority||"");if(priority===null)return;const{error:e}=await db.from("tasks").update({title:title.trim(),area:area.trim(),priority:priority.trim()}).eq("id",id);if(e)return alert("Fehler: "+e.message);await loadAreas();loadTasks();loadAdminTasks();loadControlTasks()}
 async function deleteTask(id){if(!adminUnlocked)return alert("Admin-PIN erforderlich.");if(!confirm("Diese Aufgabe wirklich löschen?"))return;await db.from("task_logs").delete().eq("task_id",id);await db.from("tasks").delete().eq("id",id);loadTasks();loadAdminTasks();loadControlTasks()}
+
+/* ===========================
+   BACKSHOP: Frequenz-Prognose
+   =========================== */
+const BACKSHOP_HALFLIFE_WEEKS = 4;       // Halbwertszeit fuer exponentielle Gewichtung
+const BACKSHOP_HORIZON_HOURS = 3;        // "Naechste X Stunden" inkl. aktueller Stunde
+const BACKSHOP_MARKETS = ["Billigheim-Ingenheim", "Steinfeld"];
+const WEEKDAYS_DE = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
+let backshopState = { rows: [] };
+
+function berlinNow(){
+  // Aktuelle Berlin-Zeit als Object {weekday, hour, minute, date}
+  const parts = new Intl.DateTimeFormat("de-DE", {
+    timeZone: "Europe/Berlin",
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit",
+    weekday: "long", hour12: false
+  }).formatToParts(new Date()).reduce((a,p)=>(a[p.type]=p.value,a),{});
+  return {
+    weekday: parts.weekday,
+    hour: parseInt(parts.hour, 10),
+    minute: parseInt(parts.minute, 10),
+    dateISO: `${parts.year}-${parts.month}-${parts.day}`,
+    year: parseInt(parts.year, 10)
+  };
+}
+function isoWeekOf(dateISO){
+  // ISO Kalenderwoche fuer YYYY-MM-DD
+  const d = new Date(dateISO + "T00:00:00Z");
+  const day = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return {
+    year: d.getUTCFullYear(),
+    week: Math.ceil((((d - yearStart) / 86400000) + 1) / 7)
+  };
+}
+function backshopHourFromBucket(str){
+  // "06:00 - 06:59" -> 6
+  const m = String(str || "").match(/^(\d{1,2}):/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+/* === Excel-Upload === */
+async function uploadBackshopExcel(){
+  if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
+  const inp = document.getElementById("backshopExcelFile");
+  const msg = document.getElementById("backshopUploadMsg");
+  if(!inp.files || !inp.files.length){ alert("Bitte mindestens eine Excel-Datei auswählen."); return; }
+  msg.innerHTML = "Datei wird gelesen ...";
+  const allInserts = [];
+  const debug = [];
+  for(const file of inp.files){
+    try{
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, {type:"array"});
+      // Sheet "Kreuztabelle" suchen
+      const sheetName = wb.SheetNames.find(n => /kreuztabelle/i.test(n) && !/metadaten/i.test(n)) || wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      const matrix = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true});
+      // Jahr aus Metadaten-Sheet
+      let year = (new Date()).getFullYear();
+      const metaSheet = wb.SheetNames.find(n => /metadaten/i.test(n));
+      if(metaSheet){
+        const mArr = XLSX.utils.sheet_to_json(wb.Sheets[metaSheet], {header:1, defval:null, raw:false});
+        outer:
+        for(const row of mArr){
+          for(const cell of (row || [])){
+            if(typeof cell === "string"){
+              const dm = cell.match(/(\d{2})\.(\d{2})\.(\d{4})/);
+              if(dm){ year = parseInt(dm[3], 10); break outer; }
+            }
+          }
+        }
+      }
+      const parsed = parseBackshopMatrix(matrix, year);
+      allInserts.push(...parsed);
+      debug.push(`✅ ${file.name} → ${parsed.length} Datenpunkte (Jahr ${year})`);
+    }catch(e){
+      debug.push(`❌ ${file.name}: Fehler – ${e.message || e}`);
+    }
+  }
+  if(!allInserts.length){
+    msg.innerHTML = "Keine gültigen Daten gefunden.<br>" + debug.join("<br>");
+    return;
+  }
+  // Per Upsert in Batches einfuegen (auf unique constraint)
+  msg.innerHTML = `Speichere ${allInserts.length} Datenpunkte ...`;
+  const BATCH = 500;
+  let inserted = 0;
+  for(let i = 0; i < allInserts.length; i += BATCH){
+    const slice = allInserts.slice(i, i + BATCH);
+    const r = await db.from("backshop_sales").upsert(slice, {onConflict: "market,article_no,year,iso_week,weekday,hour"});
+    if(r.error){
+      msg.innerHTML = `Fehler nach ${inserted} Zeilen: ${r.error.message}<br>${debug.join("<br>")}`;
+      return;
+    }
+    inserted += slice.length;
+  }
+  msg.innerHTML = `✅ ${inserted} Datenpunkte gespeichert / aktualisiert.<br><span class="small">${debug.join("<br>")}</span>`;
+  inp.value = "";
+}
+
+function parseBackshopMatrix(matrix, fallbackYear){
+  // Erwartete Header:
+  //   row 1 (idx 1, Excel-Zeile 2): "Woche" + KW-Zahlen
+  //   row 2 (idx 2, Excel-Zeile 3): "Markt" "Stunde" "Artikel" None "GTIN | Wochentag" None Wochentage...
+  //   ab row 3 (idx 3): Daten
+  const out = [];
+  if(matrix.length < 4) return out;
+  const weeksRow = matrix[1] || [];
+  const daysRow = matrix[2] || [];
+  // Spalten-Meta sammeln: c -> {week, weekday}
+  const colMeta = {};
+  for(let c = 5; c < weeksRow.length; c++){
+    const w = weeksRow[c];
+    const d = daysRow[c];
+    if(w === null || w === undefined || d === null || d === undefined) continue;
+    const ws = String(w).trim();
+    const ds = String(d).trim();
+    if(!/^\d{1,2}$/.test(ws)) continue;
+    if(!WEEKDAYS_DE.includes(ds)) continue;
+    colMeta[c] = {week: parseInt(ws, 10), weekday: ds};
+  }
+  // Datenzeilen
+  for(let r = 3; r < matrix.length; r++){
+    const row = matrix[r] || [];
+    const market = row[0];
+    const stunde = row[1];
+    const artikel = row[2];
+    const name = row[3];
+    if(!market || !stunde || !artikel) continue;
+    const marketStr = String(market).trim();
+    const stundeStr = String(stunde).trim();
+    const artikelStr = String(artikel).trim();
+    if(marketStr === "Gesamtergebnis") continue;
+    if(stundeStr === "Ergebnis") continue;
+    if(artikelStr === "Ergebnis") continue;
+    const hour = backshopHourFromBucket(stundeStr);
+    if(hour === null) continue;
+    const ean = row[4] !== null && row[4] !== undefined ? String(row[4]).trim() : "";
+    const cleanEan = (ean && ean !== "#" && /^\d+$/.test(ean)) ? ean : "";
+    for(const cStr of Object.keys(colMeta)){
+      const c = parseInt(cStr, 10);
+      const v = row[c];
+      if(v === null || v === undefined || v === "") continue;
+      const num = typeof v === "number" ? v : Number(String(v).replace(",", "."));
+      if(!Number.isFinite(num)) continue;
+      out.push({
+        market: marketStr,
+        article_no: artikelStr,
+        article_name: name ? String(name).trim() : "",
+        ean: cleanEan,
+        year: fallbackYear,
+        iso_week: colMeta[c].week,
+        weekday: colMeta[c].weekday,
+        hour,
+        menge: num
+      });
+    }
+  }
+  return out;
+}
+
+async function clearAllBackshop(){
+  if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
+  if(!confirm("Wirklich ALLE Backshop-Frequenzdaten löschen?\n\nDanach gibt es keine Prognosen mehr, bis du wieder Excel hochlädst.")) return;
+  const msg = document.getElementById("backshopUploadMsg");
+  msg.innerHTML = "Lösche ...";
+  const r = await db.from("backshop_sales").delete().gte("year", 1);
+  if(r.error){ msg.innerHTML = "Fehler: " + r.error.message; return; }
+  msg.innerHTML = "Alle Backshop-Daten wurden gelöscht.";
+  backshopState.rows = [];
+  renderBackshop();
+}
+
+/* === Anzeige === */
+function resetBackshopToNow(){
+  const now = berlinNow();
+  document.getElementById("backshopWeekday").value = now.weekday;
+  const hh = String(now.hour).padStart(2, "0");
+  const mm = String(now.minute).padStart(2, "0");
+  document.getElementById("backshopTime").value = `${hh}:${mm}`;
+  renderBackshop();
+}
+function handleBackshopMarketChange(){
+  const m = document.getElementById("backshopMarket").value;
+  localStorage.setItem("backshopMarket", m);
+  loadBackshop();
+}
+async function loadBackshop(){
+  const mSel = document.getElementById("backshopMarket");
+  // Markt aus localStorage oder Default (ToDo-Markt falls Billigheim/Steinfeld)
+  if(!mSel.dataset.initDone){
+    const saved = localStorage.getItem("backshopMarket");
+    if(saved && BACKSHOP_MARKETS.includes(saved)) mSel.value = saved;
+    else {
+      const todo = localStorage.getItem("selectedMarket");
+      if(todo && BACKSHOP_MARKETS.includes(todo)) mSel.value = todo;
+    }
+    mSel.dataset.initDone = "1";
+  }
+  // Wochentag + Zeit auf "jetzt" setzen, falls noch leer
+  const wdSel = document.getElementById("backshopWeekday");
+  const tInp = document.getElementById("backshopTime");
+  if(!wdSel.dataset.initDone){
+    const now = berlinNow();
+    wdSel.value = now.weekday;
+    tInp.value = `${String(now.hour).padStart(2,"0")}:${String(now.minute).padStart(2,"0")}`;
+    wdSel.dataset.initDone = "1";
+  }
+  const market = mSel.value;
+  const content = document.getElementById("backshopContent");
+  content.innerHTML = `<div class="box">Lade Backshop-Daten ...</div>`;
+  let rows;
+  try{
+    rows = await fetchAllPaged(()=>db.from("backshop_sales").select("*").eq("market", market));
+  }catch(e){
+    content.innerHTML = `<div class="box">Fehler: ${e.message || e}</div>`;
+    return;
+  }
+  backshopState.rows = rows || [];
+  renderBackshop();
+}
+function renderBackshop(){
+  const market = document.getElementById("backshopMarket").value;
+  const weekday = document.getElementById("backshopWeekday").value;
+  const timeStr = document.getElementById("backshopTime").value || "00:00";
+  const [hh] = timeStr.split(":").map(n => parseInt(n, 10));
+  const currentHour = Number.isFinite(hh) ? hh : 0;
+  const headerLine = document.getElementById("backshopHeaderLine");
+  const summary = document.getElementById("backshopSummary");
+  const content = document.getElementById("backshopContent");
+  // Aktuelle KW fuer Gewichtung
+  const today = berlinNow();
+  const iso = isoWeekOf(today.dateISO);
+  const currentRefWeek = iso.week + (iso.year - today.year) * 53; // simpler Offset, reicht fuer Gewichtung
+  headerLine.innerHTML = `Markt: <strong>${market}</strong> · ${weekday}, ${String(currentHour).padStart(2,"0")}:${timeStr.split(":")[1]||"00"} · Referenz-KW ${iso.week}/${iso.year} (Halbwertszeit ${BACKSHOP_HALFLIFE_WEEKS} Wochen)`;
+  const rows = (backshopState.rows || []).filter(r => r.weekday === weekday);
+  if(!rows.length){
+    summary.innerHTML = `<p>Für ${market} / ${weekday} liegen noch keine Daten in der Datenbank. Bitte die Frequenz-Excel im Admin-Bereich hochladen.</p>`;
+    content.innerHTML = "";
+    return;
+  }
+  // Gruppieren pro Artikel
+  const byArticle = {};
+  rows.forEach(r => {
+    const key = r.article_no;
+    if(!byArticle[key]) byArticle[key] = {article_no: r.article_no, article_name: r.article_name || "", ean: r.ean || "", byHour: {}};
+    if(!byArticle[key].byHour[r.hour]) byArticle[key].byHour[r.hour] = [];
+    byArticle[key].byHour[r.hour].push({week: r.iso_week, year: r.year, menge: Number(r.menge) || 0});
+  });
+  // Stunden-Bereich bestimmen (min/max ueber alle Daten)
+  let minHour = 23, maxHour = 0;
+  rows.forEach(r => {
+    if(r.hour < minHour) minHour = r.hour;
+    if(r.hour > maxHour) maxHour = r.hour;
+  });
+  if(minHour > maxHour){ minHour = 5; maxHour = 21; }
+  // Pro Artikel pro Stunde gewichteten Mittelwert berechnen
+  function weightFor(year, week){
+    const offset = (currentRefWeek) - (week + (year - today.year) * 53);
+    return Math.pow(0.5, offset / BACKSHOP_HALFLIFE_WEEKS);
+  }
+  const articles = Object.values(byArticle).map(a => {
+    const forecast = {};
+    for(let h = minHour; h <= maxHour; h++){
+      const pts = a.byHour[h] || [];
+      let ws = 0, wsum = 0;
+      pts.forEach(p => {
+        const w = weightFor(p.year, p.week);
+        ws += w * p.menge;
+        wsum += w;
+      });
+      forecast[h] = wsum > 0 ? ws / wsum : 0;
+    }
+    return {...a, forecast};
+  });
+  // Pro Artikel Summen berechnen
+  articles.forEach(a => {
+    let todayLeft = 0, next3 = 0;
+    for(let h = currentHour; h <= maxHour; h++){
+      todayLeft += a.forecast[h] || 0;
+      if(h < currentHour + BACKSHOP_HORIZON_HOURS) next3 += a.forecast[h] || 0;
+    }
+    a.todayLeft = todayLeft;
+    a.next3 = next3;
+  });
+  // Sortieren: groesste todayLeft zuerst, dann Bezeichnung
+  articles.sort((a,b) => b.todayLeft - a.todayLeft || a.article_name.localeCompare(b.article_name, "de"));
+  // Filter: nur Artikel mit todayLeft > 0
+  const visibleArticles = articles.filter(a => a.todayLeft >= 0.05);
+  // Gesamt-Summen
+  const totalToday = visibleArticles.reduce((s, a) => s + a.todayLeft, 0);
+  const totalNext3 = visibleArticles.reduce((s, a) => s + a.next3, 0);
+  summary.innerHTML = `<div class="bs-headline">
+    <div class="bs-bigcard">
+      <div class="bs-lbl">Nächste ${BACKSHOP_HORIZON_HOURS} Stunden</div>
+      <div class="bs-val">~${Math.round(totalNext3)}</div>
+      <div class="bs-sub">Stück über ${visibleArticles.length} Artikel</div>
+    </div>
+    <div class="bs-bigcard">
+      <div class="bs-lbl">Heute noch insgesamt</div>
+      <div class="bs-val">~${Math.round(totalToday)}</div>
+      <div class="bs-sub">${String(currentHour).padStart(2,"0")}:00 bis ${String(maxHour).padStart(2,"0")}:59</div>
+    </div>
+  </div>`;
+  // Tabelle Desktop
+  let table = `<div class="box bs-desktop"><h3 style="margin-top:0">Prognose je Artikel</h3><div class="table-wrap"><table class="bs-table"><thead><tr><th>Artikel</th><th>Nächste ${BACKSHOP_HORIZON_HOURS}h</th><th>Heute noch</th>`;
+  for(let h = minHour; h <= maxHour; h++){
+    table += `<th>${String(h).padStart(2,"0")}</th>`;
+  }
+  table += `</tr></thead><tbody>`;
+  visibleArticles.forEach(a => {
+    table += `<tr><td>${a.article_name || a.article_no}<br><span class="small">Art. ${a.article_no}${a.ean ? " · EAN " + a.ean : ""}</span></td>`;
+    table += `<td class="bs-next3"><strong>${a.next3 < 1 ? a.next3.toFixed(1) : Math.round(a.next3)}</strong></td>`;
+    table += `<td><strong>${a.todayLeft < 1 ? a.todayLeft.toFixed(1) : Math.round(a.todayLeft)}</strong></td>`;
+    for(let h = minHour; h <= maxHour; h++){
+      const v = a.forecast[h] || 0;
+      let cls = "";
+      if(h < currentHour) cls = "bs-past";
+      else if(h === currentHour) cls = "bs-now";
+      else if(h < currentHour + BACKSHOP_HORIZON_HOURS) cls = "bs-next3";
+      const display = v < 0.1 ? "" : (v < 1 ? v.toFixed(1) : Math.round(v));
+      table += `<td class="${cls}" style="${h<currentHour?'opacity:.3':''}">${display}</td>`;
+    }
+    table += `</tr>`;
+  });
+  table += `</tbody></table></div></div>`;
+  // Mobile Cards
+  let mobile = `<div class="bs-mobile">`;
+  visibleArticles.forEach(a => {
+    mobile += `<div class="bs-mobile-card">
+      <div class="name">${a.article_name || a.article_no}</div>
+      <div class="meta">Art. ${a.article_no}${a.ean ? " · EAN " + a.ean : ""}</div>
+      <div class="totals">
+        <div><div class="lbl">Nächste ${BACKSHOP_HORIZON_HOURS}h</div><div class="val">${a.next3 < 1 ? a.next3.toFixed(1) : Math.round(a.next3)}</div></div>
+        <div><div class="lbl">Heute noch</div><div class="val">${a.todayLeft < 1 ? a.todayLeft.toFixed(1) : Math.round(a.todayLeft)}</div></div>
+      </div>
+      <div class="hours">`;
+    for(let h = currentHour; h <= maxHour; h++){
+      const v = a.forecast[h] || 0;
+      let cls = h === currentHour ? "h-now" : (h < currentHour + BACKSHOP_HORIZON_HOURS ? "h-next3" : "");
+      mobile += `<div class="hour-box ${cls}"><div>${String(h).padStart(2,"0")}</div><strong>${v < 0.1 ? "–" : (v < 1 ? v.toFixed(1) : Math.round(v))}</strong></div>`;
+    }
+    mobile += `</div></div>`;
+  });
+  mobile += `</div>`;
+  content.innerHTML = table + mobile;
+}
 
 /* ===========================
    DISPO: PDF-Listen verwalten
