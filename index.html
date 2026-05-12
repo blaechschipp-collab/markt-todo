@@ -119,7 +119,7 @@
       <div class="small">Wöchentliche Listen aus dem System (FEA, Aktionsartikel, Distributionsanalyse). Hier abhaken, sobald der Artikel im Markt bearbeitet wurde.</div>
       <div class="control-grid" style="margin-top:14px">
         <div><label>Markt</label><select id="dispoMarketFilter" onchange="handleDispoMarketChange()"><option value="">Alle Märkte</option><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
-        <div><label>Listentyp</label><select id="dispoListTypeFilter" onchange="loadDispo()"><option value="">Alle Listen</option></select></div>
+        <div><label>Listentyp</label><select id="dispoListTypeFilter" onchange="handleDispoListTypeChange()"></select></div>
         <div><label>Sortierung</label><select id="dispoSort" onchange="renderDispo()">
           <option value="abteilung">Abteilung (Warengruppe)</option>
           <option value="regal">Regalplatz</option>
@@ -1874,14 +1874,30 @@ async function fillDispoListTypeFilter(){
   const current = sel.value;
   const data = await fetchAllPaged(()=>db.from("dispo_items").select("list_type"));
   const types = [...new Set((data||[]).map(r=>r.list_type).filter(Boolean))].sort();
-  sel.innerHTML = '<option value="">Alle Listen</option>';
+  sel.innerHTML = "";
+  if(!types.length){
+    const o = document.createElement("option");
+    o.value = "";
+    o.textContent = "Noch keine Listen hochgeladen";
+    sel.appendChild(o);
+    return;
+  }
   types.forEach(t => {
     const o = document.createElement("option");
     o.value = t;
     o.textContent = DISPO_LIST_TYPE_LABEL[t] || t;
     sel.appendChild(o);
   });
-  if([...sel.options].some(o => o.value === current)) sel.value = current;
+  // Reihenfolge: bisherige Auswahl > gespeicherte Auswahl > erste Liste
+  const saved = localStorage.getItem("dispoSelectedListType") || "";
+  if(current && types.includes(current)) sel.value = current;
+  else if(saved && types.includes(saved)) sel.value = saved;
+  else sel.value = types[0];
+}
+function handleDispoListTypeChange(){
+  const v = document.getElementById("dispoListTypeFilter").value;
+  if(v) localStorage.setItem("dispoSelectedListType", v);
+  loadDispo();
 }
 
 function handleDispoMarketChange(){
@@ -1927,11 +1943,10 @@ async function loadDispo(){
   });
   const latest = rows.filter(r => r.upload_seq === latestSeqByKey[`${r.market}||${r.list_type}`]);
   dispoState.items = latest;
-  // Dokumente parallel laden
+  // Dokumente IMMER alle laden (nicht nach Markt filtern - das passiert im Render)
   dispoState.documentsError = null;
   try{
-    let dq = db.from("dispo_documents").select("*").order("upload_date", {ascending: false});
-    if(market) dq = dq.eq("market", market);
+    const dq = db.from("dispo_documents").select("*").order("upload_date", {ascending: false});
     const dr = await dq;
     if(dr.error){
       console.error("Dispo documents fetch error:", dr.error);
@@ -1981,10 +1996,12 @@ function renderDispo(){
   document.getElementById("dispoSummary").innerHTML = `In der aktuellen Liste: <strong>${totalOpen} offen</strong>, ${totalDone} erledigt, ${totalCool} im Cooldown.`;
   // Downloads-Bereich (Dashboards + WE-Prognosen) – immer sichtbar, auch wenn leer
   let docHtml = "";
-  const docs = dispoState.documents || [];
+  const allDocs = dispoState.documents || [];
+  const dispoMarket = document.getElementById("dispoMarketFilter").value;
+  const visibleDocs = dispoMarket ? allDocs.filter(d => d.market === dispoMarket) : allDocs;
   const ORDER = ["Dashboard", "WE_Prognose_Kolli", "WE_Prognose_Palette", "WE_Prognose_Rolli"];
   const MARKET_ORDER = ["Freckenfeld","Gossersweiler-Stein","Billigheim-Ingenheim","Steinfeld"];
-  const sortedDocs = docs.slice().sort((a,b) => {
+  const sortedDocs = visibleDocs.slice().sort((a,b) => {
     const ma = MARKET_ORDER.indexOf(a.market); const mb = MARKET_ORDER.indexOf(b.market);
     const md = (ma === -1 ? 99 : ma) - (mb === -1 ? 99 : mb);
     if(md !== 0) return md;
@@ -2008,6 +2025,12 @@ function renderDispo(){
       </div>`;
     });
     docHtml += `</div>`;
+  } else if(dispoMarket && allDocs.length){
+    // Andere Märkte haben Downloads, dieser nicht
+    const countsByMarket = {};
+    allDocs.forEach(d => { countsByMarket[d.market] = (countsByMarket[d.market] || 0) + 1; });
+    const others = Object.entries(countsByMarket).map(([m,c]) => `${m} (${c})`).join(", ");
+    docHtml += `<div class="small">Für <strong>${dispoMarket}</strong> liegen noch keine Dashboard- oder WE-Prognose-PDFs vor.<br>Andere Märkte mit Downloads: ${others}. Markt-Filter oben auf „Alle Märkte" stellen, um sie zu sehen.</div>`;
   } else {
     docHtml += `<div class="small">Noch keine Downloads vorhanden.<br>Lade Dashboard- oder WE-Prognose-PDFs im Admin-Bereich hoch. Sie erscheinen dann hier.</div>`;
   }
