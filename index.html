@@ -1921,9 +1921,27 @@ async function uploadOrdersatzPdf(){
     const totalVkCodes = rows.reduce((s,r)=>s+(r.vk_artnos||[]).length, 0);
     const ekWithChildren = rows.filter(r => (r.vk_artnos||[]).length > 0).length;
     const ekWithoutChildren = rows.length - ekWithChildren;
-    msg.innerHTML = `✅ ${inserted} Bestellartikel gespeichert · ${ekWithChildren} mit Verkaufsartikeln verknüpft${ekWithoutChildren > 0 ? `, <span style="color:#dc2626"><strong>${ekWithoutChildren} OHNE Verkaufsartikel</strong></span>` : ""} · ${totalVkCodes} Verkaufsartikel-Codes insgesamt.${diag}`;
+    // Zusaetzlich: alle Artikel-Farben (EK + VK) in die ordersatz_article_colors Tabelle speichern
+    // Damit kann Backshop direkt per artno auf die Farbe zugreifen
+    let colorRowsSaved = 0;
+    let colorErr = null;
+    try{
+      const colorRows = Object.entries(colorByArtno).map(([artno, color]) => ({artno, color}));
+      const COLOR_BATCH = 500;
+      for(let i = 0; i < colorRows.length; i += COLOR_BATCH){
+        const slice = colorRows.slice(i, i + COLOR_BATCH);
+        const r = await db.from("ordersatz_article_colors").upsert(slice, {onConflict: "artno"});
+        if(r.error){ colorErr = r.error.message; break; }
+        colorRowsSaved += slice.length;
+      }
+    }catch(e){ colorErr = e.message || String(e); }
+    const colorInfo = colorErr
+      ? ` · <span style="color:#dc2626">Farbtabelle-Fehler: ${colorErr}</span>`
+      : ` · ${colorRowsSaved} Artikel-Farben gespeichert`;
+    msg.innerHTML = `✅ ${inserted} Bestellartikel gespeichert · ${ekWithChildren} mit Verkaufsartikeln verknüpft${ekWithoutChildren > 0 ? `, <span style="color:#dc2626"><strong>${ekWithoutChildren} OHNE Verkaufsartikel</strong></span>` : ""} · ${totalVkCodes} Verkaufsartikel-Codes insgesamt${colorInfo}.${diag}`;
     input.value = "";
     bestellState.ordersatz = []; // Cache invalidieren
+    backshopState.colorByArtno = null; // Cache invalidieren
   }catch(e){
     msg.innerHTML = "❌ Fehler beim Parsen: " + (e.message || e);
   }
@@ -2571,17 +2589,34 @@ async function fetchBackshopBakedToday(){
   }catch(e){ backshopState.bakedToday = []; }
 }
 async function fetchBackshopOrdersatzMap(){
-  // VK-Artikelnr → {color, skz, parentName} aus dem Ordersatz
+  // VK-Artikelnr → {color, skz, parentName}
+  // Quelle 1 (bevorzugt): ordersatz_article_colors – direkter artno→color Lookup
+  // Quelle 2 (Fallback): ordersatz_items.vk_artnos array
   try{
     if(!bestellState.ordersatz || !bestellState.ordersatz.length){
       const data = await fetchAllPaged(()=>db.from("ordersatz_items").select("artno,name,vk_artnos,skz,color"));
       bestellState.ordersatz = data || [];
     }
     const map = {};
+    // Fallback ueber vk_artnos (skz + parent-Name kommt von hier)
     (bestellState.ordersatz || []).forEach(o => {
       const skz = (o.skz || "").toString().trim() || "—";
       const color = (o.color || "").toString().trim() || null;
       (o.vk_artnos || []).forEach(va => { map[va] = {skz, color, parent: o.name || ""}; });
+    });
+    // Direkter Lookup pro Artikelnummer aus ordersatz_article_colors
+    if(!backshopState.colorByArtno){
+      try{
+        const colorData = await fetchAllPaged(()=>db.from("ordersatz_article_colors").select("artno,color"));
+        const cmap = {};
+        (colorData || []).forEach(r => { if(r.artno) cmap[r.artno] = r.color; });
+        backshopState.colorByArtno = cmap;
+      }catch(e){ backshopState.colorByArtno = {}; }
+    }
+    // Direkte Farben in die Map ueberschreiben (haben Prioritaet)
+    Object.entries(backshopState.colorByArtno || {}).forEach(([artno, color]) => {
+      if(map[artno]) map[artno].color = color;
+      else map[artno] = {skz: "—", color, parent: ""};
     });
     backshopState.skzByVkArt = map;
   }catch(e){ backshopState.skzByVkArt = {}; }
