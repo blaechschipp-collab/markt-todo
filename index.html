@@ -55,6 +55,16 @@
     .bs-bigcard.bs-clickable:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.12)}
     .bs-bigcard.bs-clickable:active{transform:translateY(0)}
     .bs-bigcard.bs-clickable .bs-hint{font-size:11px;color:var(--blue);font-weight:bold;margin-top:6px;text-transform:uppercase;letter-spacing:.5px}
+    .bs-bake-section{margin-top:10px;padding:10px;background:#fff7ed;border:1px solid #fdba74;border-radius:8px}
+    .bs-bake-title{font-size:12px;color:#c2410c;font-weight:bold;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+    .bs-bake-counter{font-size:14px;font-weight:bold;color:var(--blue-dark)}
+    .bs-bake-buttons{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+    .bs-bake-btn{background:#fff;border:2px solid #f59e0b;color:#c2410c;padding:10px 0;border-radius:8px;font-weight:bold;font-size:16px;cursor:pointer;transition:all .1s}
+    .bs-bake-btn:hover{background:#fed7aa}
+    .bs-bake-btn:active{transform:scale(.95);background:#fdba74}
+    .bs-bake-undo{background:transparent;border:none;color:#64748b;font-size:12px;cursor:pointer;padding:0;text-decoration:underline}
+    .bs-bake-undo:hover{color:var(--red)}
+    @media(max-width:700px){.bs-bake-buttons{grid-template-columns:repeat(4,1fr)}}
     .bs-table tr.bs-top10{background:#fef3c7}
     .bs-table tr.bs-top10 td:first-child{border-left:5px solid #f59e0b;font-weight:bold}
     .bs-table tr.bs-top10 td:first-child::before{content:"⭐ ";margin-right:2px}
@@ -71,7 +81,8 @@
     .bs-table td.bs-now{background:#fef3c7;font-weight:bold}
     .bs-table td.bs-next3{background:#fef9c3}
     .bs-table tr.bs-total{background:#e0f2fe;font-weight:bold}
-    .bs-mobile{display:none}
+    .bs-desktop{display:none}
+    .bs-mobile{display:block}
     .bs-mobile-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px}
     .bs-mobile-card .name{font-weight:bold;color:var(--blue-dark);font-size:15px}
     .bs-mobile-card .meta{color:#64748b;font-size:12px;margin-top:2px}
@@ -253,7 +264,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const ADMIN_PIN="4711"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
+const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 
 /* ===========================
    VIEW-MODUS: voll oder nur Backshop (für Bäckerei)
@@ -388,6 +399,30 @@ async function checkAppGate(){
 initAppGate(); const DAY_NAMES=["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
 const KNOWN_EDEKA_MARKETS=["Billigheim-Ingenheim","Steinfeld","Freckenfeld","Gossersweiler-Stein"];
 function todayISO(){return formatDate(new Date())} function formatDate(date){const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,"0"),d=String(date.getDate()).padStart(2,"0");return `${y}-${m}-${d}`} function formatDateDE(s){if(!s)return"";const[y,m,d]=s.split("-");return`${d}.${m}.${y}`} function formatDateTimeDE(v){if(!v)return"";return new Date(v).toLocaleString("de-DE",{timeZone:"Europe/Berlin",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"})} function berlinNowForDB(){const parts=new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Berlin",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}).formatToParts(new Date()).reduce((a,p)=>(a[p.type]=p.value,a),{});return`${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`} function berlinDateISO(v){return new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Berlin",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(v))} function isLateLog(log){return Boolean(log&&log.done_at&&log.done_date&&berlinDateISO(log.done_at)>log.done_date)} function addDays(date,days){const d=new Date(date);d.setDate(d.getDate()+days);return d} function getMonday(date){const d=new Date(date),day=d.getDay(),diff=day===0?-6:1-day;d.setDate(d.getDate()+diff);d.setHours(0,0,0,0);return d} function dateForDayName(day){const select=document.getElementById("day");const selected=select?.options[select.selectedIndex];if(selected?.dataset?.date)return selected.dataset.date;return formatDate(addDays(getMonday(new Date()),DAY_NAMES.indexOf(day)))} function dayNameFromISO(s){const idx=new Date(s+"T00:00:00").getDay();return idx===0?"Sonntag":DAY_NAMES[idx-1]} function monthFromISO(s){return s.slice(0,7)} function tomorrowISO(){const today=new Date();const dow=today.getDay();if(dow===6)return formatDate(addDays(today,2));return formatDate(addDays(today,1))} function tomorrowDayName(){return dayNameFromISO(tomorrowISO())}
+// Gesetzliche Feiertage Rheinland-Pfalz (für die nächsten Jahre)
+const RLP_HOLIDAYS = new Set([
+  // 2026
+  "2026-01-01","2026-04-03","2026-04-06","2026-05-01","2026-05-14",
+  "2026-05-25","2026-06-04","2026-10-03","2026-11-01","2026-12-25","2026-12-26",
+  // 2027
+  "2027-01-01","2027-03-26","2027-03-29","2027-05-01","2027-05-06",
+  "2027-05-17","2027-05-27","2027-10-03","2027-11-01","2027-12-25","2027-12-26",
+  // 2028
+  "2028-01-01","2028-04-14","2028-04-17","2028-05-01","2028-05-25",
+  "2028-06-05","2028-06-15","2028-10-03","2028-11-01","2028-12-25","2028-12-26"
+]);
+function isHolidayRLP(dateISO){ return RLP_HOLIDAYS.has(dateISO); }
+function isWorkingDay(dateISO){
+  const d = new Date(dateISO + "T00:00:00");
+  if(d.getDay() === 0) return false; // Sonntag
+  if(isHolidayRLP(dateISO)) return false;
+  return true;
+}
+function nextWorkingDayISO(dateISO){
+  const d = new Date(dateISO + "T00:00:00");
+  do { d.setDate(d.getDate() + 1); } while(!isWorkingDay(formatDate(d)));
+  return formatDate(d);
+}
 function priorityClass(p){if(!p)return"";if(p==="info")return"info";if(p.toLowerCase()==="hoch")return"high";if(p.toLowerCase()==="mittel")return"medium";return"low"} function priorityPill(p){if(!p)return"";const c=p==="info"?"info-p":p.toLowerCase()+"-p";return`<span class="pill ${c}">${p}</span>`} function statusPill(done){return done?`<span class="pill done-p">erledigt</span>`:`<span class="pill open-p">offen</span>`} function prioritySort(a,b){const o={hoch:1,mittel:2,niedrig:3,info:4};return(o[a.priority?.toLowerCase()]||99)-(o[b.priority?.toLowerCase()]||99)} function daySort(a,b){const o={Montag:1,Dienstag:2,Mittwoch:3,Donnerstag:4,Freitag:5,Samstag:6};return(o[a.day]||99)-(o[b.day]||99)}
 function selectAllAdminDays(){document.querySelectorAll(".adminDay").forEach(cb=>cb.checked=true)}
 function populateAllowedDays(){
@@ -485,6 +520,24 @@ const ART_PREFIX = "__art__||";
 async function prepareAnalytics(){
   // Bereichs-Filter mit allen vorhandenen Bereichen befuellen
   await fillAnalyticsBereichFilter();
+  // Auto-Login pruefen: ist auf diesem Geraet ein gueltiges Passwort gespeichert?
+  if(analyticsAccess) return;
+  const savedHash = localStorage.getItem("analyticsAuthHash");
+  if(!savedHash) return;
+  try{
+    const {data} = await db.from("access_codes").select("*").limit(20);
+    if(data && data.length){
+      const match = data.find(r => appPwdHash(r.password) === savedHash);
+      if(match){
+        analyticsAccess = {role: match.role || "global"};
+        document.getElementById("analyticsDashboard").style.display = "block";
+        loadAnalytics();
+        return;
+      }
+    }
+    // Passwort wurde in der DB geaendert -> gespeicherten Hash entfernen
+    localStorage.removeItem("analyticsAuthHash");
+  }catch(e){ /* still */ }
 }
 async function fillAnalyticsBereichFilter(){
   const select = document.getElementById("analyticsBereich");
@@ -610,6 +663,9 @@ async function loginAnalytics(){
   if(error){msg.innerHTML="Fehler: "+error.message;return;}
   if(!data||!data.length){msg.innerHTML="Passwort falsch.";return;}
   analyticsAccess={role:data[0].role||"global"};
+  // Auf diesem Geraet merken: kleiner Hash des Passworts in localStorage
+  try{ localStorage.setItem("analyticsAuthHash", appPwdHash(password)); }catch(e){}
+  document.getElementById("analyticsPassword").value = "";
   document.getElementById("analyticsDashboard").style.display="block";
   await fillAnalyticsBereichFilter();
   loadAnalytics();
@@ -1089,13 +1145,27 @@ function showTab(tab){
   else if(tab==="backshop"){loadBackshop()}
   else loadTasks()
 }
-function openAdminPin(){if(!adminUnlocked){const pin=prompt("Admin-PIN eingeben:");if(pin===ADMIN_PIN)adminUnlocked=true;else if(pin!==null)return alert("Falsche PIN.");else return}showTab("admin")}
+async function openAdminPin(){
+  if(!adminUnlocked){
+    const pin = prompt("Admin-PIN eingeben:");
+    if(pin === null) return;
+    let currentPin = null;
+    try{
+      const {data, error} = await db.from("app_settings").select("value").eq("key","admin_pin").maybeSingle();
+      if(!error && data && data.value) currentPin = data.value;
+    }catch(e){}
+    if(!currentPin){ alert("Admin-PIN konnte nicht geladen werden (Verbindungsproblem)."); return; }
+    if(pin !== currentPin) return alert("Falsche PIN.");
+    adminUnlocked = true;
+  }
+  showTab("admin");
+}
 function handleAreaChange(){const area=document.getElementById("areaFilter").value,isHaus=area==="Hausmeister",marketSelect=document.getElementById("marketFilter");document.getElementById("dayControl").style.display=isHaus?"none":"block";document.getElementById("monthControl").style.display=isHaus?"block":"none";marketSelect.options[0].style.display=isHaus?"block":"none";if(!isHaus&&marketSelect.value==="ALLE")marketSelect.value="Freckenfeld";localStorage.setItem("selectedArea",area);localStorage.setItem("selectedMarket",marketSelect.value);loadTasks()}
 function toggleAdminPeriodFields(){const area=(document.getElementById("adminCustomArea").value.trim()||document.getElementById("adminArea").value),mode=document.getElementById("adminTaskMode").value,isHaus=area==="Hausmeister",isSingle=mode==="single";document.getElementById("adminDaysBox").style.display=(!isHaus&&!isSingle)?"block":"none";document.getElementById("adminMonthBox").style.display=isHaus?"block":"none";document.getElementById("adminDateRangeBox").style.display=(!isHaus&&isSingle)?"block":"none"}
 async function fetchLogs(ids,dateISO){if(!ids.length)return{};const{data,error}=await db.from("task_logs").select("*").in("task_id",ids).eq("done_date",dateISO);if(error)throw error;const m={};(data||[]).forEach(l=>m[l.task_id]=l);return m}
 function previousWorkingDayISO(dateISO){
   const d = new Date(dateISO + "T00:00:00");
-  do { d.setDate(d.getDate() - 1); } while(d.getDay() === 0); // Sonntag ueberspringen
+  do { d.setDate(d.getDate() - 1); } while(d.getDay() === 0 || isHolidayRLP(formatDate(d))); // Sonntag + RLP-Feiertage ueberspringen
   return formatDate(d);
 }
 function bumpPriority(priority){
@@ -1113,7 +1183,13 @@ function lastDayOfMonthISO(monthYYYYMM){
 function monthLabelDE(monthYYYYMM){
   return new Date(monthYYYYMM + "-01T00:00:00").toLocaleDateString("de-DE", {month: "long", year: "numeric"});
 }
-function taskApplies(task, dateISO, day){if(task.task_type==="handover"||task.task_type==="single")return task.start_date<=dateISO&&task.end_date>=dateISO;if(task.area==="Hausmeister")return task.month===monthFromISO(dateISO);return task.day===day}
+function taskApplies(task, dateISO, day){
+  if(task.task_type==="handover"||task.task_type==="single") return task.start_date<=dateISO && task.end_date>=dateISO;
+  if(task.area==="Hausmeister") return task.month===monthFromISO(dateISO);
+  // Wiederkehrende tägliche Aufgaben werden an RLP-Feiertagen und Sonntagen nicht angezeigt
+  if(task.task_type==="recurring" && !isWorkingDay(dateISO)) return false;
+  return task.day===day;
+}
 async function loadTasks(){
   const market = document.getElementById("marketFilter").value;
   const area = document.getElementById("areaFilter").value;
@@ -1673,11 +1749,26 @@ async function deleteTask(id){if(!adminUnlocked)return alert("Admin-PIN erforder
 const BACKSHOP_HALFLIFE_WEEKS = 4;       // Halbwertszeit fuer exponentielle Gewichtung
 const BACKSHOP_HORIZON_HOURS = 5;        // "Naechste X Stunden" inkl. aktueller Stunde
 const BACKSHOP_MARKETS = ["Billigheim-Ingenheim", "Steinfeld"];
+const BACKSHOP_BAKE_OPTIONS = [3, 5, 7, 10, 15, 20, 25, 30];
 const WEEKDAYS_DE = ["Sonntag","Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
 const WEEKDAYS_DE_ORDERED = ["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag","Sonntag"];
 function nextWeekday(d){
   const i = WEEKDAYS_DE_ORDERED.indexOf(d);
-  return WEEKDAYS_DE_ORDERED[(i + 1) % 7];
+  let n = (i + 1) % 7;
+  // Sonntag überspringen, weil im Backshop kein Geschäft läuft
+  if(WEEKDAYS_DE_ORDERED[n] === "Sonntag") n = (n + 1) % 7;
+  return WEEKDAYS_DE_ORDERED[n];
+}
+function nextWorkingWeekdayName(currentWeekdayDisplayed){
+  // Wenn angezeigter Tag = heutiger Tag, dann nimm echtes Datum (skipt Sonn-/Feiertage präzise)
+  const today = berlinNow();
+  if(today.weekday === currentWeekdayDisplayed){
+    const nextISO = nextWorkingDayISO(today.dateISO);
+    const d = new Date(nextISO + "T00:00:00");
+    const dow = d.getDay();
+    return WEEKDAYS_DE_ORDERED[(dow === 0) ? 6 : dow - 1];
+  }
+  return nextWeekday(currentWeekdayDisplayed);
 }
 let backshopState = { rows: [] };
 
@@ -1857,14 +1948,17 @@ function resetBackshopToNow(){
   renderBackshop();
 }
 function jumpToTomorrowMorning(){
-  // Wochentag-Auswahl auf den Tag nach der aktuell ausgewaehlten Anzeige stellen, Zeit 08:00
+  // Springt zum nächsten Werktag in RLP (überspringt Sonntage und Feiertage),
+  // ausgehend vom aktuellen Berlin-Datum. Zeit wird auf 08:00 gesetzt.
   const wdSel = document.getElementById("backshopWeekday");
-  const current = wdSel.value;
-  const tomorrow = nextWeekday(current);
-  wdSel.value = tomorrow;
+  const today = berlinNow();
+  const nextDateISO = nextWorkingDayISO(today.dateISO);
+  const nextDate = new Date(nextDateISO + "T00:00:00");
+  const dow = nextDate.getDay(); // 0 = Sonntag
+  const idx = (dow === 0) ? 6 : dow - 1; // 0 = Montag ... 6 = Sonntag
+  wdSel.value = WEEKDAYS_DE_ORDERED[idx];
   document.getElementById("backshopTime").value = "08:00";
   renderBackshop();
-  // Sanft nach oben scrollen, damit man die neuen Empfehlungen direkt sieht
   const sec = document.getElementById("backshopSection");
   if(sec) sec.scrollIntoView({behavior: "smooth", block: "start"});
 }
@@ -1875,7 +1969,6 @@ function handleBackshopMarketChange(){
 }
 async function loadBackshop(){
   const mSel = document.getElementById("backshopMarket");
-  // Markt aus localStorage oder Default (ToDo-Markt falls Billigheim/Steinfeld)
   if(!mSel.dataset.initDone){
     const saved = localStorage.getItem("backshopMarket");
     if(saved && BACKSHOP_MARKETS.includes(saved)) mSel.value = saved;
@@ -1885,7 +1978,6 @@ async function loadBackshop(){
     }
     mSel.dataset.initDone = "1";
   }
-  // Wochentag + Zeit auf "jetzt" setzen, falls noch leer
   const wdSel = document.getElementById("backshopWeekday");
   const tInp = document.getElementById("backshopTime");
   if(!wdSel.dataset.initDone){
@@ -1896,15 +1988,79 @@ async function loadBackshop(){
   }
   const market = mSel.value;
   const content = document.getElementById("backshopContent");
+  const cacheKey = `backshop_cache_${market}`;
+  const CACHE_MAX_AGE_MS = 30 * 60 * 1000; // 30 Minuten gilt der Cache
+  // 1. Falls Cache vorhanden: sofort anzeigen
+  try{
+    const cached = JSON.parse(localStorage.getItem(cacheKey) || "null");
+    if(cached && cached.data && (Date.now() - cached.ts) < CACHE_MAX_AGE_MS){
+      backshopState.rows = cached.data;
+      await fetchBackshopBakedToday();
+      renderBackshop();
+      // Im Hintergrund frisch laden, aber kein Lade-Hinweis nötig
+      refreshBackshopInBackground(market, cacheKey);
+      return;
+    }
+  }catch(e){}
+  // 2. Sonst: normaler Ladeprozess
   content.innerHTML = `<div class="box">Lade Backshop-Daten ...</div>`;
   let rows;
   try{
-    rows = await fetchAllPaged(()=>db.from("backshop_sales").select("*").eq("market", market));
+    rows = await fetchAllPaged(()=>db.from("backshop_sales")
+      .select("market,article_no,article_name,ean,year,iso_week,weekday,hour,menge")
+      .eq("market", market));
   }catch(e){
     content.innerHTML = `<div class="box">Fehler: ${e.message || e}</div>`;
     return;
   }
   backshopState.rows = rows || [];
+  try{ localStorage.setItem(cacheKey, JSON.stringify({ts: Date.now(), data: rows})); }catch(e){}
+  await fetchBackshopBakedToday();
+  renderBackshop();
+}
+async function refreshBackshopInBackground(market, cacheKey){
+  try{
+    const rows = await fetchAllPaged(()=>db.from("backshop_sales")
+      .select("market,article_no,article_name,ean,year,iso_week,weekday,hour,menge")
+      .eq("market", market));
+    backshopState.rows = rows || [];
+    try{ localStorage.setItem(cacheKey, JSON.stringify({ts: Date.now(), data: rows})); }catch(e){}
+    await fetchBackshopBakedToday();
+    renderBackshop();
+  }catch(e){ /* still bei Fehler */ }
+}
+async function fetchBackshopBakedToday(){
+  try{
+    const market = document.getElementById("backshopMarket").value;
+    const today = berlinNow();
+    const {data} = await db.from("backshop_baked").select("*").eq("market", market).eq("date", today.dateISO);
+    backshopState.bakedToday = data || [];
+    backshopState.bakedDate = today.dateISO;
+  }catch(e){ backshopState.bakedToday = []; }
+}
+async function recordBackshopBake(articleNo, qty){
+  const market = document.getElementById("backshopMarket").value;
+  const today = berlinNow();
+  const r = await db.from("backshop_baked").insert({market, date: today.dateISO, article_no: articleNo, qty});
+  if(r.error){ alert("Fehler beim Speichern: " + r.error.message); return; }
+  await fetchBackshopBakedToday();
+  renderBackshop();
+}
+async function undoLastBackshopBake(articleNo){
+  const market = document.getElementById("backshopMarket").value;
+  const today = berlinNow();
+  // Letzten Eintrag finden und loeschen
+  const {data} = await db.from("backshop_baked")
+    .select("*")
+    .eq("market", market)
+    .eq("date", today.dateISO)
+    .eq("article_no", articleNo)
+    .order("recorded_at", {ascending: false})
+    .limit(1);
+  if(!data || !data.length){ return; }
+  const r = await db.from("backshop_baked").delete().eq("id", data[0].id);
+  if(r.error){ alert("Fehler: " + r.error.message); return; }
+  await fetchBackshopBakedToday();
   renderBackshop();
 }
 function renderBackshop(){
@@ -1961,8 +2117,8 @@ function renderBackshop(){
     }
     return {...a, forecast};
   });
-  // Forecast fuer MORGEN ZU BEGINN: erste BACKSHOP_HORIZON_HOURS Stunden ab minHour des Folgetags
-  const tomorrowWeekday = nextWeekday(weekday);
+  // Forecast fuer MORGEN ZU BEGINN: erste BACKSHOP_HORIZON_HOURS Stunden ab minHour des nächsten Werktags
+  const tomorrowWeekday = nextWorkingWeekdayName(weekday);
   const tomorrowRows = (backshopState.rows || []).filter(r => r.weekday === tomorrowWeekday);
   const tomByArticle = {};
   tomorrowRows.forEach(r => {
@@ -2075,8 +2231,14 @@ function renderBackshop(){
     if(highlightTop10){
       mobile += `<div class="small" style="margin-bottom:8px;padding:6px 10px;background:#fef9c3;border-radius:6px">⭐ Top 10 ab 16 Uhr markiert — Fokus für die letzten Stunden + Frühstück morgen.</div>`;
     }
+    // Heute schon gebackene Mengen pro Artikel berechnen
+    const bakedByArt = {};
+    (backshopState.bakedToday || []).forEach(b => {
+      bakedByArt[b.article_no] = (bakedByArt[b.article_no] || 0) + (Number(b.qty) || 0);
+    });
     visibleArticles.forEach((a, idx) => {
       const isTop10 = highlightTop10 && idx < 10;
+      const baked = bakedByArt[a.article_no] || 0;
       mobile += `<div class="bs-mobile-card ${isTop10 ? "bs-top10" : ""}">
         <div class="name">${a.article_name || a.article_no}</div>
         <div class="meta">Art. ${a.article_no}${a.ean ? " · EAN " + a.ean : ""}</div>
@@ -2091,7 +2253,17 @@ function renderBackshop(){
         let cls = h === currentHour ? "h-now" : (h < currentHour + BACKSHOP_HORIZON_HOURS ? "h-next3" : "");
         mobile += `<div class="hour-box ${cls}"><div>${String(h).padStart(2,"0")}</div><strong>${v < 0.1 ? "–" : (v < 1 ? v.toFixed(1) : Math.round(v))}</strong></div>`;
       }
-      mobile += `</div></div>`;
+      mobile += `</div>`;
+      // Nachback-Auswahlraster pro Artikel
+      const artNoEsc = (a.article_no || "").replace(/'/g, "\\'");
+      mobile += `<div class="bs-bake-section">
+        <div class="bs-bake-title"><span>🔥 Nachbacken vermerken</span><span class="bs-bake-counter">Heute: ${baked} St.</span></div>
+        <div class="bs-bake-buttons">
+          ${BACKSHOP_BAKE_OPTIONS.map(q => `<button class="bs-bake-btn" onclick="recordBackshopBake('${artNoEsc}', ${q})">+${q}</button>`).join("")}
+        </div>
+        ${baked > 0 ? `<button class="bs-bake-undo" onclick="undoLastBackshopBake('${artNoEsc}')">↶ Letzten Eintrag löschen</button>` : ""}
+      </div>`;
+      mobile += `</div>`;
     });
   }
   mobile += `</div>`;
