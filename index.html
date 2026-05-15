@@ -365,7 +365,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.15-4"; // Pattern-Matching final überarbeitet (alle 106 Artikel zugeordnet)
+const APP_VERSION = "v2026.05.15-5"; // Pattern-Match direkt im Backshop (kein Re-Upload nötig)
 const APP_VERSION_DATE = "15.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Version sofort ins UI rendern (sobald DOM bereit)
@@ -2991,11 +2991,18 @@ function renderBackshop(){
     if(highlightTop10){
       visibleArticles.slice(0, 10).forEach(a => top10Set.add(a.article_no));
     }
-    // Backprogramm pro Artikel aus Ordersatz-Map zuordnen
+    // Backprogramm pro Artikel zuordnen.
+    // Strategie: 1) DB-Map (skzByVkArt) zuerst pruefen
+    //            2) Falls leer/null: Pattern-Match direkt auf VK-Artikelnamen
+    //               (funktioniert sofort, ohne neuen Ordersatz-Upload)
     const skzMap = backshopState.skzByVkArt || {};
     visibleArticles.forEach(a => {
       const info = skzMap[a.article_no];
-      a._color = info ? info.color : null;
+      let color = info && info.color ? info.color : null;
+      if(!color && a.article_name && typeof artikelToBackprogramm === "function"){
+        color = artikelToBackprogramm(a.article_name);
+      }
+      a._color = color || "auftau";
     });
     // Sortier-Modus: nach Menge oder nach Backprogramm
     const sortMode = (document.getElementById("backshopSort")?.value) || "amount";
@@ -3191,8 +3198,10 @@ const ARTIKEL_PATTERN_RULES = [
   // === BAGUETTE === (vor BROT, weil "Peperoni Baguette" sonst zu BROT würde)
   {pattern: /BAGUETTE|BAGUET\b|CIABATTA|PEPERO|MINI.?KRUSTE/i, key: "baguette"},
 
-  // === PIZZA-DONUT === (vor AUFTAU, sonst wird DONUT als Auftau erkannt)
-  {pattern: /PIZ\.?DONU|PIZZA.?DONU/i, key: "croissants"},
+  // === PIZZA-DONUT / FLAMMKUCHEN-DONUT === (vor AUFTAU, sonst wird DONUT als Auftau erkannt)
+  {pattern: /PIZ\.?DONU|PIZZA.?DONU|FLAMMK.?DONU|FLAMMKUCHEN.?DONU/i, key: "croissants"},
+  // Auch generisch: Flammkuchen ohne Donut (herzhafter Snack)
+  {pattern: /FLAMMKUCHEN/i, key: "croissants"},
 
   // === AUFTAU === (Berliner, Donuts, sw. Schnecken etc.)
   {pattern: /BERLINER|BERLIN\.|DONUT|FRUCHT.?STR|NUSS.?SCHNECK|ROSIN.?SCHNECK|SPRITZRING|QUARKBAELL|MUFFIN|VANILLE.?KIPFERL/i, key: "auftau"},
