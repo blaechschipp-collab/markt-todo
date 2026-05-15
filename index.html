@@ -64,6 +64,24 @@
     .bs-bake-btn:active{transform:scale(.95);background:#fdba74}
     .bs-bake-undo{background:transparent;border:none;color:#64748b;font-size:12px;cursor:pointer;padding:0;text-decoration:underline}
     .bs-bake-undo:hover{color:var(--red)}
+    .sub-tabs{display:flex;gap:8px;margin-bottom:14px}
+    .sub-tab{flex:1;background:#fff;border:2px solid var(--border);color:var(--text);padding:12px 16px;border-radius:10px;cursor:pointer;font-weight:bold;font-size:15px}
+    .sub-tab.active{background:var(--blue-dark);color:var(--yellow);border-color:var(--blue-dark)}
+    .bestell-card{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:0 4px 10px rgba(0,0,0,.05)}
+    .bestell-card .bc-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:8px}
+    .bestell-card .bc-name{font-weight:bold;color:var(--blue-dark);font-size:16px;line-height:1.2}
+    .bestell-card .bc-meta{color:#64748b;font-size:12px;margin-top:3px}
+    .bestell-card .bc-recommend{background:linear-gradient(135deg,#fefce8,#fef3c7);border:2px solid var(--yellow);border-radius:10px;padding:8px 14px;text-align:center;min-width:130px}
+    .bestell-card .bc-recommend .lbl{font-size:11px;color:#78716c;font-weight:bold;text-transform:uppercase;letter-spacing:.5px}
+    .bestell-card .bc-recommend .val{font-size:26px;font-weight:900;color:var(--blue-dark);line-height:1}
+    .bestell-card .bc-recommend .sub{font-size:11px;color:#78716c;margin-top:2px}
+    .bestell-card .bc-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:10px 0}
+    .bestell-card .bc-cell{background:#f8fafc;border-radius:8px;padding:8px;text-align:center}
+    .bestell-card .bc-cell .lbl{font-size:11px;color:#64748b;text-transform:uppercase;font-weight:bold;letter-spacing:.5px}
+    .bestell-card .bc-cell .val{font-size:18px;font-weight:bold;color:var(--blue-dark);margin-top:2px}
+    .bestell-card .bc-barcode{background:#fff;padding:8px;text-align:center;border:1px dashed #cbd5e1;border-radius:8px;margin-top:8px}
+    .bestell-card .bc-barcode svg{max-width:100%;height:55px}
+    @media(max-width:700px){.bestell-card .bc-grid{grid-template-columns:1fr 1fr}}
     @media(max-width:700px){.bs-bake-buttons{grid-template-columns:repeat(4,1fr)}}
     .bs-table tr.bs-top10{background:#fef3c7}
     .bs-table tr.bs-top10 td:first-child{border-left:5px solid #f59e0b;font-weight:bold}
@@ -193,6 +211,12 @@
     <div id="dispoContent"></div>
   </section>
   <section id="backshopSection" style="display:none">
+    <!-- Sub-Reiter -->
+    <div class="sub-tabs">
+      <button id="backshopSubTabBackempfehlung" class="sub-tab active" onclick="showBackshopSubTab('backempfehlung')">🥐 Backempfehlung</button>
+      <button id="backshopSubTabBestellung" class="sub-tab" onclick="showBackshopSubTab('bestellung')">📦 Bestellung</button>
+    </div>
+    <div id="backshopSubBackempfehlung">
     <div class="box">
       <h2 style="margin-top:0">🥐 Backshop – Nachback-Hilfe</h2>
       <div class="small">Auf Basis historischer Verkaufsdaten (gewichteter Mittelwert über vergangene Wochen, jüngste Wochen zählen stärker). Standard: aktueller Wochentag und aktuelle Uhrzeit.</div>
@@ -209,14 +233,40 @@
     </div>
     <div id="backshopSummary" class="box"></div>
     <div id="backshopContent"></div>
+    </div><!-- /backshopSubBackempfehlung -->
+    <div id="backshopSubBestellung" style="display:none">
+      <div class="box">
+        <h2 style="margin-top:0">📦 Backshop – Bestellempfehlung</h2>
+        <div class="small">Basierend auf den historischen Verkäufen und dem aktuellen Ordersatz. Standard-Zeitraum: nächste 7 Tage.</div>
+        <div class="control-grid" style="margin-top:14px">
+          <div><label>Markt</label><select id="bestellMarket" onchange="renderBestellung()"><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
+          <div><label>Reichweite (ab Lieferung)</label><select id="bestellHorizon" onchange="renderBestellung()">
+            <option value="3" selected>3 Verkaufstage (Standard)</option>
+            <option value="5">5 Verkaufstage</option>
+            <option value="7">7 Verkaufstage</option>
+          </select></div>
+          <div><label>Anzeigen</label><select id="bestellFilter" onchange="renderBestellung()">
+            <option value="needed">Nur Artikel mit Bedarf</option>
+            <option value="all">Alle Ordersatz-Artikel</option>
+          </select></div>
+          <div><label>Suche</label><input id="bestellSearch" placeholder="z.B. Brötchen, Croissant, EAN..." oninput="renderBestellung()"></div>
+        </div>
+        <div id="bestellStatus" class="small" style="margin-top:8px"></div>
+      </div>
+      <div id="bestellContent"></div>
+    </div><!-- /backshopSubBestellung -->
   </section>
   <section id="adminSection" style="display:none">
-    <div class="box admin"><h2>Adminbereich – Aufgabe anlegen</h2><div class="control-grid"><div><label>Markt</label><select id="adminMarket" onchange="handleAdminMarketChange()"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="adminArea" onchange="toggleAdminPeriodFields()"></select><input id="adminCustomArea" placeholder="Neue Abteilung / Bereich" style="margin-top:8px"></div><div><label>Wichtigkeit</label><select id="adminPriority"><option>hoch</option><option>mittel</option><option>niedrig</option></select></div><div><label>Bezeichnung</label><input id="adminCustomTitle" placeholder="Aufgabe eingeben"></div><div><label>Art</label><select id="adminTaskMode" onchange="toggleAdminPeriodFields()"><option value="recurring">Wiederholend</option><option value="single">Einmalig / Zeitraum</option></select></div></div>
+    <div class="sub-tabs">
+      <button id="adminSubTabTodo" class="sub-tab active" onclick="showAdminSubTab('todopflege')">📋 ToDo-Pflege</button>
+      <button id="adminSubTabUploads" class="sub-tab" onclick="showAdminSubTab('uploads')">📥 Uploads</button>
+    </div>
+    <div class="box admin admin-todopflege"><h2>Adminbereich – Aufgabe anlegen</h2><div class="control-grid"><div><label>Markt</label><select id="adminMarket" onchange="handleAdminMarketChange()"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="adminArea" onchange="toggleAdminPeriodFields()"></select><input id="adminCustomArea" placeholder="Neue Abteilung / Bereich" style="margin-top:8px"></div><div><label>Wichtigkeit</label><select id="adminPriority"><option>hoch</option><option>mittel</option><option>niedrig</option></select></div><div><label>Bezeichnung</label><input id="adminCustomTitle" placeholder="Aufgabe eingeben"></div><div><label>Art</label><select id="adminTaskMode" onchange="toggleAdminPeriodFields()"><option value="recurring">Wiederholend</option><option value="single">Einmalig / Zeitraum</option></select></div></div>
       <div id="adminDaysBox" style="margin-top:16px"><label>Tage</label><div class="days"><button type="button" class="btn-yellow" onclick="selectAllAdminDays()" style="width:auto;margin-bottom:8px">Täglich Mo–Sa</button><br><label><input type="checkbox" class="adminDay" value="Montag"> Montag</label><label><input type="checkbox" class="adminDay" value="Dienstag"> Dienstag</label><label><input type="checkbox" class="adminDay" value="Mittwoch"> Mittwoch</label><label><input type="checkbox" class="adminDay" value="Donnerstag"> Donnerstag</label><label><input type="checkbox" class="adminDay" value="Freitag"> Freitag</label><label><input type="checkbox" class="adminDay" value="Samstag"> Samstag</label></div></div>
       <div id="adminDateRangeBox" style="display:none;margin-top:16px"><div class="control-grid"><div><label>Von Datum</label><input id="adminStartDate" type="date"></div><div><label>Bis Datum</label><input id="adminEndDate" type="date"></div></div></div>
       <div id="adminMonthBox" style="display:none;margin-top:16px"><label>Monate für Hausmeister</label><div class="months"><label><input type="checkbox" class="adminMonth" value="2026-01"> Jan</label><label><input type="checkbox" class="adminMonth" value="2026-02"> Feb</label><label><input type="checkbox" class="adminMonth" value="2026-03"> Mär</label><label><input type="checkbox" class="adminMonth" value="2026-04"> Apr</label><label><input type="checkbox" class="adminMonth" value="2026-05"> Mai</label><label><input type="checkbox" class="adminMonth" value="2026-06"> Jun</label><label><input type="checkbox" class="adminMonth" value="2026-07"> Jul</label><label><input type="checkbox" class="adminMonth" value="2026-08"> Aug</label><label><input type="checkbox" class="adminMonth" value="2026-09"> Sep</label><label><input type="checkbox" class="adminMonth" value="2026-10"> Okt</label><label><input type="checkbox" class="adminMonth" value="2026-11"> Nov</label><label><input type="checkbox" class="adminMonth" value="2026-12"> Dez</label></div></div>
       <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap"><button class="btn-green" onclick="createTasks()" style="width:auto">Aufgabe speichern</button><button class="btn-dark" onclick="showTab('todo')" style="width:auto">Zurück zur ToDo</button></div><div id="adminMessage" class="small"></div></div>
-    <div class="box admin">
+    <div class="box admin admin-uploads">
       <h2>📊 Kennzahlen per Excel hochladen</h2>
       <div class="small">Unterstützt automatisch:<br>1) EDEKA BO-Kreuztabellen (Umsatzbericht & Abschriften) – einfach hochladen, alles weitere wird erkannt.<br>2) Flache Tabellen mit Spalten: Markt, Bereich, Kennzahl, Wert, Einheit, Datum.<br>3) Flache Tabellen: Markt, Bereich, Datum, Umsatz, Abschriften, … (jede Zahlenspalte wird eine Kennzahl).</div>
       <div class="control-grid" style="margin-top:14px">
@@ -232,7 +282,17 @@
       </div>
       <div id="metricsUploadMsg" class="small"></div>
     </div>
-    <div class="box admin">
+    <div class="box admin admin-uploads">
+      <h2>📦 Backshop – Ordersatz hochladen (PDF)</h2>
+      <div class="small">Der „SB-bebilderte Ordersatz Lager"-PDF des Backshops. Wird hochgeladen, geparst und ersetzt den vorhandenen Ordersatz vollständig. Wird benötigt für die Bestellempfehlung.</div>
+      <input id="ordersatzPdfFile" type="file" accept=".pdf" style="margin-top:10px" />
+      <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn-green" style="width:auto" onclick="uploadOrdersatzPdf()">PDF einlesen &amp; speichern</button>
+        <button class="btn-red" style="width:auto" onclick="clearOrdersatz()">Ordersatz löschen (Reset)</button>
+      </div>
+      <div id="ordersatzUploadMsg" class="small" style="margin-top:8px"></div>
+    </div>
+    <div class="box admin admin-uploads">
       <h2>🥐 Backshop – Frequenz-Excel hochladen</h2>
       <div class="small">Wöchentliche EDEKA-BO „Frequenzbericht (historisch)" Excel. Mehrere Dateien gleichzeitig möglich. Identische (Markt + Artikel + KW + Wochentag + Stunde)-Kombinationen werden überschrieben; neue Wochen werden ergänzt; alte Wochen bleiben erhalten.</div>
       <input id="backshopExcelFile" type="file" accept=".xlsx,.xls" multiple style="margin-top:10px" />
@@ -242,7 +302,7 @@
       </div>
       <div id="backshopUploadMsg" class="small" style="margin-top:8px"></div>
     </div>
-    <div class="box admin">
+    <div class="box admin admin-uploads">
       <h2>📦 Dispo – PDF-Listen hochladen</h2>
       <div class="small">Mehrere PDFs gleichzeitig auswählbar. Erkannt werden automatisch: FEA-Listen (5 Sorten), Aktionsartikel ohne Regalplatz, Distributionsanalyse nach SKZ. Marktnummern werden aus dem Dateinamen gelesen (043028 = Freckenfeld, 045311 = Gossersweiler-Stein, 046206 = Steinfeld, 046336 = Billigheim-Ingenheim).</div>
       <input id="dispoPdfFiles" type="file" accept=".pdf" multiple style="margin-top:10px" />
@@ -252,7 +312,7 @@
       </div>
       <div id="dispoUploadMsg" class="small" style="margin-top:8px"></div>
     </div>
-    <div class="box admin"><h2>Adminbereich – bestehende Aufgaben</h2><div class="small">Vorlagen, Einmalaufgaben und Übergaben als Tabelle.</div>
+    <div class="box admin admin-todopflege"><h2>Adminbereich – bestehende Aufgaben</h2><div class="small">Vorlagen, Einmalaufgaben und Übergaben als Tabelle.</div>
       <div class="control-grid" style="margin-top:14px">
         <div><label>Bereich filtern</label><select id="adminTableAreaFilter" onchange="loadAdminTasks()"><option value="">Alle Bereiche</option></select></div>
         <div><label>Aufgabe suchen</label><input id="adminTableSearch" placeholder="Suchbegriff" oninput="loadAdminTasks()"></div>
@@ -260,7 +320,7 @@
         <div><label>&nbsp;</label><button class="btn-yellow" onclick="loadAdminTasks()">Adminliste aktualisieren</button></div>
       </div>
       <div id="adminTasks" style="margin-top:14px"></div></div>
-    <div class="box admin"><h2>Kontrolle / Historie</h2><div class="small">Rückwirkende Kontrolle nach Zeitraum.</div><div class="control-grid" style="margin-top:14px"><div><label>Markt</label><select id="controlMarket" onchange="handleControlMarketChange()"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="controlArea" onchange="loadControlTasks()"><option value="">Alle Bereiche</option></select></div><div><label>Von</label><input id="controlDateFrom" type="date" onchange="loadControlTasks()"></div><div><label>Bis</label><input id="controlDateTo" type="date" onchange="loadControlTasks()"></div><div><label>Status</label><select id="controlStatus" onchange="loadControlTasks()"><option value="all">Alle</option><option value="open">Offen</option><option value="done">Erledigt</option><option value="late">Fehler: verspätet bestätigt</option></select></div></div><div id="controlTasks" style="margin-top:14px"></div></div>
+    <div class="box admin admin-todopflege"><h2>Kontrolle / Historie</h2><div class="small">Rückwirkende Kontrolle nach Zeitraum.</div><div class="control-grid" style="margin-top:14px"><div><label>Markt</label><select id="controlMarket" onchange="handleControlMarketChange()"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="controlArea" onchange="loadControlTasks()"><option value="">Alle Bereiche</option></select></div><div><label>Von</label><input id="controlDateFrom" type="date" onchange="loadControlTasks()"></div><div><label>Bis</label><input id="controlDateTo" type="date" onchange="loadControlTasks()"></div><div><label>Status</label><select id="controlStatus" onchange="loadControlTasks()"><option value="all">Alle</option><option value="open">Offen</option><option value="done">Erledigt</option><option value="late">Fehler: verspätet bestätigt</option></select></div></div><div id="controlTasks" style="margin-top:14px"></div></div>
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
@@ -1139,7 +1199,7 @@ function showTab(tab){
   document.getElementById("backshopTab").classList.toggle("active",tab==="backshop");
   document.getElementById("analyticsTab").classList.toggle("active",tab==="analytics");
   document.getElementById("adminTab").classList.toggle("active",tab==="admin");
-  if(tab==="admin"){loadAdminTasks();loadControlTasks()}
+  if(tab==="admin"){showAdminSubTab("todopflege")}
   else if(tab==="analytics"){prepareAnalytics()}
   else if(tab==="dispo"){loadDispo()}
   else if(tab==="backshop"){loadBackshop()}
@@ -1742,6 +1802,301 @@ async function uploadMetricsExcel(){
 
 async function editTask(id){if(!adminUnlocked)return alert("Admin-PIN erforderlich.");const{data,error}=await db.from("tasks").select("*").eq("id",id).single();if(error)return alert("Fehler: "+error.message);const title=prompt("Bezeichnung:",data.title||"");if(title===null)return;const area=prompt("Bereich:",data.area||"");if(area===null)return;const priority=prompt("Wichtigkeit (hoch, mittel, niedrig, info):",data.priority||"");if(priority===null)return;const{error:e}=await db.from("tasks").update({title:title.trim(),area:area.trim(),priority:priority.trim()}).eq("id",id);if(e)return alert("Fehler: "+e.message);await loadAreas();loadTasks();loadAdminTasks();loadControlTasks()}
 async function deleteTask(id){if(!adminUnlocked)return alert("Admin-PIN erforderlich.");if(!confirm("Diese Aufgabe wirklich löschen?"))return;await db.from("task_logs").delete().eq("task_id",id);await db.from("tasks").delete().eq("id",id);loadTasks();loadAdminTasks();loadControlTasks()}
+
+/* ===========================
+   BACKSHOP-BESTELLUNG: Ordersatz-PDF + Empfehlung
+   =========================== */
+let bestellState = { ordersatz: [], lastMarket: null };
+
+function showAdminSubTab(name){
+  document.querySelectorAll(".admin-todopflege").forEach(el => el.style.display = (name === "todopflege" ? "block" : "none"));
+  document.querySelectorAll(".admin-uploads").forEach(el => el.style.display = (name === "uploads" ? "block" : "none"));
+  document.getElementById("adminSubTabTodo").classList.toggle("active", name === "todopflege");
+  document.getElementById("adminSubTabUploads").classList.toggle("active", name === "uploads");
+  if(name === "todopflege"){ loadAdminTasks(); loadControlTasks(); }
+}
+function showBackshopSubTab(name){
+  document.getElementById("backshopSubBackempfehlung").style.display = name === "backempfehlung" ? "block" : "none";
+  document.getElementById("backshopSubBestellung").style.display = name === "bestellung" ? "block" : "none";
+  document.getElementById("backshopSubTabBackempfehlung").classList.toggle("active", name === "backempfehlung");
+  document.getElementById("backshopSubTabBestellung").classList.toggle("active", name === "bestellung");
+  if(name === "bestellung"){
+    loadBestellung();
+  }
+}
+
+async function uploadOrdersatzPdf(){
+  if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
+  if(typeof pdfjsLib === "undefined"){ alert("PDF-Bibliothek nicht geladen. Seite neu laden."); return; }
+  const input = document.getElementById("ordersatzPdfFile");
+  const msg = document.getElementById("ordersatzUploadMsg");
+  if(!input.files || !input.files.length){ alert("Bitte PDF auswählen."); return; }
+  msg.innerHTML = "Lese Ordersatz-PDF ...";
+  const file = input.files[0];
+  try{
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+    const lines = await dispoExtractText(pdf);
+    const blocks = parseOrdersatzLines(lines);
+    if(!blocks.length){
+      msg.innerHTML = "❌ Keine Bestellartikel im PDF erkannt.";
+      return;
+    }
+    // Alte Ordersatz-Einträge entfernen, dann neue einfügen
+    msg.innerHTML = `Speichere ${blocks.length} Bestellartikel ...`;
+    const delResult = await db.from("ordersatz_items").delete().neq("artno", "__nonexistent__");
+    if(delResult.error){ msg.innerHTML = "Fehler beim Aufräumen: " + delResult.error.message; return; }
+    const rows = blocks.map(b => ({
+      ean: b.ean,
+      artno: b.artno,
+      name: b.name,
+      pcs_per_carton: b.pcs,
+      ek_price: b.ek,
+      vk_carton: b.uvp_carton,
+      spanne_pct: b.spanne,
+      skz: b.skz || null,
+      vk_artnos: (b.children || []).map(c => c.artno)
+    }));
+    const BATCH = 200;
+    let inserted = 0;
+    for(let i = 0; i < rows.length; i += BATCH){
+      const slice = rows.slice(i, i + BATCH);
+      const r = await db.from("ordersatz_items").insert(slice);
+      if(r.error){ msg.innerHTML = `Fehler nach ${inserted} Zeilen: ${r.error.message}`; return; }
+      inserted += slice.length;
+    }
+    msg.innerHTML = `✅ ${inserted} Bestellartikel gespeichert. ${rows.reduce((s,r)=>s+(r.vk_artnos||[]).length,0)} verknüpfte Verkaufsartikel-Codes.`;
+    input.value = "";
+    bestellState.ordersatz = []; // Cache invalidieren
+  }catch(e){
+    msg.innerHTML = "❌ Fehler beim Parsen: " + (e.message || e);
+  }
+}
+
+function parseOrdersatzLines(lines){
+  const ekRe = /^(.+?)\s+(\d{6,12})\s+(\d{8,14})\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)EK-Artikel\s*(\w*)\s*(.*)$/;
+  const vkRe = /^(.+?)\s+(\d{6,12})\s+(\d{4,8})\s+([\d,]+)VK-Artikel\s*$/;
+  const blocks = [];
+  let cur = null;
+  for(const ln of lines){
+    let m = ln.match(ekRe);
+    if(m){
+      if(cur) blocks.push(cur);
+      let pcs = null;
+      const cm = m[1].toUpperCase().match(/(\d+)X(\d+)\s*G/);
+      if(cm) pcs = parseInt(cm[1], 10);
+      cur = {
+        name: m[1].trim(),
+        artno: m[2],
+        ean: m[3],
+        ek: parseFloat(m[4].replace(",", ".")),
+        spanne: parseFloat(m[5].replace(",", ".")),
+        uvp_carton: parseFloat(m[6].replace(",", ".")),
+        pcs,
+        skz: m[7] || "",
+        anmerk: m[8] || "",
+        children: []
+      };
+      continue;
+    }
+    m = ln.match(vkRe);
+    if(m && cur){
+      cur.children.push({
+        name: m[1].trim(),
+        artno: m[2],
+        plu: m[3],
+        vk: parseFloat(m[4].replace(",", "."))
+      });
+    }
+  }
+  if(cur) blocks.push(cur);
+  return blocks;
+}
+
+async function clearOrdersatz(){
+  if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
+  if(!confirm("Ordersatz wirklich komplett löschen?\n\nDanach gibt es bis zum nächsten PDF-Upload keine Bestellempfehlungen mehr.")) return;
+  const msg = document.getElementById("ordersatzUploadMsg");
+  msg.innerHTML = "Lösche ...";
+  const r = await db.from("ordersatz_items").delete().neq("artno", "__nonexistent__");
+  if(r.error){ msg.innerHTML = "Fehler: " + r.error.message; return; }
+  msg.innerHTML = "Ordersatz gelöscht. Bitte neuen Ordersatz hochladen, damit Bestellempfehlungen wieder funktionieren.";
+  bestellState.ordersatz = [];
+}
+
+async function loadBestellung(){
+  const content = document.getElementById("bestellContent");
+  const status = document.getElementById("bestellStatus");
+  // Markt setzen (übernehme aus Backempfehlung wenn nichts gewählt)
+  const mSel = document.getElementById("bestellMarket");
+  if(!mSel.dataset.initDone){
+    const todoMarket = localStorage.getItem("backshopMarket");
+    if(todoMarket && BACKSHOP_MARKETS.includes(todoMarket)) mSel.value = todoMarket;
+    mSel.dataset.initDone = "1";
+  }
+  // Ordersatz nur laden, wenn noch nicht im Cache
+  if(!bestellState.ordersatz || !bestellState.ordersatz.length){
+    content.innerHTML = `<div class="box">Lade Ordersatz ...</div>`;
+    try{
+      const data = await fetchAllPaged(()=>db.from("ordersatz_items").select("*"));
+      bestellState.ordersatz = data || [];
+    }catch(e){
+      content.innerHTML = `<div class="box">Fehler beim Laden: ${e.message || e}</div>`;
+      return;
+    }
+  }
+  if(!bestellState.ordersatz.length){
+    content.innerHTML = `<div class="box">Noch kein Ordersatz hochgeladen.<br><span class="small">Im Admin-Bereich den aktuellen Ordersatz-PDF hochladen, damit Bestellempfehlungen erscheinen.</span></div>`;
+    return;
+  }
+  // Backshop-Sales sicherstellen
+  const market = mSel.value;
+  if(!backshopState.rows || !backshopState.rows.length || bestellState.lastMarket !== market){
+    bestellState.lastMarket = market;
+    status.innerHTML = "Lade Verkaufshistorie ...";
+    try{
+      const rows = await fetchAllPaged(()=>db.from("backshop_sales")
+        .select("market,article_no,year,iso_week,weekday,hour,menge")
+        .eq("market", market));
+      backshopState.rows = rows || [];
+    }catch(e){
+      content.innerHTML = `<div class="box">Fehler: ${e.message || e}</div>`;
+      return;
+    }
+  }
+  status.innerHTML = "";
+  renderBestellung();
+}
+
+function renderBestellung(){
+  const content = document.getElementById("bestellContent");
+  const market = document.getElementById("bestellMarket").value;
+  const horizonDays = parseInt(document.getElementById("bestellHorizon").value, 10) || 7;
+  const filterMode = document.getElementById("bestellFilter").value;
+  const searchRaw = (document.getElementById("bestellSearch").value || "").toLowerCase().trim();
+  if(!bestellState.ordersatz.length){
+    content.innerHTML = `<div class="box">Noch kein Ordersatz hochgeladen.</div>`;
+    return;
+  }
+  // Markt-Verkäufe nach VK-ArtNo gruppieren
+  const salesByArt = {};
+  (backshopState.rows || []).forEach(r => {
+    if(r.market !== market) return;
+    const key = r.article_no;
+    if(!salesByArt[key]) salesByArt[key] = [];
+    salesByArt[key].push({weekday: r.weekday, hour: r.hour, year: r.year, week: r.iso_week, menge: Number(r.menge) || 0});
+  });
+  // Aktuelle Referenz-KW für Gewichtung
+  const today = berlinNow();
+  const iso = isoWeekOf(today.dateISO);
+  function weightFor(year, week){
+    const offset = iso.week + (iso.year - year) * 53 - week;
+    return Math.pow(0.5, offset / BACKSHOP_HALFLIFE_WEEKS);
+  }
+  // Bestellzyklus: Bestellung heute → Lieferung übermorgen → horizonDays Verkaufstage decken
+  // Sonntage und Feiertage werden nicht mitgezählt (kein Verkauf)
+  let delivery = new Date(today.dateISO + "T00:00:00");
+  delivery.setDate(delivery.getDate() + 2);
+  // Falls Lieferdatum auf Sonntag/Feiertag fällt: auf nächsten Werktag verschieben
+  while(!isWorkingDay(formatDate(delivery))) delivery.setDate(delivery.getDate() + 1);
+  const days = [];
+  let cursor = new Date(delivery);
+  while(days.length < horizonDays){
+    if(isWorkingDay(formatDate(cursor))){
+      const dow = cursor.getDay();
+      const idx = dow === 0 ? 6 : dow - 1;
+      days.push({date: formatDate(cursor), weekday: WEEKDAYS_DE_ORDERED[idx]});
+    }
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  const deliveryDateISO = formatDate(delivery);
+  const lastDayISO = days[days.length - 1].date;
+  // Pro Ordersatz-Artikel: Prognose der Verkäufe in horizonDays
+  const enriched = bestellState.ordersatz.map(o => {
+    const childArtnos = o.vk_artnos || [];
+    let forecast = 0;
+    childArtnos.forEach(art => {
+      const pts = salesByArt[art] || [];
+      // Pro Tag in horizonDays: gewichteter Mittel der historischen (weekday, hour) Werte
+      days.forEach(day => {
+        // Alle Stunden Mo-So zusammen für diesen Wochentag
+        const dayPts = pts.filter(p => p.weekday === day.weekday);
+        if(!dayPts.length) return;
+        // Gruppiere nach Stunde + gewichte
+        const byHour = {};
+        dayPts.forEach(p => {
+          if(!byHour[p.hour]) byHour[p.hour] = {sum: 0, w: 0};
+          const wt = weightFor(p.year, p.week);
+          byHour[p.hour].sum += p.menge * wt;
+          byHour[p.hour].w += wt;
+        });
+        Object.values(byHour).forEach(h => {
+          if(h.w > 0) forecast += h.sum / h.w;
+        });
+      });
+    });
+    const cartons = (o.pcs_per_carton && o.pcs_per_carton > 0) ? Math.ceil(forecast / o.pcs_per_carton) : 0;
+    return {...o, forecast, cartons};
+  });
+  // Filter + Sortierung
+  let visible = enriched;
+  if(filterMode === "needed") visible = visible.filter(x => x.cartons > 0);
+  if(searchRaw){
+    visible = visible.filter(x => {
+      const hay = `${x.name||""} ${x.artno||""} ${x.ean||""}`.toLowerCase();
+      return hay.includes(searchRaw);
+    });
+  }
+  visible.sort((a, b) => b.forecast - a.forecast || a.name.localeCompare(b.name, "de"));
+  if(!visible.length){
+    content.innerHTML = `<div class="box">${searchRaw ? "Keine Treffer für „" + searchRaw + "\"." : "Keine Bestellempfehlung für diesen Markt im gewählten Zeitraum."}</div>`;
+    return;
+  }
+  // Gesamt-Summen
+  const sumCartons = visible.reduce((s, x) => s + x.cartons, 0);
+  const sumEK = visible.reduce((s, x) => s + (x.cartons * (Number(x.ek_price) || 0)), 0);
+  let html = `<div class="box"><h3 style="margin-top:0">📦 Bestellempfehlung für ${market}</h3>
+    <div class="small">📦 Lieferung am <strong>${formatDateDE(deliveryDateISO)}</strong>, deckt <strong>${horizonDays} Verkaufstage</strong> bis <strong>${formatDateDE(lastDayISO)}</strong> ab (Sonntage und RLP-Feiertage werden übersprungen)</div>
+    <div class="small" style="margin-top:6px">Gesamt: <strong>${sumCartons} Kartons</strong> · EK ca. <strong>${sumEK.toLocaleString("de-DE",{maximumFractionDigits:2})} €</strong> · ${visible.length} Artikel</div></div>`;
+  const barcodesToRender = [];
+  visible.forEach(o => {
+    const barcodeId = `bcord_${o.id || o.artno}`;
+    if(o.ean) barcodesToRender.push({id: barcodeId, ean: o.ean});
+    const totalPcs = o.cartons * (o.pcs_per_carton || 0);
+    html += `<div class="bestell-card">
+      <div class="bc-head">
+        <div>
+          <div class="bc-name">${o.name}</div>
+          <div class="bc-meta">Best.-Nr. ${o.artno} · EAN ${o.ean}${o.skz ? " · SKZ " + o.skz : ""}</div>
+        </div>
+        <div class="bc-recommend">
+          <div class="lbl">Bestellen</div>
+          <div class="val">${o.cartons}</div>
+          <div class="sub">${o.cartons === 1 ? "Karton" : "Kartons"}${o.pcs_per_carton ? " · " + totalPcs + " St." : ""}</div>
+        </div>
+      </div>
+      <div class="bc-grid">
+        <div class="bc-cell"><div class="lbl">Karton</div><div class="val">${o.pcs_per_carton || "?"} St.</div></div>
+        <div class="bc-cell"><div class="lbl">Erwart. Verkauf</div><div class="val">${Math.round(o.forecast)}</div></div>
+        <div class="bc-cell"><div class="lbl">EK / Karton</div><div class="val">${(Number(o.ek_price) || 0).toLocaleString("de-DE",{maximumFractionDigits:2})} €</div></div>
+      </div>
+      ${o.ean ? `<div class="bc-barcode"><svg id="${barcodeId}"></svg></div>` : ""}
+    </div>`;
+  });
+  content.innerHTML = html;
+  // Barcodes rendern
+  barcodesToRender.forEach(({id, ean}) => {
+    const el = document.getElementById(id);
+    if(!el || typeof JsBarcode === "undefined") return;
+    try{
+      const valid = /^\d{13}$/.test(ean) || /^\d{8}$/.test(ean);
+      const format = valid ? (ean.length === 13 ? "EAN13" : "EAN8") : "CODE128";
+      JsBarcode(el, ean, {format, height: 50, displayValue: true, fontSize: 12, margin: 0});
+    }catch(e){
+      try{ JsBarcode(el, ean, {format: "CODE128", height: 50, displayValue: true, fontSize: 12, margin: 0}); }catch(e2){}
+    }
+  });
+}
 
 /* ===========================
    BACKSHOP: Frequenz-Prognose
