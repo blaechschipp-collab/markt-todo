@@ -1210,11 +1210,18 @@ async function openAdminPin(){
     const pin = prompt("Admin-PIN eingeben:");
     if(pin === null) return;
     let currentPin = null;
+    let errorDetail = null;
     try{
       const {data, error} = await db.from("app_settings").select("value").eq("key","admin_pin").maybeSingle();
-      if(!error && data && data.value) currentPin = data.value;
-    }catch(e){}
-    if(!currentPin){ alert("Admin-PIN konnte nicht geladen werden (Verbindungsproblem)."); return; }
+      if(error) errorDetail = error.message || String(error);
+      else if(!data) errorDetail = "Keine Zeile mit key='admin_pin' in der Tabelle app_settings gefunden.";
+      else if(!data.value) errorDetail = "Spalte 'value' ist leer.";
+      else currentPin = data.value;
+    }catch(e){ errorDetail = e.message || String(e); }
+    if(!currentPin){
+      alert("Admin-PIN konnte nicht geladen werden.\n\nDetail: " + (errorDetail || "Unbekannter Fehler") + "\n\nBitte in Supabase prüfen: Tabelle app_settings → Zeile mit key='admin_pin' muss Wert in 'value' haben.");
+      return;
+    }
     if(pin !== currentPin) return alert("Falsche PIN.");
     adminUnlocked = true;
   }
@@ -1839,7 +1846,9 @@ async function uploadOrdersatzPdf(){
     const lines = await dispoExtractText(pdf);
     const blocks = parseOrdersatzLines(lines);
     if(!blocks.length){
-      msg.innerHTML = "❌ Keine Bestellartikel im PDF erkannt.";
+      // Diagnose: zeige die ersten 40 Zeilen, damit ich die Regex präzise anpassen kann
+      const diag = lines.slice(0, 40).map((l, i) => `[${i+1}] ${l}`).join("\n");
+      msg.innerHTML = `❌ Keine Bestellartikel im PDF erkannt.<br><br><strong>Erste 40 extrahierte Zeilen zur Diagnose (bitte als Text oder Screenshot zurückschicken):</strong><br><pre style="background:#f1f5f9;padding:8px;border-radius:6px;font-size:11px;white-space:pre-wrap;word-break:break-word;max-height:400px;overflow-y:auto">${diag.replace(/</g,"&lt;")}</pre>`;
       return;
     }
     // Alte Ordersatz-Einträge entfernen, dann neue einfügen
