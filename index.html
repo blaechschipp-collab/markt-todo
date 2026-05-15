@@ -1883,11 +1883,24 @@ async function uploadOrdersatzPdf(){
 }
 
 function parseOrdersatzLines(lines){
-  const ekRe = /^(.+?)\s+(\d{6,12})\s+(\d{8,14})\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)EK-Artikel\s*(\w*)\s*(.*)$/;
-  const vkRe = /^(.+?)\s+(\d{6,12})\s+(\d{4,8})\s+([\d,]+)VK-Artikel\s*$/;
+  // Wichtig: PDF.js fügt ein Leerzeichen vor "EK-Artikel" / "VK-Artikel" ein, deshalb \s* davor
+  const ekRe = /^(.+?)\s+(\d{6,12})\s+(\d{8,14})\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s*EK-Artikel\s*(\w*)\s*(.*)$/;
+  const vkRe = /^(.+?)\s+(\d{6,12})\s+(\d{4,8})\s+([\d,]+)\s*VK-Artikel\s*$/;
+  // VK-Zeile ohne Name (manchmal teilt PDF.js den Artikeltext in eine separate Zeile)
+  const numVkRe = /^(\d{6,12})\s+(\d{4,8})\s+([\d,]+)\s*VK-Artikel\s*$/;
+  const isNameOnly = (s) => {
+    if(!s) return false;
+    if(ekRe.test(s) || vkRe.test(s) || numVkRe.test(s)) return false;
+    if(/^\*\d+\*$/.test(s.trim())) return false; // Sternchen-Barcode
+    if(/^\d{6,12}\s+\d/.test(s.trim())) return false; // beginnt mit Nummern
+    if(s.trim().length < 3) return false;
+    return /[A-Za-zäöüÄÖÜß]/.test(s);
+  };
   const blocks = [];
   let cur = null;
-  for(const ln of lines){
+  let i = 0;
+  while(i < lines.length){
+    const ln = lines[i];
     let m = ln.match(ekRe);
     if(m){
       if(cur) blocks.push(cur);
@@ -1906,6 +1919,7 @@ function parseOrdersatzLines(lines){
         anmerk: m[8] || "",
         children: []
       };
+      i++;
       continue;
     }
     m = ln.match(vkRe);
@@ -1916,7 +1930,30 @@ function parseOrdersatzLines(lines){
         plu: m[3],
         vk: parseFloat(m[4].replace(",", "."))
       });
+      i++;
+      continue;
     }
+    // Numbers-only VK-Zeile: Name auf einer benachbarten Zeile suchen
+    m = ln.match(numVkRe);
+    if(m && cur){
+      let name = "";
+      // Bevorzugt nächste Zeile prüfen (PDF.js verschiebt den Text oft nach unten)
+      if(i + 1 < lines.length && isNameOnly(lines[i+1])){
+        name = lines[i+1].trim();
+        i++; // Name-Zeile überspringen
+      } else if(i > 0 && isNameOnly(lines[i-1])){
+        name = lines[i-1].trim();
+      }
+      cur.children.push({
+        name: name || "(Name in PDF nicht erkannt)",
+        artno: m[1],
+        plu: m[2],
+        vk: parseFloat(m[3].replace(",", "."))
+      });
+      i++;
+      continue;
+    }
+    i++;
   }
   if(cur) blocks.push(cur);
   return blocks;
