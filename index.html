@@ -1853,8 +1853,8 @@ async function uploadOrdersatzPdf(){
   try{
     const buf = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({data: buf}).promise;
-    const {lines, lineMeta, lookupColor} = await extractOrdersatzWithColors(pdf);
-    const blocks = parseOrdersatzLines(lines, lineMeta, lookupColor);
+    const {lines, lineMeta, lookupColor, colorByArtno} = await extractOrdersatzWithColors(pdf);
+    const blocks = parseOrdersatzLines(lines, lineMeta, lookupColor, colorByArtno);
     if(!blocks.length){
       // Diagnose: zeige die ersten 40 Zeilen, damit ich die Regex präzise anpassen kann
       const diag = lines.slice(0, 40).map((l, i) => `[${i+1}] ${l}`).join("\n");
@@ -1937,7 +1937,7 @@ function parsePcsFromOrdersatzName(name){
   if(m) return parseInt(m[1], 10);
   return null;
 }
-function parseOrdersatzLines(lines, lineMeta, lookupColor){
+function parseOrdersatzLines(lines, lineMeta, lookupColor, colorByArtno){
   // Wichtig: PDF.js fügt ein Leerzeichen vor "EK-Artikel" / "VK-Artikel" ein, deshalb \s* davor
   const ekRe = /^(.+?)\s+(\d{6,12})\s+(\d{8,14})\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s*EK-Artikel\s*(\w*)\s*(.*)$/;
   const vkRe = /^(.+?)\s+(\d{6,12})\s+(\d{4,8})\s+([\d,]+)\s*VK-Artikel\s*$/;
@@ -1960,9 +1960,13 @@ function parseOrdersatzLines(lines, lineMeta, lookupColor){
     if(m){
       if(cur) blocks.push(cur);
       const pcs = parsePcsFromOrdersatzName(m[1]);
-      // Farbe aus dem PDF (Backprogramm) ueber Y-Position der EK-Zeile
+      // Farbe aus dem PDF (Backprogramm):
+      //   1) bevorzugt aus colorByArtno-Map (direkt anhand der SAP-Artikelnr ueber Rechteck-Range)
+      //   2) Fallback: ueber Y-Position der EK-Zeile (kann unter wechselnden PDF.js-Versionen verfehlen)
       let color = null;
-      if(lineMeta && lookupColor && lineMeta[i]){
+      if(colorByArtno && colorByArtno[m[2]]){
+        color = colorByArtno[m[2]];
+      } else if(lineMeta && lookupColor && lineMeta[i]){
         color = lookupColor(lineMeta[i].page, lineMeta[i].y);
       }
       cur = {
@@ -2945,6 +2949,7 @@ async function extractOrdersatzWithColors(pdf){
   const lines = [];
   const lineMeta = []; // parallel: {page, y}
   const rectsByPage = []; // pro Seite: [{x0,x1,y0,y1,color:[r,g,b],name}]
+  const colorByArtno = {}; // artno (10-stellige Zahl) -> Farbname
   const TOL = 3;
   const OPS = (window.pdfjsLib && pdfjsLib.OPS) || {};
 
@@ -3101,6 +3106,36 @@ async function extractOrdersatzWithColors(pdf){
       // Falls Operator-Extraktion fehlschlaegt: einfach ohne Farbe weitermachen
     }
     rectsByPage.push(pageRects);
+
+    // 3) Inverse Zuordnung: Fuer jede 10-stellige Artikelnr im Text -> finde umliegendes
+    //    farbiges Bildspalten-Rechteck und merke artno -> color.
+    //    Damit ist die Zuordnung unabhaengig von der Frage, ob die EK-Regex die Zeile gefangen hat.
+    const imageColRects = pageRects.filter(r => {
+      const w = r.x1 - r.x0;
+      return r.x0 < 95 && r.x1 > 240 && r.x1 < 330 && w > 150 && w < 280;
+    });
+    if(imageColRects.length){
+      for(const it of items){
+        const raw = (it.str || "").trim();
+        // SAP-Artikelnr ist 10-stellig; im PDF kommt sie als "1234567890" und "*1234567890*" vor
+        const stripped = raw.replace(/^\*|\*$/g, "");
+        if(!/^\d{10}$/.test(stripped)) continue;
+        const t = stripped;
+        const ty = it.transform[5];
+        // Suche das Rect mit kleinstem Mittenabstand, in dem ty liegt
+        let best = null, bestDist = Infinity;
+        for(const r of imageColRects){
+          if(ty < r.y0 - 4 || ty > r.y1 + 4) continue;
+          const mid = (r.y0 + r.y1) / 2;
+          const d = Math.abs(ty - mid);
+          if(d < bestDist){ bestDist = d; best = r; }
+        }
+        if(best){
+          // Wenn artno schon zugeordnet, nur ueberschreiben falls leerer Wert
+          if(!colorByArtno[t]) colorByArtno[t] = best.name;
+        }
+      }
+    }
   }
 
   // Lookup: Nur echte Bildspalten-Rechtecke (Breite ~220, ueber dem Artikel-Bild).
@@ -3123,7 +3158,7 @@ async function extractOrdersatzWithColors(pdf){
     return bestCand ? bestCand.name : null;
   };
 
-  return {lines, lineMeta, lookupColor};
+  return {lines, lineMeta, lookupColor, colorByArtno};
 }
 
 function dispoParseFEA(lines, ctx){
