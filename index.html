@@ -2644,20 +2644,34 @@ async function fetchBackshopOrdersatzMap(){
     backshopState.skzByVkArt = {};
   }
 }
+// Legacy-Mapping: vor dem Sektion-Update war color nur "yellow", "blue", "orange", ...
+const LEGACY_COLOR_MAP = {
+  yellow:    {title: "🟡 Brötchen (aufbacken)",    cls: "bs-color-yellow",    order: 1},
+  green:     {title: "🌱 BIO (aufbacken)",         cls: "bs-color-green",     order: 2},
+  darkgreen: {title: "🥨 Laugengebäck (aufbacken)",cls: "bs-color-darkgreen", order: 3},
+  blue:      {title: "🥐 Croissants (aufbacken)",  cls: "bs-color-blue",      order: 4},
+  pink:      {title: "🍩 Süße Teilchen (aufbacken)",cls: "bs-color-pink",     order: 5},
+  orange:    {title: "🍞 Brote (aufbacken)",       cls: "bs-color-orange",    order: 8}
+};
 function backshopColorLabel(color){
-  // Sektions-Keys aus dem PDF-Ordersatz (gelbe Banner-Ueberschriften)
-  if(color && typeof ORDERSATZ_SECTIONS !== "undefined"){
+  if(!color) return {title: "🧊 Auftauartikel", cls: "bs-color-none"};
+  // 1. Neue Sektion-Keys (z.B. "broetchen_bake")
+  if(typeof ORDERSATZ_SECTIONS !== "undefined"){
     const sec = ORDERSATZ_SECTIONS.find(s => s.key === color);
     if(sec) return {title: sec.title, cls: sec.cls};
   }
+  // 2. Legacy-Farbnamen (alte DB-Werte)
+  if(LEGACY_COLOR_MAP[color]) return {title: LEGACY_COLOR_MAP[color].title, cls: LEGACY_COLOR_MAP[color].cls};
+  // 3. Unbekannt → Auftau
   return {title: "🧊 Auftauartikel", cls: "bs-color-none"};
 }
 function backshopColorOrder(color){
-  // Reihenfolge im Kuehlhaus: gleiche Reihenfolge wie die Sektionen im PDF
-  if(color && typeof ORDERSATZ_SECTIONS !== "undefined"){
+  if(!color) return 99;
+  if(typeof ORDERSATZ_SECTIONS !== "undefined"){
     const idx = ORDERSATZ_SECTIONS.findIndex(s => s.key === color);
     if(idx >= 0) return idx + 1;
   }
+  if(LEGACY_COLOR_MAP[color]) return LEGACY_COLOR_MAP[color].order;
   return 99;
 }
 async function recordBackshopBake(articleNo, qty){
