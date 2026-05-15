@@ -2946,40 +2946,19 @@ function ordersatzColorNameFromRgb(rgb){
 }
 
 async function extractOrdersatzWithColors(pdf){
+  // Strategie: PDF.js-Operator-Liste ist unzuverlaessig (oft sind die farbigen
+  // Hintergruende in XObjects/Images). Daher rendern wir jede Seite auf einen
+  // Canvas und tasten die finalen Pixel ab — das funktioniert IMMER.
   const lines = [];
-  const lineMeta = []; // parallel: {page, y}
-  const rectsByPage = []; // pro Seite: [{x0,x1,y0,y1,color:[r,g,b],name}]
-  const colorByArtno = {}; // artno (10-stellige Zahl) -> Farbname
+  const lineMeta = [];
+  const colorByArtno = {};
   const TOL = 3;
-  const OPS = (window.pdfjsLib && pdfjsLib.OPS) || {};
-
-  // Hilfen
-  const isGreyOrBW = (rgb) => {
-    if(!rgb) return true;
-    const [r,g,b] = rgb;
-    if(Math.abs(r-g) < 4 && Math.abs(g-b) < 4) return true; // Grautoene
-    return false;
-  };
-  const normColor = (cs) => {
-    if(!cs) return null;
-    if(cs.length === 1){
-      const v = Math.round((cs[0] || 0) * 255);
-      return [v, v, v];
-    }
-    if(cs.length >= 3){
-      return [
-        Math.round((cs[0] || 0) * 255),
-        Math.round((cs[1] || 0) * 255),
-        Math.round((cs[2] || 0) * 255)
-      ];
-    }
-    return null;
-  };
+  const SCALE = 1.5; // hoher Scale -> klarere Pixel, weniger Antialiasing-Artefakte
 
   for(let p = 1; p <= pdf.numPages; p++){
     const page = await pdf.getPage(p);
 
-    // 1) Text + Y-Position je Zeile
+    // 1) Text + Y-Position je Zeile (wie zuvor, fuer parseOrdersatzLines)
     const content = await page.getTextContent();
     const items = (content.items || []).filter(it => it.str !== undefined && it.transform);
     items.sort((a,b) => {
@@ -3006,158 +2985,75 @@ async function extractOrdersatzWithColors(pdf){
     }
     flush();
 
-    // 2) Operator-Liste: gefuellte Rechtecke + Farben
-    const pageRects = [];
+    // 2) Seite rendern und Pixel-Sampling
+    const viewport = page.getViewport({scale: SCALE});
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.ceil(viewport.width);
+    canvas.height = Math.ceil(viewport.height);
+    const ctx = canvas.getContext("2d", {willReadFrequently: true});
     try{
-      const ops = await page.getOperatorList();
-      const fnArr = ops.fnArray, argArr = ops.argsArray;
-      let fill = null; // letzte Fill-Farbe (Komponenten 0..1)
-      for(let k = 0; k < fnArr.length; k++){
-        const fn = fnArr[k];
-        const args = argArr[k] || [];
-        if(fn === OPS.setFillRGBColor){
-          // PDF.js liefert die Komponenten ggf. 0..255 (Uint8) oder 0..1
-          const v0 = args[0], v1 = args[1], v2 = args[2];
-          if(v0 > 1 || v1 > 1 || v2 > 1){
-            fill = [v0/255, v1/255, v2/255];
-          } else {
-            fill = [v0, v1, v2];
-          }
-        } else if(fn === OPS.setFillGray){
-          const v = args[0];
-          fill = [v > 1 ? v/255 : v];
-        } else if(fn === OPS.setFillCMYKColor){
-          const c=args[0], my=args[1], yc=args[2], kc=args[3];
-          fill = [(1-c)*(1-kc), (1-my)*(1-kc), (1-yc)*(1-kc)];
-        } else if(fn === OPS.constructPath){
-          // args: [subOps, subArgs, minMax?]
-          const subOps = args[0] || [];
-          const subArgs = args[1] || [];
-          const bbox = args[2]; // [minX, minY, maxX, maxY] - falls vorhanden
-          // Naechste Operation: fill / eoFill / fillStroke
-          const next = fnArr[k+1];
-          const isFillOp = (next === OPS.fill || next === OPS.eoFill || next === OPS.fillStroke || next === OPS.eoFillStroke);
-          if(!isFillOp) { /* nicht gefuellt - ignorieren */ }
-          else {
-            // Versuche bbox aus subOps zu rekonstruieren, falls nicht direkt vorhanden
-            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-            let hasRect = false;
-            if(bbox && bbox.length === 4){
-              minX = Math.min(bbox[0], bbox[2]);
-              minY = Math.min(bbox[1], bbox[3]);
-              maxX = Math.max(bbox[0], bbox[2]);
-              maxY = Math.max(bbox[1], bbox[3]);
-              hasRect = subOps.includes(OPS.rectangle) || subOps.length === 0;
-            }
-            // Fallback / Verifikation: subArgs durchgehen
-            if(!isFinite(minX)){
-              let ai = 0;
-              for(const sf of subOps){
-                if(sf === OPS.rectangle){
-                  const x = subArgs[ai++], y = subArgs[ai++], w = subArgs[ai++], h = subArgs[ai++];
-                  const x0 = Math.min(x, x+w), x1 = Math.max(x, x+w);
-                  const y0 = Math.min(y, y+h), y1 = Math.max(y, y+h);
-                  if(x0 < minX) minX = x0;
-                  if(y0 < minY) minY = y0;
-                  if(x1 > maxX) maxX = x1;
-                  if(y1 > maxY) maxY = y1;
-                  hasRect = true;
-                } else if(sf === OPS.moveTo || sf === OPS.lineTo){
-                  ai += 2;
-                } else if(sf === OPS.curveTo){
-                  ai += 6;
-                } else if(sf === OPS.curveTo2 || sf === OPS.curveTo3){
-                  ai += 4;
-                }
-              }
-            }
-            if(hasRect && isFinite(minX)){
-              const w = maxX - minX, h = maxY - minY;
-              if(w >= 40 && h >= 5){
-                const rgb = normColor(fill);
-                if(rgb && !isGreyOrBW(rgb)){
-                  const name = ordersatzColorNameFromRgb(rgb);
-                  if(name){
-                    pageRects.push({x0: minX, x1: maxX, y0: minY, y1: maxY, color: rgb, name});
-                  }
-                }
-              }
-            }
-          }
-        } else if(fn === OPS.rectangle){
-          // Legacy: rectangle + fill direkt
-          const x = args[0], y = args[1], w = args[2], h = args[3];
-          const next = fnArr[k+1];
-          const isFillOp = (next === OPS.fill || next === OPS.eoFill || next === OPS.fillStroke || next === OPS.eoFillStroke);
-          if(isFillOp && Math.abs(w) >= 40 && Math.abs(h) >= 5){
-            const rgb = normColor(fill);
-            if(rgb && !isGreyOrBW(rgb)){
-              const name = ordersatzColorNameFromRgb(rgb);
-              if(name){
-                const x0 = Math.min(x, x+w), x1 = Math.max(x, x+w);
-                const y0 = Math.min(y, y+h), y1 = Math.max(y, y+h);
-                pageRects.push({x0, x1, y0, y1, color: rgb, name});
-              }
-            }
-          }
-        }
-      }
+      await page.render({canvasContext: ctx, viewport}).promise;
     }catch(e){
-      // Falls Operator-Extraktion fehlschlaegt: einfach ohne Farbe weitermachen
+      continue; // Seite konnte nicht gerendert werden -> ueberspringen
     }
-    rectsByPage.push(pageRects);
+    let imgData;
+    try{
+      imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    }catch(e){
+      continue;
+    }
+    const pixels = imgData.data;
+    const W = canvas.width, H = canvas.height;
 
-    // 3) Inverse Zuordnung: Fuer jede 10-stellige Artikelnr im Text -> finde umliegendes
-    //    farbiges Bildspalten-Rechteck und merke artno -> color.
-    //    Damit ist die Zuordnung unabhaengig von der Frage, ob die EK-Regex die Zeile gefangen hat.
-    const imageColRects = pageRects.filter(r => {
-      const w = r.x1 - r.x0;
-      return r.x0 < 95 && r.x1 > 240 && r.x1 < 330 && w > 150 && w < 280;
-    });
-    if(imageColRects.length){
-      for(const it of items){
-        const raw = (it.str || "").trim();
-        // SAP-Artikelnr ist 10-stellig; im PDF kommt sie als "1234567890" und "*1234567890*" vor
-        const stripped = raw.replace(/^\*|\*$/g, "");
-        if(!/^\d{10}$/.test(stripped)) continue;
-        const t = stripped;
-        const ty = it.transform[5];
-        // Suche das Rect mit kleinstem Mittenabstand, in dem ty liegt
-        let best = null, bestDist = Infinity;
-        for(const r of imageColRects){
-          if(ty < r.y0 - 4 || ty > r.y1 + 4) continue;
-          const mid = (r.y0 + r.y1) / 2;
-          const d = Math.abs(ty - mid);
-          if(d < bestDist){ bestDist = d; best = r; }
-        }
-        if(best){
-          // Wenn artno schon zugeordnet, nur ueberschreiben falls leerer Wert
-          if(!colorByArtno[t]) colorByArtno[t] = best.name;
+    // Hilfsfunktion: Pixel an (cx, cy) im Canvas als RGB-Tupel
+    const sample = (cx, cy) => {
+      cx = Math.max(0, Math.min(W-1, Math.round(cx)));
+      cy = Math.max(0, Math.min(H-1, Math.round(cy)));
+      const idx = (cy * W + cx) * 4;
+      return [pixels[idx], pixels[idx+1], pixels[idx+2]];
+    };
+
+    // 3) Fuer jede SAP-Artikelnr im Text die Hintergrundfarbe in der Bildspalte abtasten
+    //    Bildspalte in PDF-User-Space: ca. x = 60..280. Mit SCALE multiplizieren.
+    //    Wir samplen mehrere x/y-Punkte und stimmen ab (Mehrheits-Vote).
+    const sampleXsPdf = [70, 100, 140, 200, 250]; // PDF user space
+    const sampleXsPx = sampleXsPdf.map(x => x * SCALE);
+    for(const it of items){
+      const raw = (it.str || "").trim();
+      const stripped = raw.replace(/^\*|\*$/g, "");
+      if(!/^\d{10}$/.test(stripped)) continue;
+      const artno = stripped;
+      // Position der Artikelnr im Canvas
+      const tx = pdfjsLib.Util.transform(viewport.transform, it.transform);
+      const cyArt = tx[5];
+      // y-Sampling-Bereich: 8 Pixel ueber und 8 Pixel unter der Artno-Baseline
+      const votes = {};
+      for(let dy = -8; dy <= 8; dy += 2){
+        const cy = cyArt + dy;
+        for(const cx of sampleXsPx){
+          const [r, g, b] = sample(cx, cy);
+          // Weiss / Schwarz / Grau filtern
+          if(r > 240 && g > 240 && b > 240) continue;
+          if(r < 20 && g < 20 && b < 20) continue;
+          if(Math.abs(r-g) < 8 && Math.abs(g-b) < 8 && Math.abs(r-b) < 8) continue;
+          const cn = ordersatzColorNameFromRgb([r, g, b]);
+          if(cn) votes[cn] = (votes[cn] || 0) + 1;
         }
       }
+      // Beste Stimme
+      let best = null, bestN = 0;
+      for(const k in votes){
+        if(votes[k] > bestN){ bestN = votes[k]; best = k; }
+      }
+      if(best && !colorByArtno[artno]) colorByArtno[artno] = best;
     }
+
+    // Canvas freigeben (Speicher)
+    canvas.width = 0; canvas.height = 0;
   }
 
-  // Lookup: Nur echte Bildspalten-Rechtecke (Breite ~220, ueber dem Artikel-Bild).
-  // Full-width Banner und Tabellenfelder werden ignoriert.
-  // Bei mehreren Treffern: das mit kleinster Mittenabweichung zur Text-Baseline.
-  const lookupColor = (page, y) => {
-    const rects = rectsByPage[page - 1] || [];
-    let bestCand = null, bestDist = Infinity;
-    for(const r of rects){
-      // Bildspalte: x0 ca. 60..90, x1 ca. 250..320, Breite > 150
-      const w = r.x1 - r.x0;
-      const isImageCol = (r.x0 < 95 && r.x1 > 240 && r.x1 < 330 && w > 150 && w < 280);
-      if(!isImageCol) continue;
-      // Y-Toleranz strikt: 4 Punkte (Baseline kann minimal ausserhalb liegen)
-      if(y < r.y0 - 4 || y > r.y1 + 4) continue;
-      const mid = (r.y0 + r.y1) / 2;
-      const d = Math.abs(y - mid);
-      if(d < bestDist){ bestDist = d; bestCand = r; }
-    }
-    return bestCand ? bestCand.name : null;
-  };
-
+  // lookupColor wird in dieser Strategie nicht mehr genutzt, aber Schnittstelle behalten
+  const lookupColor = () => null;
   return {lines, lineMeta, lookupColor, colorByArtno};
 }
 
