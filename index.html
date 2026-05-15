@@ -207,6 +207,7 @@
       <div class="control-grid" style="margin-top:14px">
         <div><label>Markt</label><select id="dispoMarketFilter" onchange="handleDispoMarketChange()"><option value="">Alle Märkte</option><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
         <div><label>Listentyp</label><select id="dispoListTypeFilter" onchange="handleDispoListTypeChange()"></select></div>
+        <div id="dispoSkzWrap" style="display:none"><label>SKZ</label><select id="dispoSkzFilter" onchange="renderDispo()"><option value="">Alle SKZ</option></select></div>
         <div><label>Sortierung</label><select id="dispoSort" onchange="renderDispo()">
           <option value="abteilung">Abteilung (Warengruppe)</option>
           <option value="regal">Regalplatz</option>
@@ -1916,7 +1917,10 @@ async function uploadOrdersatzPdf(){
       diag += `</div>`;
     });
     diag += `</div></details>`;
-    msg.innerHTML = `✅ ${inserted} Bestellartikel gespeichert. ${rows.reduce((s,r)=>s+(r.vk_artnos||[]).length,0)} verknüpfte Verkaufsartikel-Codes.${diag}`;
+    const totalVkCodes = rows.reduce((s,r)=>s+(r.vk_artnos||[]).length, 0);
+    const ekWithChildren = rows.filter(r => (r.vk_artnos||[]).length > 0).length;
+    const ekWithoutChildren = rows.length - ekWithChildren;
+    msg.innerHTML = `✅ ${inserted} Bestellartikel gespeichert · ${ekWithChildren} mit Verkaufsartikeln verknüpft${ekWithoutChildren > 0 ? `, <span style="color:#dc2626"><strong>${ekWithoutChildren} OHNE Verkaufsartikel</strong></span>` : ""} · ${totalVkCodes} Verkaufsartikel-Codes insgesamt.${diag}`;
     input.value = "";
     bestellState.ordersatz = []; // Cache invalidieren
   }catch(e){
@@ -3410,7 +3414,43 @@ async function fillDispoListTypeFilter(){
 function handleDispoListTypeChange(){
   const v = document.getElementById("dispoListTypeFilter").value;
   if(v) localStorage.setItem("dispoSelectedListType", v);
+  // SKZ-Filter nur fuer "Aktionsartikel ohne Regalplatz" und "Distributionsanalyse nach SKZ" zeigen
+  const showSkz = /Aktionsartikel_ohne_Regalplatz|Distributionsanalyse_nach_SKZ/.test(v || "");
+  const wrap = document.getElementById("dispoSkzWrap");
+  if(wrap) wrap.style.display = showSkz ? "" : "none";
+  // SKZ-Filter zuruecksetzen, wenn nicht passender Listentyp
+  if(!showSkz){
+    const sel = document.getElementById("dispoSkzFilter");
+    if(sel) sel.value = "";
+  }
   loadDispo();
+}
+
+// SKZ aus dispo_items.anmerkung extrahieren ("SKZ X" oder "SKZ XX")
+function dispoExtractSkz(anmerkung){
+  if(!anmerkung) return "";
+  const m = String(anmerkung).match(/\bSKZ\s+(\S+)/i);
+  return m ? m[1] : "";
+}
+
+// SKZ-Dropdown mit den unique Werten der aktuellen items befuellen
+function populateDispoSkzFilter(){
+  const sel = document.getElementById("dispoSkzFilter");
+  if(!sel) return;
+  const items = dispoState.items || [];
+  const skzSet = new Set();
+  items.forEach(it => { const s = dispoExtractSkz(it.anmerkung); if(s) skzSet.add(s); });
+  const skzs = Array.from(skzSet).sort((a,b) => {
+    // Numerisch wenn moeglich, sonst alphabetisch
+    const na = parseFloat(a), nb = parseFloat(b);
+    if(!isNaN(na) && !isNaN(nb)) return na - nb;
+    return a.localeCompare(b, "de");
+  });
+  const current = sel.value;
+  sel.innerHTML = `<option value="">Alle SKZ (${skzs.length})</option>` +
+    skzs.map(s => `<option value="${s}">${s}</option>`).join("");
+  // Auswahl wiederherstellen falls noch vorhanden
+  if(current && skzs.includes(current)) sel.value = current;
 }
 
 function handleDispoMarketChange(){
@@ -3456,6 +3496,13 @@ async function loadDispo(){
   });
   const latest = rows.filter(r => r.upload_seq === latestSeqByKey[`${r.market}||${r.list_type}`]);
   dispoState.items = latest;
+  // SKZ-Dropdown frisch befuellen (nur sichtbar bei passenden Listentypen)
+  populateDispoSkzFilter();
+  // Sichtbarkeit des SKZ-Filters anhand des aktuellen Listentyps neu setzen
+  const curLt = document.getElementById("dispoListTypeFilter").value || "";
+  const showSkz = /Aktionsartikel_ohne_Regalplatz|Distributionsanalyse_nach_SKZ/.test(curLt);
+  const skzWrap = document.getElementById("dispoSkzWrap");
+  if(skzWrap) skzWrap.style.display = showSkz ? "" : "none";
   // Dokumente IMMER alle laden (nicht nach Markt filtern - das passiert im Render)
   dispoState.documentsError = null;
   try{
@@ -3481,6 +3528,9 @@ function renderDispo(){
   const status = document.getElementById("dispoStatus").value;
   const search = (document.getElementById("dispoSearch").value || "").toLowerCase().trim();
   const sortMode = document.getElementById("dispoSort")?.value || "abteilung";
+  const skzFilter = (document.getElementById("dispoSkzFilter")?.value || "").trim();
+  const skzWrap = document.getElementById("dispoSkzWrap");
+  const skzActive = skzWrap && skzWrap.style.display !== "none" && skzFilter !== "";
   const items = dispoState.items || [];
   const now = Date.now();
   const filtered = items.filter(it => {
@@ -3488,6 +3538,11 @@ function renderDispo(){
     if(status === "open"){ if(it.in_cooldown) return false; if(it.done_date) return false; }
     else if(status === "done"){ if(!it.done_date) return false; const t = new Date(it.done_date).getTime(); if(now - t > 30*24*3600*1000) return false; }
     else if(status === "cooldown"){ if(!it.in_cooldown) return false; }
+    // SKZ-Filter (nur aktiv wenn passender Listentyp + Wert gewaehlt)
+    if(skzActive){
+      const itSkz = dispoExtractSkz(it.anmerkung);
+      if(itSkz !== skzFilter) return false;
+    }
     // Suche
     if(search){
       const hay = `${it.article_no||""} ${it.ean||""} ${it.article_text||""} ${it.warengruppe||""} ${it.anmerkung||""}`.toLowerCase();
