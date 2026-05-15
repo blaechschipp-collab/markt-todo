@@ -2134,12 +2134,9 @@ function renderBestellung(){
     let forecast = 0;
     childArtnos.forEach(art => {
       const pts = salesByArt[art] || [];
-      // Pro Tag in horizonDays: gewichteter Mittel der historischen (weekday, hour) Werte
       days.forEach(day => {
-        // Alle Stunden Mo-So zusammen für diesen Wochentag
         const dayPts = pts.filter(p => p.weekday === day.weekday);
         if(!dayPts.length) return;
-        // Gruppiere nach Stunde + gewichte
         const byHour = {};
         dayPts.forEach(p => {
           if(!byHour[p.hour]) byHour[p.hour] = {sum: 0, w: 0};
@@ -2152,8 +2149,14 @@ function renderBestellung(){
         });
       });
     });
-    const cartons = (o.pcs_per_carton && o.pcs_per_carton > 0) ? Math.ceil(forecast / o.pcs_per_carton) : 0;
-    return {...o, forecast, cartons};
+    // Stueck-pro-Karton: bevorzugt aus DB, sonst aus Name ableiten (Fallback ohne Re-Upload)
+    let pcs = (o.pcs_per_carton && o.pcs_per_carton > 0) ? o.pcs_per_carton : null;
+    if(!pcs){
+      const parsed = parsePcsFromOrdersatzName(o.name);
+      if(parsed && parsed > 0) pcs = parsed;
+    }
+    const cartons = pcs ? Math.ceil(forecast / pcs) : 0;
+    return {...o, forecast, cartons, pcs_per_carton_effective: pcs};
   });
   // Filter + Sortierung
   let visible = enriched;
@@ -2171,7 +2174,7 @@ function renderBestellung(){
     // Detaillierte Diagnose, warum nichts angezeigt wird
     const numOrdersatz = enriched.length;
     const withForecast = enriched.filter(x => x.forecast > 0).length;
-    const withPcs = enriched.filter(x => x.pcs_per_carton && x.pcs_per_carton > 0).length;
+    const withPcs = enriched.filter(x => x.pcs_per_carton_effective).length;
     const withChildren = enriched.filter(x => (x.vk_artnos || []).length > 0).length;
     const salesRowsForMarket = (backshopState.rows || []).filter(r => r.market === market).length;
     const uniqueSalesArtnos = new Set((backshopState.rows || []).filter(r => r.market === market).map(r => r.article_no)).size;
@@ -2214,28 +2217,30 @@ function renderBestellung(){
   // Gesamt-Summen
   const sumCartons = visible.reduce((s, x) => s + x.cartons, 0);
   const sumEK = visible.reduce((s, x) => s + (x.cartons * (Number(x.ek_price) || 0)), 0);
-  const noPcsCount = visible.filter(x => !(x.pcs_per_carton && x.pcs_per_carton > 0)).length;
+  const noPcsCount = visible.filter(x => !x.pcs_per_carton_effective).length;
   let html = `<div class="box"><h3 style="margin-top:0">📦 Bestellempfehlung für ${market}</h3>
     <div class="small">📦 Lieferung am <strong>${formatDateDE(deliveryDateISO)}</strong>, deckt <strong>${horizonDays} Verkaufstage</strong> bis <strong>${formatDateDE(lastDayISO)}</strong> ab (Sonntage und RLP-Feiertage werden übersprungen)</div>
     <div class="small" style="margin-top:6px">Gesamt: <strong>${sumCartons} Kartons</strong> · EK ca. <strong>${sumEK.toLocaleString("de-DE",{maximumFractionDigits:2})} €</strong> · ${visible.length} Artikel${noPcsCount > 0 ? ` · <span style="color:#dc2626">${noPcsCount} ohne Karton-Größe</span>` : ""}</div></div>`;
   if(noPcsCount > 0){
-    html += `<div class="box" style="background:#fef9c3;border:1px solid #fde68a"><div class="small">⚠️ Bei ${noPcsCount} Artikel(n) fehlt die Karton-Größe (z.B. "88X85G" im Namen). Diese werden als Stück-Schätzung angezeigt. Falls häufig, bitte den aktuellen Ordersatz neu hochladen — die Stückzahl-Erkennung wurde verbessert.</div></div>`;
+    html += `<div class="box" style="background:#fef9c3;border:1px solid #fde68a"><div class="small">⚠️ Bei ${noPcsCount} Artikel(n) konnte die Karton-Größe weder aus der Datenbank noch aus dem Namen ermittelt werden. Diese werden als Stück-Schätzung angezeigt.</div></div>`;
   }
   const barcodesToRender = [];
   visible.forEach(o => {
     const barcodeId = `bcord_${o.id || o.artno}`;
     if(o.ean) barcodesToRender.push({id: barcodeId, ean: o.ean});
-    const totalPcs = o.cartons * (o.pcs_per_carton || 0);
-    const noPcs = !(o.pcs_per_carton && o.pcs_per_carton > 0);
+    const pcsEff = o.pcs_per_carton_effective;
+    const totalPcs = o.cartons * (pcsEff || 0);
+    const noPcs = !pcsEff;
     const recommendVal = noPcs ? `~${Math.round(o.forecast)}` : `${o.cartons}`;
     const recommendSub = noPcs
       ? `Stück <span style="color:#dc2626">⚠ Karton-Größe unbekannt</span>`
-      : `${o.cartons === 1 ? "Karton" : "Kartons"}${o.pcs_per_carton ? " · " + totalPcs + " St." : ""}`;
+      : `${o.cartons === 1 ? "Karton" : "Kartons"} · ${totalPcs} St.`;
+    const eanDisp = (o.ean && o.ean !== "undefined") ? o.ean : "—";
     html += `<div class="bestell-card">
       <div class="bc-head">
         <div>
           <div class="bc-name">${o.name}</div>
-          <div class="bc-meta">Best.-Nr. ${o.artno} · EAN ${o.ean}${o.skz ? " · SKZ " + o.skz : ""}</div>
+          <div class="bc-meta">Best.-Nr. ${o.artno} · EAN ${eanDisp}${o.skz ? " · SKZ " + o.skz : ""}</div>
         </div>
         <div class="bc-recommend">
           <div class="lbl">Bestellen</div>
@@ -2244,7 +2249,7 @@ function renderBestellung(){
         </div>
       </div>
       <div class="bc-grid">
-        <div class="bc-cell"><div class="lbl">Karton</div><div class="val">${o.pcs_per_carton || "?"} St.</div></div>
+        <div class="bc-cell"><div class="lbl">Karton</div><div class="val">${pcsEff || "?"} St.</div></div>
         <div class="bc-cell"><div class="lbl">Erwart. Verkauf</div><div class="val">${Math.round(o.forecast)}</div></div>
         <div class="bc-cell"><div class="lbl">EK / Karton</div><div class="val">${(Number(o.ek_price) || 0).toLocaleString("de-DE",{maximumFractionDigits:2})} €</div></div>
       </div>
