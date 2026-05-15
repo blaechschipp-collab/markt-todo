@@ -1886,6 +1886,19 @@ async function uploadOrdersatzPdf(){
   }
 }
 
+function parsePcsFromOrdersatzName(name){
+  const upper = String(name || "").toUpperCase();
+  // Multipack: 12X4X56G  -> 12*4 = 48 Stueck (letzter Wert ist Gramm pro Stueck)
+  let m = upper.match(/(\d+)X(\d+)X(\d+)\s*G/);
+  if(m) return parseInt(m[1], 10) * parseInt(m[2], 10);
+  // Standard: 88X85G  -> 88 Stueck
+  m = upper.match(/(\d+)X(\d+)\s*G/);
+  if(m) return parseInt(m[1], 10);
+  // Ganze-Brot-Variante mit ST: B.SHOP VOLLK.BATZ.16ST 12,88KG -> 16 Stueck
+  m = upper.match(/(\d+)\s*ST(?:\W|$)/);
+  if(m) return parseInt(m[1], 10);
+  return null;
+}
 function parseOrdersatzLines(lines){
   // Wichtig: PDF.js fügt ein Leerzeichen vor "EK-Artikel" / "VK-Artikel" ein, deshalb \s* davor
   const ekRe = /^(.+?)\s+(\d{6,12})\s+(\d{8,14})\s+([\d,]+)\s+([\d,]+)\s+([\d,]+)\s*EK-Artikel\s*(\w*)\s*(.*)$/;
@@ -1908,9 +1921,7 @@ function parseOrdersatzLines(lines){
     let m = ln.match(ekRe);
     if(m){
       if(cur) blocks.push(cur);
-      let pcs = null;
-      const cm = m[1].toUpperCase().match(/(\d+)X(\d+)\s*G/);
-      if(cm) pcs = parseInt(cm[1], 10);
+      const pcs = parsePcsFromOrdersatzName(m[1]);
       cur = {
         name: m[1].trim(),
         artno: m[2],
