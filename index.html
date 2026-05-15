@@ -1930,14 +1930,18 @@ async function uploadOrdersatzPdf(){
 
 function parsePcsFromOrdersatzName(name){
   const upper = String(name || "").toUpperCase();
-  // Multipack: 12X4X56G  -> 12*4 = 48 Stueck (letzter Wert ist Gramm pro Stueck)
-  let m = upper.match(/(\d+)X(\d+)X(\d+)\s*G/);
+  // Toleranz fuer Leerzeichen / Sonderzeichen zwischen Zahlen und X
+  // Multipack: 12X4X56G / 12 X 4 X 56 G  -> 12*4 = 48 Stueck (letzter Wert ist Gramm pro Stueck)
+  let m = upper.match(/(\d+)\s*[X*×]\s*(\d+)\s*[X*×]\s*(\d+)\s*G/);
   if(m) return parseInt(m[1], 10) * parseInt(m[2], 10);
-  // Standard: 88X85G  -> 88 Stueck
-  m = upper.match(/(\d+)X(\d+)\s*G/);
+  // Standard: 88X85G / 88 X 85 G  -> 88 Stueck
+  m = upper.match(/(\d+)\s*[X*×]\s*(\d+)\s*G/);
   if(m) return parseInt(m[1], 10);
-  // Ganze-Brot-Variante mit ST: B.SHOP VOLLK.BATZ.16ST 12,88KG -> 16 Stueck
+  // ST-Variante: B.SHOP VOLLK.BATZ.16ST 12,88KG / 16 ST -> 16 Stueck
   m = upper.match(/(\d+)\s*ST(?:\W|$)/);
+  if(m) return parseInt(m[1], 10);
+  // Fallback: NxMG ohne G aber mit Komma im Gewicht: 80X1,1KG -> 80
+  m = upper.match(/(\d+)\s*[X*×]\s*\d+[,.]?\d*\s*KG/);
   if(m) return parseInt(m[1], 10);
   return null;
 }
@@ -2153,7 +2157,9 @@ function renderBestellung(){
   });
   // Filter + Sortierung
   let visible = enriched;
-  if(filterMode === "needed") visible = visible.filter(x => x.cartons > 0);
+  // "needed" = Artikel mit Bedarf. Wenn pcs_per_carton fehlt, ist cartons=0, daher
+  // zusaetzlich forecast > 0 erlauben (Bedarf vorhanden, Kartonanzahl unbekannt).
+  if(filterMode === "needed") visible = visible.filter(x => x.cartons > 0 || x.forecast > 0);
   if(searchRaw){
     visible = visible.filter(x => {
       const hay = `${x.name||""} ${x.artno||""} ${x.ean||""}`.toLowerCase();
@@ -2208,14 +2214,23 @@ function renderBestellung(){
   // Gesamt-Summen
   const sumCartons = visible.reduce((s, x) => s + x.cartons, 0);
   const sumEK = visible.reduce((s, x) => s + (x.cartons * (Number(x.ek_price) || 0)), 0);
+  const noPcsCount = visible.filter(x => !(x.pcs_per_carton && x.pcs_per_carton > 0)).length;
   let html = `<div class="box"><h3 style="margin-top:0">📦 Bestellempfehlung für ${market}</h3>
     <div class="small">📦 Lieferung am <strong>${formatDateDE(deliveryDateISO)}</strong>, deckt <strong>${horizonDays} Verkaufstage</strong> bis <strong>${formatDateDE(lastDayISO)}</strong> ab (Sonntage und RLP-Feiertage werden übersprungen)</div>
-    <div class="small" style="margin-top:6px">Gesamt: <strong>${sumCartons} Kartons</strong> · EK ca. <strong>${sumEK.toLocaleString("de-DE",{maximumFractionDigits:2})} €</strong> · ${visible.length} Artikel</div></div>`;
+    <div class="small" style="margin-top:6px">Gesamt: <strong>${sumCartons} Kartons</strong> · EK ca. <strong>${sumEK.toLocaleString("de-DE",{maximumFractionDigits:2})} €</strong> · ${visible.length} Artikel${noPcsCount > 0 ? ` · <span style="color:#dc2626">${noPcsCount} ohne Karton-Größe</span>` : ""}</div></div>`;
+  if(noPcsCount > 0){
+    html += `<div class="box" style="background:#fef9c3;border:1px solid #fde68a"><div class="small">⚠️ Bei ${noPcsCount} Artikel(n) fehlt die Karton-Größe (z.B. "88X85G" im Namen). Diese werden als Stück-Schätzung angezeigt. Falls häufig, bitte den aktuellen Ordersatz neu hochladen — die Stückzahl-Erkennung wurde verbessert.</div></div>`;
+  }
   const barcodesToRender = [];
   visible.forEach(o => {
     const barcodeId = `bcord_${o.id || o.artno}`;
     if(o.ean) barcodesToRender.push({id: barcodeId, ean: o.ean});
     const totalPcs = o.cartons * (o.pcs_per_carton || 0);
+    const noPcs = !(o.pcs_per_carton && o.pcs_per_carton > 0);
+    const recommendVal = noPcs ? `~${Math.round(o.forecast)}` : `${o.cartons}`;
+    const recommendSub = noPcs
+      ? `Stück <span style="color:#dc2626">⚠ Karton-Größe unbekannt</span>`
+      : `${o.cartons === 1 ? "Karton" : "Kartons"}${o.pcs_per_carton ? " · " + totalPcs + " St." : ""}`;
     html += `<div class="bestell-card">
       <div class="bc-head">
         <div>
@@ -2224,8 +2239,8 @@ function renderBestellung(){
         </div>
         <div class="bc-recommend">
           <div class="lbl">Bestellen</div>
-          <div class="val">${o.cartons}</div>
-          <div class="sub">${o.cartons === 1 ? "Karton" : "Kartons"}${o.pcs_per_carton ? " · " + totalPcs + " St." : ""}</div>
+          <div class="val">${recommendVal}</div>
+          <div class="sub">${recommendSub}</div>
         </div>
       </div>
       <div class="bc-grid">
