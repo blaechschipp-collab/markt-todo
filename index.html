@@ -3218,67 +3218,17 @@ function artikelToBackprogramm(name){
   }
   return null; // unbekannt -> default Auftau
 }
-function ordersatzMatchSection(text){
-  if(!text) return null;
-  const t = text.trim();
-  for(const sec of ORDERSATZ_SECTIONS_BANNER){
-    for(const re of sec.patterns){
-      if(re.test(t)) return sec.key;
-    }
-  }
-  return null;
-}
-
 async function extractOrdersatzWithColors(pdf){
-  // Strategie:
-  // 1) Sektion via gelbe Banner-Ueberschrift (Brötchen, Laugengebäck, ...)
-  // 2) Aufbacken/Auftau via Edge-Pixel-Sampling am Rand der Bildspalte
-  //    (x=66 / x=280 — abseits vom Foto, wo der Hintergrund sichtbar ist)
-  //    Wenn vibrante Farbe -> aufbacken. Wenn grau/weiss -> Auftau.
-  // 3) Kombinierter Key: "<section>_bake" oder "<section>_auftau"
+  // Vereinfachung: nur noch Text-Extraktion. Die Backprogramm-Zuordnung erfolgt
+  // anhand des Artikelnamens via ARTIKEL_PATTERN_RULES — wesentlich zuverlaessiger
+  // als Pixel-Sampling im PDF.
   const lines = [];
   const lineMeta = [];
-  const colorByArtno = {};
+  const colorByArtno = {}; // wird im uploadOrdersatzPdf per Pattern-Match befuellt
   const TOL = 3;
-  const SCALE = 1.5;
-
-  const sectionMarkers = []; // [{page, y_pdf, key}]
-
-  // Hilfsfunktion: ist die Hintergrundfarbe an einer Edge-Position vibrante (= Backprogramm)?
-  // Wir sampeln am linken und rechten Rand der Bildspalte um die Y-Position der Artikelnr.
-  const detectBake = (imgData, W, H, cyArt) => {
-    const px = imgData.data;
-    const sampleXs = [66, 70, 274, 278].map(x => Math.round(x * SCALE));
-    let bakeVotes = 0;
-    let totalVotes = 0;
-    for(let dy = -12; dy <= 12; dy += 2){
-      const cy = Math.round(cyArt + dy);
-      if(cy < 0 || cy >= H) continue;
-      for(const cx of sampleXs){
-        if(cx < 0 || cx >= W) continue;
-        const idx = (cy * W + cx) * 4;
-        const r = px[idx], g = px[idx+1], b = px[idx+2];
-        // Weiss -> ignorieren
-        if(r > 245 && g > 245 && b > 245) continue;
-        // Schwarz (Textglyphen) -> ignorieren
-        if(r < 25 && g < 25 && b < 25) continue;
-        // Grau (217,217,217) oder andere Graustufen -> nicht-bake
-        const isGrey = (Math.abs(r-g) < 8 && Math.abs(g-b) < 8 && Math.abs(r-b) < 8);
-        if(isGrey){ totalVotes++; continue; }
-        // Vibrante Farbe -> bake
-        bakeVotes++;
-        totalVotes++;
-      }
-    }
-    // Mehrheitsentscheidung: wenn mindestens 25% der gueltigen Samples vibrante Farbe haben
-    if(totalVotes === 0) return false;
-    return (bakeVotes / totalVotes) >= 0.25;
-  };
 
   for(let p = 1; p <= pdf.numPages; p++){
     const page = await pdf.getPage(p);
-
-    // 1) Text + Y-Position je Zeile
     const content = await page.getTextContent();
     const items = (content.items || []).filter(it => it.str !== undefined && it.transform);
     items.sort((a,b) => {
@@ -3287,7 +3237,6 @@ async function extractOrdersatzWithColors(pdf){
       return a.transform[4] - b.transform[4];
     });
     let curItems = [], curY = null;
-    const pageLineRecords = [];
     const flush = () => {
       if(!curItems.length) return;
       const text = curItems.map(x => x.str).join(" ").replace(/\s+/g, " ").trim();
@@ -3295,7 +3244,6 @@ async function extractOrdersatzWithColors(pdf){
         const y = curItems[0].transform[5];
         lines.push(text);
         lineMeta.push({page: p, y});
-        pageLineRecords.push({text, y});
       }
       curItems = [];
     };
@@ -3306,63 +3254,9 @@ async function extractOrdersatzWithColors(pdf){
       curItems.push(it);
     }
     flush();
-
-    // 2) Sektions-Banner auf dieser Seite
-    for(const rec of pageLineRecords){
-      const key = ordersatzMatchSection(rec.text);
-      if(key){
-        sectionMarkers.push({page: p, y: rec.y, key});
-      }
-    }
-
-    // 3) Seite rendern fuer Edge-Pixel-Sampling
-    const viewport = page.getViewport({scale: SCALE});
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.ceil(viewport.width);
-    canvas.height = Math.ceil(viewport.height);
-    const ctx = canvas.getContext("2d", {willReadFrequently: true});
-    let imgData = null;
-    try{
-      await page.render({canvasContext: ctx, viewport}).promise;
-      imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    }catch(e){ /* Render-Fehler -> Bake-Erkennung uebersprungen */ }
-
-    // 4) Pro Artikelnummer: Sektion + Bake/Auftau zuordnen
-    for(const it of items){
-      const raw = (it.str || "").trim();
-      const stripped = raw.replace(/^\*|\*$/g, "");
-      if(!/^\d{10}$/.test(stripped)) continue;
-      const artno = stripped;
-      if(colorByArtno[artno]) continue;
-      const ay = it.transform[5];
-      // Sektion
-      let currentSection = null;
-      for(const sm of sectionMarkers){
-        if(sm.page < p || (sm.page === p && sm.y >= ay)){
-          currentSection = sm.key;
-        }
-      }
-      if(!currentSection) continue;
-      // Bake / Auftau
-      let isBake = false;
-      if(imgData){
-        const tx = pdfjsLib.Util.transform(viewport.transform, it.transform);
-        const cyArt = tx[5];
-        isBake = detectBake(imgData, canvas.width, canvas.height, cyArt);
-      }
-      // Tiefkuehl-Sektion ist konzeptionell immer Auftau – behalten wir aber als
-      // einzige Gruppe "tiefkuehl_bake" (siehe ORDERSATZ_SECTIONS-Liste, dort heisst
-      // der Titel "Tiefkühl (Auftau)") fuer konsistente Sortierung.
-      const finalSuffix = (currentSection === "tiefkuehl") ? "bake" : (isBake ? "bake" : "auftau");
-      colorByArtno[artno] = `${currentSection}_${finalSuffix}`;
-    }
-
-    // Canvas freigeben
-    canvas.width = 0; canvas.height = 0;
   }
-
   const lookupColor = () => null;
-  return {lines, lineMeta, lookupColor, colorByArtno, sectionMarkers};
+  return {lines, lineMeta, lookupColor, colorByArtno};
 }
 
 function dispoParseFEA(lines, ctx){
