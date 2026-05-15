@@ -1891,7 +1891,32 @@ async function uploadOrdersatzPdf(){
       if(r.error){ msg.innerHTML = `Fehler nach ${inserted} Zeilen: ${r.error.message}`; return; }
       inserted += slice.length;
     }
-    msg.innerHTML = `✅ ${inserted} Bestellartikel gespeichert (vorhandene wurden aktualisiert). ${rows.reduce((s,r)=>s+(r.vk_artnos||[]).length,0)} verknüpfte Verkaufsartikel-Codes.`;
+    // Diagnose: Liste pro Farbe ausklappen koennen
+    const colorTitles = {
+      yellow: "🟡 Brötchen (Gelb)", blue: "🔵 Blau", orange: "🟠 Orange",
+      pink: "🩷 Rosa / Beige", green: "🟢 Grün", darkgreen: "🟢 Dunkelgrün"
+    };
+    const grouped = {};
+    uniqueBlocks.forEach(b => {
+      const k = b.color || "_auftau";
+      if(!grouped[k]) grouped[k] = [];
+      grouped[k].push(b);
+    });
+    const order = ["yellow","orange","pink","blue","green","darkgreen","_auftau"];
+    let diag = `<details style="margin-top:10px"><summary style="cursor:pointer;color:#0284c7"><strong>📋 Diagnose: Farb-Zuordnung anzeigen (zum Prüfen)</strong></summary>`;
+    diag += `<div style="font-size:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px;margin-top:6px;max-height:500px;overflow-y:auto">`;
+    order.forEach(k => {
+      const items = grouped[k] || [];
+      if(!items.length) return;
+      const title = k === "_auftau" ? "🧊 Auftauartikel (kein Farbcode im PDF)" : (colorTitles[k] || k);
+      diag += `<div style="margin-bottom:10px"><strong>${title}</strong> (${items.length})<br>`;
+      items.forEach(b => {
+        diag += `<span style="display:inline-block;margin:2px 4px 2px 0;padding:2px 6px;background:#fff;border:1px solid #cbd5e1;border-radius:4px">${b.name} · ${b.artno}</span>`;
+      });
+      diag += `</div>`;
+    });
+    diag += `</div></details>`;
+    msg.innerHTML = `✅ ${inserted} Bestellartikel gespeichert. ${rows.reduce((s,r)=>s+(r.vk_artnos||[]).length,0)} verknüpfte Verkaufsartikel-Codes.${diag}`;
     input.value = "";
     bestellState.ordersatz = []; // Cache invalidieren
   }catch(e){
@@ -3078,21 +3103,24 @@ async function extractOrdersatzWithColors(pdf){
     rectsByPage.push(pageRects);
   }
 
-  // Lookup: y in PDF-User-Space (bottom-up). Wir suchen das Rechteck der Bildspalte
-  // (x ~ 60..285) das die Y-Position der EK-Zeile enthaelt.
+  // Lookup: Nur echte Bildspalten-Rechtecke (Breite ~220, ueber dem Artikel-Bild).
+  // Full-width Banner und Tabellenfelder werden ignoriert.
+  // Bei mehreren Treffern: das mit kleinster Mittenabweichung zur Text-Baseline.
   const lookupColor = (page, y) => {
     const rects = rectsByPage[page - 1] || [];
-    // bevorzugt: Bildspalten-Rechteck (x0 < 100, x1 < 320, breit genug)
-    let best = null;
+    let bestCand = null, bestDist = Infinity;
     for(const r of rects){
-      // Y muss innerhalb +/- 6 Punkten im Rechteck liegen (PDF.js Texty = baseline)
-      if(y < r.y0 - 6 || y > r.y1 + 6) continue;
-      // Bevorzugen: Bildspalte (kleines x0)
-      const isImageCol = (r.x0 < 100 && r.x1 < 320);
-      if(isImageCol) return r.name;
-      if(!best) best = r;
+      // Bildspalte: x0 ca. 60..90, x1 ca. 250..320, Breite > 150
+      const w = r.x1 - r.x0;
+      const isImageCol = (r.x0 < 95 && r.x1 > 240 && r.x1 < 330 && w > 150 && w < 280);
+      if(!isImageCol) continue;
+      // Y-Toleranz strikt: 4 Punkte (Baseline kann minimal ausserhalb liegen)
+      if(y < r.y0 - 4 || y > r.y1 + 4) continue;
+      const mid = (r.y0 + r.y1) / 2;
+      const d = Math.abs(y - mid);
+      if(d < bestDist){ bestDist = d; bestCand = r; }
     }
-    return best ? best.name : null;
+    return bestCand ? bestCand.name : null;
   };
 
   return {lines, lineMeta, lookupColor};
