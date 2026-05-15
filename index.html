@@ -2063,6 +2063,29 @@ async function undoLastBackshopBake(articleNo){
   await fetchBackshopBakedToday();
   renderBackshop();
 }
+async function resetBackshopBakeArticle(articleNo, articleName){
+  const market = document.getElementById("backshopMarket").value;
+  const today = berlinNow();
+  if(!confirm(`Alle heutigen Nachback-Eingaben für „${articleName}" zurücksetzen?\n\nDie Einträge werden komplett gelöscht.`)) return;
+  const r = await db.from("backshop_baked").delete()
+    .eq("market", market)
+    .eq("date", today.dateISO)
+    .eq("article_no", articleNo);
+  if(r.error){ alert("Fehler: " + r.error.message); return; }
+  await fetchBackshopBakedToday();
+  renderBackshop();
+}
+async function resetBackshopBakeAll(){
+  const market = document.getElementById("backshopMarket").value;
+  const today = berlinNow();
+  if(!confirm(`Wirklich ALLE heutigen Nachback-Eingaben für ${market} (${formatDateDE(today.dateISO)}) zurücksetzen?\n\nDie Einträge aller Artikel werden komplett gelöscht.`)) return;
+  const r = await db.from("backshop_baked").delete()
+    .eq("market", market)
+    .eq("date", today.dateISO);
+  if(r.error){ alert("Fehler: " + r.error.message); return; }
+  await fetchBackshopBakedToday();
+  renderBackshop();
+}
 function renderBackshop(){
   const market = document.getElementById("backshopMarket").value;
   const weekday = document.getElementById("backshopWeekday").value;
@@ -2173,6 +2196,8 @@ function renderBackshop(){
   const totalToday = visibleArticles.reduce((s, a) => s + a.todayLeft, 0);
   const totalNext3 = visibleArticles.reduce((s, a) => s + a.next3, 0);
   const totalTomMorning = visibleArticles.reduce((s, a) => s + a.tomMorning, 0);
+  // Wieviele Eingaben gab es heute insgesamt?
+  const totalBakedToday = (backshopState.bakedToday || []).reduce((s, b) => s + (Number(b.qty) || 0), 0);
   summary.innerHTML = `<div class="bs-headline">
     <div class="bs-bigcard">
       <div class="bs-lbl">Nächste ${BACKSHOP_HORIZON_HOURS} Stunden</div>
@@ -2190,6 +2215,10 @@ function renderBackshop(){
       <div class="bs-sub">${tomorrowWeekday} ${String(tomMorningFrom).padStart(2,"0")}:00 bis ${String(tomMorningTo).padStart(2,"0")}:59</div>
       <div class="bs-hint">→ Empfehlungen für morgen ansehen</div>
     </div>
+  </div>
+  <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+    <div class="small">🔥 <strong>${totalBakedToday}</strong> Stück bereits heute nachgebacken (alle Artikel zusammen)</div>
+    <button class="btn-red" style="width:auto;padding:8px 14px;font-size:13px" onclick="resetBackshopBakeAll()">🔄 Alle Nachback-Eingaben heute zurücksetzen</button>
   </div>`;
   // Stunden ab jetzt - die Vergangenheit wird nicht angezeigt
   const fromHour = Math.max(currentHour, minHour);
@@ -2256,12 +2285,13 @@ function renderBackshop(){
       mobile += `</div>`;
       // Nachback-Auswahlraster pro Artikel
       const artNoEsc = (a.article_no || "").replace(/'/g, "\\'");
+      const artNameEsc = (a.article_name || a.article_no || "").replace(/'/g, "\\'");
       mobile += `<div class="bs-bake-section">
         <div class="bs-bake-title"><span>🔥 Nachbacken vermerken</span><span class="bs-bake-counter">Heute: ${baked} St.</span></div>
         <div class="bs-bake-buttons">
           ${BACKSHOP_BAKE_OPTIONS.map(q => `<button class="bs-bake-btn" onclick="recordBackshopBake('${artNoEsc}', ${q})">+${q}</button>`).join("")}
         </div>
-        ${baked > 0 ? `<button class="bs-bake-undo" onclick="undoLastBackshopBake('${artNoEsc}')">↶ Letzten Eintrag löschen</button>` : ""}
+        ${baked > 0 ? `<div style="display:flex;gap:12px;margin-top:6px;justify-content:flex-end"><button class="bs-bake-undo" onclick="undoLastBackshopBake('${artNoEsc}')">↶ Letzte rückgängig</button><button class="bs-bake-undo" style="color:var(--red)" onclick="resetBackshopBakeArticle('${artNoEsc}','${artNameEsc}')">🔄 Alles für diesen Artikel zurücksetzen</button></div>` : ""}
       </div>`;
       mobile += `</div>`;
     });
