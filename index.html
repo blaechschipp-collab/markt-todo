@@ -1874,7 +1874,7 @@ async function uploadOrdersatzPdf(){
     uniqueBlocks.forEach(b => { const c = b.color || "—"; colorStats[c] = (colorStats[c] || 0) + 1; });
     const colorSummary = Object.keys(colorStats).map(c => `${c}:${colorStats[c]}`).join(", ");
     msg.innerHTML = `Speichere ${uniqueBlocks.length} Bestellartikel${droppedDuplicates > 0 ? " (" + droppedDuplicates + " Duplikate übersprungen)" : ""} ... <span class="small">(Farben: ${colorSummary})</span>`;
-    const rows = uniqueBlocks.map(b => ({
+    const rowsBase = uniqueBlocks.map(b => ({
       ean: b.ean,
       artno: b.artno,
       name: b.name,
@@ -1883,18 +1883,29 @@ async function uploadOrdersatzPdf(){
       vk_carton: b.uvp_carton,
       spanne_pct: b.spanne,
       skz: b.skz || null,
-      color: b.color || null,
       vk_artnos: (b.children || []).map(c => c.artno)
     }));
-    // Upsert: vorhandene Bestellartikel aktualisieren, neue einfügen (Konflikt-Spalte ist artno)
+    const rowsWithColor = uniqueBlocks.map((b, i) => ({...rowsBase[i], color: b.color || null}));
+    // Upsert: erstmal MIT color versuchen; falls Spalte nicht existiert -> ohne color
     const BATCH = 200;
     let inserted = 0;
-    for(let i = 0; i < rows.length; i += BATCH){
-      const slice = rows.slice(i, i + BATCH);
+    let useColorColumn = true;
+    for(let i = 0; i < rowsBase.length; i += BATCH){
+      const slice = (useColorColumn ? rowsWithColor : rowsBase).slice(i, i + BATCH);
       const r = await db.from("ordersatz_items").upsert(slice, {onConflict: "artno"});
-      if(r.error){ msg.innerHTML = `Fehler nach ${inserted} Zeilen: ${r.error.message}`; return; }
+      if(r.error){
+        // Wenn color-Spalte fehlt: ohne color nochmal versuchen
+        if(useColorColumn && /column .*color.* does not exist/i.test(r.error.message)){
+          useColorColumn = false;
+          i -= BATCH; // Diesen Batch wiederholen
+          continue;
+        }
+        msg.innerHTML = `Fehler nach ${inserted} Zeilen: ${r.error.message}`;
+        return;
+      }
       inserted += slice.length;
     }
+    const rows = useColorColumn ? rowsWithColor : rowsBase;
     // Diagnose: Liste pro Sektion ausklappen koennen
     const colorTitles = {};
     ORDERSATZ_SECTIONS.forEach(s => { colorTitles[s.key] = s.title; });
@@ -1921,22 +1932,18 @@ async function uploadOrdersatzPdf(){
     const totalVkCodes = rows.reduce((s,r)=>s+(r.vk_artnos||[]).length, 0);
     const ekWithChildren = rows.filter(r => (r.vk_artnos||[]).length > 0).length;
     const ekWithoutChildren = rows.length - ekWithChildren;
-    // Zusaetzlich: alle Artikel-Farben (EK + VK) in die ordersatz_article_colors Tabelle speichern
-    // Damit kann Backshop direkt per artno auf die Farbe zugreifen
+    // Zusaetzlich: colorByArtno (EK + VK Artikelnummern -> Farbgruppe) als JSON in app_settings.
+    // Vorteil: keine eigene Tabelle noetig — die app_settings-Tabelle existiert bereits.
     let colorRowsSaved = 0;
     let colorErr = null;
     try{
-      const colorRows = Object.entries(colorByArtno).map(([artno, color]) => ({artno, color}));
-      const COLOR_BATCH = 500;
-      for(let i = 0; i < colorRows.length; i += COLOR_BATCH){
-        const slice = colorRows.slice(i, i + COLOR_BATCH);
-        const r = await db.from("ordersatz_article_colors").upsert(slice, {onConflict: "artno"});
-        if(r.error){ colorErr = r.error.message; break; }
-        colorRowsSaved += slice.length;
-      }
+      const json = JSON.stringify(colorByArtno || {});
+      const r = await db.from("app_settings").upsert({key: "ordersatz_color_map", value: json}, {onConflict: "key"});
+      if(r.error){ colorErr = r.error.message; }
+      else { colorRowsSaved = Object.keys(colorByArtno || {}).length; }
     }catch(e){ colorErr = e.message || String(e); }
     const colorInfo = colorErr
-      ? ` · <span style="color:#dc2626">Farbtabelle-Fehler: ${colorErr}</span>`
+      ? ` · <span style="color:#dc2626">Farb-Map-Fehler: ${colorErr}</span>`
       : ` · ${colorRowsSaved} Artikel-Farben gespeichert`;
     msg.innerHTML = `✅ ${inserted} Bestellartikel gespeichert · ${ekWithChildren} mit Verkaufsartikeln verknüpft${ekWithoutChildren > 0 ? `, <span style="color:#dc2626"><strong>${ekWithoutChildren} OHNE Verkaufsartikel</strong></span>` : ""} · ${totalVkCodes} Verkaufsartikel-Codes insgesamt${colorInfo}.${diag}`;
     input.value = "";
@@ -2074,10 +2081,11 @@ async function loadBestellung(){
   if(!bestellState.ordersatz || !bestellState.ordersatz.length){
     content.innerHTML = `<div class="box">Lade Ordersatz ...</div>`;
     try{
+      // select("*") ist robust gegen Schema-Veraenderungen
       const data = await fetchAllPaged(()=>db.from("ordersatz_items").select("*"));
       bestellState.ordersatz = data || [];
     }catch(e){
-      content.innerHTML = `<div class="box">Fehler beim Laden: ${e.message || e}</div>`;
+      content.innerHTML = `<div class="box">Fehler beim Laden des Ordersatzes: ${e.message || e}<br><span class="small">Bitte im Admin-Bereich den Ordersatz-PDF neu hochladen.</span></div>`;
       return;
     }
   }
@@ -2590,36 +2598,51 @@ async function fetchBackshopBakedToday(){
 }
 async function fetchBackshopOrdersatzMap(){
   // VK-Artikelnr → {color, skz, parentName}
-  // Quelle 1 (bevorzugt): ordersatz_article_colors – direkter artno→color Lookup
-  // Quelle 2 (Fallback): ordersatz_items.vk_artnos array
+  // Quellen:
+  //   1) app_settings("ordersatz_color_map") – direkter artno→color Lookup (bevorzugt)
+  //   2) ordersatz_items.vk_artnos array (Fallback fuer skz + parent)
+  // Falls (1) fehlt, wird (2) als Notnagel genutzt (color kommt dann von ordersatz_items.color).
   try{
     if(!bestellState.ordersatz || !bestellState.ordersatz.length){
-      const data = await fetchAllPaged(()=>db.from("ordersatz_items").select("artno,name,vk_artnos,skz,color"));
+      let data = null;
+      try{
+        data = await fetchAllPaged(()=>db.from("ordersatz_items").select("artno,name,vk_artnos,skz,color"));
+      }catch(e){
+        // color-Spalte existiert vielleicht noch nicht -> ohne color
+        data = await fetchAllPaged(()=>db.from("ordersatz_items").select("artno,name,vk_artnos,skz"));
+      }
       bestellState.ordersatz = data || [];
     }
     const map = {};
-    // Fallback ueber vk_artnos (skz + parent-Name kommt von hier)
+    // Basis aus vk_artnos: skz, parent-Name, color (vom EK)
     (bestellState.ordersatz || []).forEach(o => {
       const skz = (o.skz || "").toString().trim() || "—";
       const color = (o.color || "").toString().trim() || null;
       (o.vk_artnos || []).forEach(va => { map[va] = {skz, color, parent: o.name || ""}; });
+      // EK-Artikel selbst auch eintragen (zur Sicherheit)
+      if(o.artno && !map[o.artno]) map[o.artno] = {skz, color, parent: o.name || ""};
     });
-    // Direkter Lookup pro Artikelnummer aus ordersatz_article_colors
+    // Farb-Map aus app_settings laden (genau pro Artikelnummer, EK + VK)
     if(!backshopState.colorByArtno){
+      backshopState.colorByArtno = {};
       try{
-        const colorData = await fetchAllPaged(()=>db.from("ordersatz_article_colors").select("artno,color"));
-        const cmap = {};
-        (colorData || []).forEach(r => { if(r.artno) cmap[r.artno] = r.color; });
-        backshopState.colorByArtno = cmap;
-      }catch(e){ backshopState.colorByArtno = {}; }
+        const cr = await db.from("app_settings").select("value").eq("key", "ordersatz_color_map").maybeSingle();
+        if(cr.data && cr.data.value){
+          try{ backshopState.colorByArtno = JSON.parse(cr.data.value) || {}; }
+          catch(e){ backshopState.colorByArtno = {}; }
+        }
+      }catch(e){ /* ignorieren, Fallback wird genutzt */ }
     }
-    // Direkte Farben in die Map ueberschreiben (haben Prioritaet)
+    // Farben aus app_settings haben Prioritaet (genau pro artno)
     Object.entries(backshopState.colorByArtno || {}).forEach(([artno, color]) => {
       if(map[artno]) map[artno].color = color;
       else map[artno] = {skz: "—", color, parent: ""};
     });
     backshopState.skzByVkArt = map;
-  }catch(e){ backshopState.skzByVkArt = {}; }
+  }catch(e){
+    console.error("fetchBackshopOrdersatzMap error:", e);
+    backshopState.skzByVkArt = {};
+  }
 }
 function backshopColorLabel(color){
   // Sektions-Keys aus dem PDF-Ordersatz (gelbe Banner-Ueberschriften)
