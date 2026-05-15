@@ -2162,7 +2162,47 @@ function renderBestellung(){
   }
   visible.sort((a, b) => b.forecast - a.forecast || a.name.localeCompare(b.name, "de"));
   if(!visible.length){
-    content.innerHTML = `<div class="box">${searchRaw ? "Keine Treffer für „" + searchRaw + "\"." : "Keine Bestellempfehlung für diesen Markt im gewählten Zeitraum."}</div>`;
+    // Detaillierte Diagnose, warum nichts angezeigt wird
+    const numOrdersatz = enriched.length;
+    const withForecast = enriched.filter(x => x.forecast > 0).length;
+    const withPcs = enriched.filter(x => x.pcs_per_carton && x.pcs_per_carton > 0).length;
+    const withChildren = enriched.filter(x => (x.vk_artnos || []).length > 0).length;
+    const salesRowsForMarket = (backshopState.rows || []).filter(r => r.market === market).length;
+    const uniqueSalesArtnos = new Set((backshopState.rows || []).filter(r => r.market === market).map(r => r.article_no)).size;
+    // VK-Artnos im Ordersatz vs. Sales (Schnittmenge)
+    const allChildArtnos = new Set();
+    enriched.forEach(o => (o.vk_artnos || []).forEach(a => allChildArtnos.add(a)));
+    const salesArtnoSet = new Set((backshopState.rows || []).filter(r => r.market === market).map(r => r.article_no));
+    const matchingArtnos = [...allChildArtnos].filter(a => salesArtnoSet.has(a)).length;
+    let diag = `<div class="box">`;
+    if(searchRaw){
+      diag += `Keine Treffer für „${searchRaw}".`;
+    } else {
+      diag += `<h3 style="margin-top:0;color:#dc2626">⚠️ Keine Bestellempfehlung verfügbar</h3>`;
+      diag += `<div class="small" style="margin-bottom:10px">Diagnose für <strong>${market}</strong>:</div>`;
+      diag += `<ul style="font-size:13px;line-height:1.6;margin:0;padding-left:20px">`;
+      diag += `<li>Ordersatz-Artikel insgesamt: <strong>${numOrdersatz}</strong></li>`;
+      diag += `<li>Davon mit Verkaufsartikeln verknüpft: <strong${withChildren < numOrdersatz ? ' style="color:#dc2626"' : ''}>${withChildren}</strong></li>`;
+      diag += `<li>Davon mit "Stück pro Karton" (pcs_per_carton): <strong${withPcs < numOrdersatz ? ' style="color:#dc2626"' : ''}>${withPcs}</strong></li>`;
+      diag += `<li>Davon mit Verkaufsprognose &gt; 0: <strong${withForecast === 0 ? ' style="color:#dc2626"' : ''}>${withForecast}</strong></li>`;
+      diag += `<li>Backshop-Sales-Datensätze für ${market}: <strong${salesRowsForMarket === 0 ? ' style="color:#dc2626"' : ''}>${salesRowsForMarket}</strong></li>`;
+      diag += `<li>Unique VK-Artikel-Nrn in den Sales (${market}): <strong>${uniqueSalesArtnos}</strong></li>`;
+      diag += `<li>Schnittmenge: VK-Artikel-Nrn im Ordersatz, die auch in Sales vorkommen: <strong${matchingArtnos === 0 ? ' style="color:#dc2626"' : ''}>${matchingArtnos}</strong></li>`;
+      diag += `</ul>`;
+      diag += `<div class="small" style="margin-top:12px;padding:8px;background:#fef9c3;border-radius:6px">`;
+      if(matchingArtnos === 0 && allChildArtnos.size > 0 && salesRowsForMarket > 0){
+        diag += `🔑 <strong>Wahrscheinliche Ursache:</strong> die VK-Artikel-Nummern aus dem Ordersatz matchen nicht mit denen in den Backshop-Sales. Beispiel Ordersatz-VK-Nrn: <code>${[...allChildArtnos].slice(0, 5).join(", ")}</code> · Beispiel Sales-VK-Nrn: <code>${[...salesArtnoSet].slice(0, 5).join(", ")}</code>`;
+      } else if(salesRowsForMarket === 0){
+        diag += `🔑 <strong>Wahrscheinliche Ursache:</strong> Keine Verkaufshistorie für diesen Markt. Backshop-Verkäufe als Excel im Admin-Bereich hochladen.`;
+      } else if(withPcs < numOrdersatz / 2){
+        diag += `🔑 <strong>Wahrscheinliche Ursache:</strong> Bei vielen Artikeln fehlt die "Stück pro Karton"-Angabe – der Karton-Bedarf kann nicht berechnet werden. Filter oben auf "Alle Ordersatz-Artikel" umstellen, um trotzdem alle zu sehen.`;
+      } else {
+        diag += `🔑 Versuch: Filter "Anzeigen" oben auf <strong>"Alle Ordersatz-Artikel"</strong> umstellen.`;
+      }
+      diag += `</div>`;
+    }
+    diag += `</div>`;
+    content.innerHTML = diag;
     return;
   }
   // Gesamt-Summen
@@ -3433,24 +3473,51 @@ function dispoExtractSkz(anmerkung){
   return m ? m[1] : "";
 }
 
-// SKZ-Dropdown mit den unique Werten der aktuellen items befuellen
+// SKZ-Dropdown als Kumulativ-Filter ("bis X") befuellen
 function populateDispoSkzFilter(){
   const sel = document.getElementById("dispoSkzFilter");
   if(!sel) return;
   const items = dispoState.items || [];
-  const skzSet = new Set();
-  items.forEach(it => { const s = dispoExtractSkz(it.anmerkung); if(s) skzSet.add(s); });
-  const skzs = Array.from(skzSet).sort((a,b) => {
-    // Numerisch wenn moeglich, sonst alphabetisch
-    const na = parseFloat(a), nb = parseFloat(b);
-    if(!isNaN(na) && !isNaN(nb)) return na - nb;
-    return a.localeCompare(b, "de");
+  // Alle numerischen SKZ-Werte sammeln, um das Maximum zu kennen
+  let maxSkz = 0;
+  let hasAny = false;
+  items.forEach(it => {
+    const s = dispoExtractSkz(it.anmerkung);
+    if(/^\d+$/.test(s)){
+      hasAny = true;
+      const n = parseInt(s, 10);
+      if(n > maxSkz) maxSkz = n;
+    }
   });
+  // Optionen "bis 0", "bis 1" ... "bis maxSkz", "alle"
   const current = sel.value;
-  sel.innerHTML = `<option value="">Alle SKZ (${skzs.length})</option>` +
-    skzs.map(s => `<option value="${s}">${s}</option>`).join("");
-  // Auswahl wiederherstellen falls noch vorhanden
-  if(current && skzs.includes(current)) sel.value = current;
+  let html = "";
+  // Counts pro Schwelle berechnen
+  const countUpTo = (limit) => items.filter(it => {
+    const s = dispoExtractSkz(it.anmerkung);
+    if(!/^\d+$/.test(s)) return false;
+    return parseInt(s, 10) <= limit;
+  }).length;
+  if(hasAny){
+    for(let i = 0; i <= maxSkz; i++){
+      html += `<option value="bis-${i}">bis ${i} (${countUpTo(i)})</option>`;
+    }
+  }
+  html += `<option value="">Alle SKZ${hasAny ? " (" + items.length + ")" : ""}</option>`;
+  sel.innerHTML = html;
+  // Standard: "bis 3", sonst hoechste verfuegbare Schwelle <= 3
+  let target = current;
+  if(!target){
+    target = "bis-3";
+    // Wenn keine Items oder 3 nicht existiert, hoechste verfuegbare nehmen
+    if(!hasAny) target = "";
+    else if(maxSkz < 3) target = `bis-${maxSkz}`;
+  }
+  // Validieren, dass die Option existiert
+  if(target && !Array.from(sel.options).some(o => o.value === target)){
+    target = hasAny ? `bis-${Math.min(3, maxSkz)}` : "";
+  }
+  sel.value = target;
 }
 
 function handleDispoMarketChange(){
@@ -3541,7 +3608,14 @@ function renderDispo(){
     // SKZ-Filter (nur aktiv wenn passender Listentyp + Wert gewaehlt)
     if(skzActive){
       const itSkz = dispoExtractSkz(it.anmerkung);
-      if(itSkz !== skzFilter) return false;
+      // "bis-N" => alle Items mit numerischem SKZ <= N
+      if(/^bis-(\d+)$/.test(skzFilter)){
+        const limit = parseInt(skzFilter.replace("bis-", ""), 10);
+        if(!/^\d+$/.test(itSkz)) return false;
+        if(parseInt(itSkz, 10) > limit) return false;
+      } else if(itSkz !== skzFilter){
+        return false;
+      }
     }
     // Suche
     if(search){
