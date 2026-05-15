@@ -68,10 +68,13 @@
     .bs-color-header .bs-color-count{font-weight:normal;font-size:13px;opacity:.85}
     .bs-color-yellow{background:#fff200}
     .bs-color-blue{background:#8db4e2;color:#0c1f3c}
+    .bs-color-blue-2{background:#4f81bd;color:#fff}
     .bs-color-orange{background:#ffc000}
     .bs-color-pink{background:#e6b8b7}
+    .bs-color-pink-2{background:#d99694;color:#fff}
     .bs-color-green{background:#92d050}
     .bs-color-darkgreen{background:#00b050;color:#fff}
+    .bs-color-violet{background:#9b59b6;color:#fff}
     .bs-color-none{background:#e2e8f0}
     .sub-tabs{display:flex;gap:8px;margin-bottom:14px}
     .sub-tab{flex:1;background:#fff;border:2px solid var(--yellow);color:var(--blue-dark);padding:12px 16px;border-radius:10px;cursor:pointer;font-weight:bold;font-size:15px;transition:background .15s ease}
@@ -1892,18 +1895,16 @@ async function uploadOrdersatzPdf(){
       if(r.error){ msg.innerHTML = `Fehler nach ${inserted} Zeilen: ${r.error.message}`; return; }
       inserted += slice.length;
     }
-    // Diagnose: Liste pro Farbe ausklappen koennen
-    const colorTitles = {
-      yellow: "🟡 Brötchen (Gelb)", blue: "🔵 Blau", orange: "🟠 Orange",
-      pink: "🩷 Rosa / Beige", green: "🟢 Grün", darkgreen: "🟢 Dunkelgrün"
-    };
+    // Diagnose: Liste pro Sektion ausklappen koennen
+    const colorTitles = {};
+    ORDERSATZ_SECTIONS.forEach(s => { colorTitles[s.key] = s.title; });
     const grouped = {};
     uniqueBlocks.forEach(b => {
       const k = b.color || "_auftau";
       if(!grouped[k]) grouped[k] = [];
       grouped[k].push(b);
     });
-    const order = ["yellow","orange","pink","blue","green","darkgreen","_auftau"];
+    const order = [...ORDERSATZ_SECTIONS.map(s => s.key), "_auftau"];
     let diag = `<details style="margin-top:10px"><summary style="cursor:pointer;color:#0284c7"><strong>📋 Diagnose: Farb-Zuordnung anzeigen (zum Prüfen)</strong></summary>`;
     diag += `<div style="font-size:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:10px;margin-top:6px;max-height:500px;overflow-y:auto">`;
     order.forEach(k => {
@@ -2586,23 +2587,20 @@ async function fetchBackshopOrdersatzMap(){
   }catch(e){ backshopState.skzByVkArt = {}; }
 }
 function backshopColorLabel(color){
-  // Farben aus dem PDF-Ordersatz = Backprogramme im Kuehlhaus
-  // "Ohne Farbcodierung" im PDF = Auftauartikel
-  const map = {
-    yellow:    {title: "🟡 Brötchen",       cls: "bs-color-yellow"},
-    blue:      {title: "🔵 Blau",           cls: "bs-color-blue"},
-    orange:    {title: "🟠 Orange",         cls: "bs-color-orange"},
-    pink:      {title: "🩷 Rosa / Beige",   cls: "bs-color-pink"},
-    green:     {title: "🟢 Grün",           cls: "bs-color-green"},
-    darkgreen: {title: "🟢 Dunkelgrün",     cls: "bs-color-darkgreen"}
-  };
-  return map[color] || {title: "🧊 Auftauartikel", cls: "bs-color-none"};
+  // Sektions-Keys aus dem PDF-Ordersatz (gelbe Banner-Ueberschriften)
+  if(color && typeof ORDERSATZ_SECTIONS !== "undefined"){
+    const sec = ORDERSATZ_SECTIONS.find(s => s.key === color);
+    if(sec) return {title: sec.title, cls: sec.cls};
+  }
+  return {title: "🧊 Auftauartikel", cls: "bs-color-none"};
 }
 function backshopColorOrder(color){
-  // Reihenfolge im Kuehlhaus: Broetchen (Gelb) zuerst, dann Backprogramme,
-  // Auftauartikel zuletzt
-  const order = {yellow: 1, orange: 2, pink: 3, blue: 4, green: 5, darkgreen: 6};
-  return order[color] || 99;
+  // Reihenfolge im Kuehlhaus: gleiche Reihenfolge wie die Sektionen im PDF
+  if(color && typeof ORDERSATZ_SECTIONS !== "undefined"){
+    const idx = ORDERSATZ_SECTIONS.findIndex(s => s.key === color);
+    if(idx >= 0) return idx + 1;
+  }
+  return 99;
 }
 async function recordBackshopBake(articleNo, qty){
   const market = document.getElementById("backshopMarket").value;
@@ -3009,20 +3007,129 @@ function ordersatzColorNameFromRgb(rgb){
   return null;
 }
 
+// Sektions-Erkennung im Ordersatz-PDF: gelbe Banner-Ueberschriften
+// Pro Sektion gibt es zwei Varianten: _bake (Aufbacken, farbiger Hintergrund hinter Bild)
+// und _auftau (Auftauartikel, grauer Hintergrund hinter Bild)
+const ORDERSATZ_SECTIONS_BANNER = [
+  {key: "broetchen",        title: "🟡 Brötchen",                patterns: [/^br(ö|oe)tchen\b/i] },
+  {key: "bio",              title: "🌱 BIO Artikel",             patterns: [/^bio artikel/i] },
+  {key: "laugen",           title: "🥨 Laugengebäck",            patterns: [/^laugengeb(ä|ae)ck/i] },
+  {key: "croissants",       title: "🥐 Croissants",              patterns: [/^croissants\b/i] },
+  {key: "suesse_teilchen",  title: "🍩 Süße Teilchen",           patterns: [/^s(ü|ue)(ß|ss)e teilchen/i] },
+  {key: "herzhafte_snacks", title: "🥪 Herzhafte Snacks",        patterns: [/^herzhafte snacks/i] },
+  {key: "baguette",         title: "🥖 Baguette",                patterns: [/^baguette\b/i] },
+  {key: "brote",            title: "🍞 Brote",                   patterns: [/^brote\b/i] },
+  {key: "veredelung",       title: "✨ Veredelungsartikel",      patterns: [/^veredelungsartikel/i] },
+  {key: "tiefkuehl",        title: "🧊 Tiefkühl Ordersatz",      patterns: [/folgende artikel sind (ü|ue)ber den tiefk(ü|ue)hl/i] }
+];
+
+// Anzeige-Reihenfolge der kombinierten Gruppen (Sektion + Bake/Auftau)
+// Aufbacken-Gruppen kommen vor Auftau-Gruppen
+const ORDERSATZ_SECTIONS = (() => {
+  const out = [];
+  const bakeIcons = {
+    broetchen: "🟡 Brötchen (aufbacken)",
+    bio: "🌱 BIO (aufbacken)",
+    laugen: "🥨 Laugengebäck (aufbacken)",
+    croissants: "🥐 Croissants (aufbacken)",
+    suesse_teilchen: "🍩 Süße Teilchen (aufbacken)",
+    herzhafte_snacks: "🥪 Herzhafte Snacks (aufbacken)",
+    baguette: "🥖 Baguette (aufbacken)",
+    brote: "🍞 Brote (aufbacken)",
+    veredelung: "✨ Veredelung (aufbacken)",
+    tiefkuehl: "🧊 Tiefkühl (Auftau)"
+  };
+  const auftauIcons = {
+    broetchen: "🧊 Brötchen (Auftau)",
+    bio: "🧊 BIO (Auftau)",
+    laugen: "🧊 Laugengebäck (Auftau)",
+    croissants: "🧊 Croissants (Auftau)",
+    suesse_teilchen: "🧊 Süße Teilchen (Auftau)",
+    herzhafte_snacks: "🧊 Herzhafte Snacks (Auftau)",
+    baguette: "🧊 Baguette (Auftau)",
+    brote: "🧊 Brote (Auftau)",
+    veredelung: "🧊 Veredelung (Auftau)",
+    tiefkuehl: "🧊 Tiefkühl (Auftau)"
+  };
+  const clsBake = {
+    broetchen: "bs-color-yellow", bio: "bs-color-green",
+    laugen: "bs-color-darkgreen", croissants: "bs-color-blue",
+    suesse_teilchen: "bs-color-pink", herzhafte_snacks: "bs-color-blue-2",
+    baguette: "bs-color-pink-2", brote: "bs-color-orange",
+    veredelung: "bs-color-violet", tiefkuehl: "bs-color-none"
+  };
+  // Aufbacken zuerst (in Sektion-Reihenfolge)
+  ORDERSATZ_SECTIONS_BANNER.forEach(s => {
+    out.push({key: `${s.key}_bake`, section: s.key, mode: "bake", title: bakeIcons[s.key], cls: clsBake[s.key]});
+  });
+  // Dann Auftau (in Sektion-Reihenfolge)
+  ORDERSATZ_SECTIONS_BANNER.forEach(s => {
+    if(s.key === "tiefkuehl") return; // tiefkuehl ist sowieso Auftau, einmal reicht
+    out.push({key: `${s.key}_auftau`, section: s.key, mode: "auftau", title: auftauIcons[s.key], cls: "bs-color-none"});
+  });
+  return out;
+})();
+function ordersatzMatchSection(text){
+  if(!text) return null;
+  const t = text.trim();
+  for(const sec of ORDERSATZ_SECTIONS_BANNER){
+    for(const re of sec.patterns){
+      if(re.test(t)) return sec.key;
+    }
+  }
+  return null;
+}
+
 async function extractOrdersatzWithColors(pdf){
-  // Strategie: PDF.js-Operator-Liste ist unzuverlaessig (oft sind die farbigen
-  // Hintergruende in XObjects/Images). Daher rendern wir jede Seite auf einen
-  // Canvas und tasten die finalen Pixel ab — das funktioniert IMMER.
+  // Strategie:
+  // 1) Sektion via gelbe Banner-Ueberschrift (Brötchen, Laugengebäck, ...)
+  // 2) Aufbacken/Auftau via Edge-Pixel-Sampling am Rand der Bildspalte
+  //    (x=66 / x=280 — abseits vom Foto, wo der Hintergrund sichtbar ist)
+  //    Wenn vibrante Farbe -> aufbacken. Wenn grau/weiss -> Auftau.
+  // 3) Kombinierter Key: "<section>_bake" oder "<section>_auftau"
   const lines = [];
   const lineMeta = [];
   const colorByArtno = {};
   const TOL = 3;
-  const SCALE = 1.5; // hoher Scale -> klarere Pixel, weniger Antialiasing-Artefakte
+  const SCALE = 1.5;
+
+  const sectionMarkers = []; // [{page, y_pdf, key}]
+
+  // Hilfsfunktion: ist die Hintergrundfarbe an einer Edge-Position vibrante (= Backprogramm)?
+  // Wir sampeln am linken und rechten Rand der Bildspalte um die Y-Position der Artikelnr.
+  const detectBake = (imgData, W, H, cyArt) => {
+    const px = imgData.data;
+    const sampleXs = [66, 70, 274, 278].map(x => Math.round(x * SCALE));
+    let bakeVotes = 0;
+    let totalVotes = 0;
+    for(let dy = -12; dy <= 12; dy += 2){
+      const cy = Math.round(cyArt + dy);
+      if(cy < 0 || cy >= H) continue;
+      for(const cx of sampleXs){
+        if(cx < 0 || cx >= W) continue;
+        const idx = (cy * W + cx) * 4;
+        const r = px[idx], g = px[idx+1], b = px[idx+2];
+        // Weiss -> ignorieren
+        if(r > 245 && g > 245 && b > 245) continue;
+        // Schwarz (Textglyphen) -> ignorieren
+        if(r < 25 && g < 25 && b < 25) continue;
+        // Grau (217,217,217) oder andere Graustufen -> nicht-bake
+        const isGrey = (Math.abs(r-g) < 8 && Math.abs(g-b) < 8 && Math.abs(r-b) < 8);
+        if(isGrey){ totalVotes++; continue; }
+        // Vibrante Farbe -> bake
+        bakeVotes++;
+        totalVotes++;
+      }
+    }
+    // Mehrheitsentscheidung: wenn mindestens 25% der gueltigen Samples vibrante Farbe haben
+    if(totalVotes === 0) return false;
+    return (bakeVotes / totalVotes) >= 0.25;
+  };
 
   for(let p = 1; p <= pdf.numPages; p++){
     const page = await pdf.getPage(p);
 
-    // 1) Text + Y-Position je Zeile (wie zuvor, fuer parseOrdersatzLines)
+    // 1) Text + Y-Position je Zeile
     const content = await page.getTextContent();
     const items = (content.items || []).filter(it => it.str !== undefined && it.transform);
     items.sort((a,b) => {
@@ -3031,6 +3138,7 @@ async function extractOrdersatzWithColors(pdf){
       return a.transform[4] - b.transform[4];
     });
     let curItems = [], curY = null;
+    const pageLineRecords = [];
     const flush = () => {
       if(!curItems.length) return;
       const text = curItems.map(x => x.str).join(" ").replace(/\s+/g, " ").trim();
@@ -3038,6 +3146,7 @@ async function extractOrdersatzWithColors(pdf){
         const y = curItems[0].transform[5];
         lines.push(text);
         lineMeta.push({page: p, y});
+        pageLineRecords.push({text, y});
       }
       curItems = [];
     };
@@ -3049,76 +3158,62 @@ async function extractOrdersatzWithColors(pdf){
     }
     flush();
 
-    // 2) Seite rendern und Pixel-Sampling
+    // 2) Sektions-Banner auf dieser Seite
+    for(const rec of pageLineRecords){
+      const key = ordersatzMatchSection(rec.text);
+      if(key){
+        sectionMarkers.push({page: p, y: rec.y, key});
+      }
+    }
+
+    // 3) Seite rendern fuer Edge-Pixel-Sampling
     const viewport = page.getViewport({scale: SCALE});
     const canvas = document.createElement("canvas");
     canvas.width = Math.ceil(viewport.width);
     canvas.height = Math.ceil(viewport.height);
     const ctx = canvas.getContext("2d", {willReadFrequently: true});
+    let imgData = null;
     try{
       await page.render({canvasContext: ctx, viewport}).promise;
-    }catch(e){
-      continue; // Seite konnte nicht gerendert werden -> ueberspringen
-    }
-    let imgData;
-    try{
       imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    }catch(e){
-      continue;
-    }
-    const pixels = imgData.data;
-    const W = canvas.width, H = canvas.height;
+    }catch(e){ /* Render-Fehler -> Bake-Erkennung uebersprungen */ }
 
-    // Hilfsfunktion: Pixel an (cx, cy) im Canvas als RGB-Tupel
-    const sample = (cx, cy) => {
-      cx = Math.max(0, Math.min(W-1, Math.round(cx)));
-      cy = Math.max(0, Math.min(H-1, Math.round(cy)));
-      const idx = (cy * W + cx) * 4;
-      return [pixels[idx], pixels[idx+1], pixels[idx+2]];
-    };
-
-    // 3) Fuer jede SAP-Artikelnr im Text die Hintergrundfarbe in der Bildspalte abtasten
-    //    Bildspalte in PDF-User-Space: ca. x = 60..280. Mit SCALE multiplizieren.
-    //    Wir samplen mehrere x/y-Punkte und stimmen ab (Mehrheits-Vote).
-    const sampleXsPdf = [70, 100, 140, 200, 250]; // PDF user space
-    const sampleXsPx = sampleXsPdf.map(x => x * SCALE);
+    // 4) Pro Artikelnummer: Sektion + Bake/Auftau zuordnen
     for(const it of items){
       const raw = (it.str || "").trim();
       const stripped = raw.replace(/^\*|\*$/g, "");
       if(!/^\d{10}$/.test(stripped)) continue;
       const artno = stripped;
-      // Position der Artikelnr im Canvas
-      const tx = pdfjsLib.Util.transform(viewport.transform, it.transform);
-      const cyArt = tx[5];
-      // y-Sampling-Bereich: 8 Pixel ueber und 8 Pixel unter der Artno-Baseline
-      const votes = {};
-      for(let dy = -8; dy <= 8; dy += 2){
-        const cy = cyArt + dy;
-        for(const cx of sampleXsPx){
-          const [r, g, b] = sample(cx, cy);
-          // Weiss / Schwarz / Grau filtern
-          if(r > 240 && g > 240 && b > 240) continue;
-          if(r < 20 && g < 20 && b < 20) continue;
-          if(Math.abs(r-g) < 8 && Math.abs(g-b) < 8 && Math.abs(r-b) < 8) continue;
-          const cn = ordersatzColorNameFromRgb([r, g, b]);
-          if(cn) votes[cn] = (votes[cn] || 0) + 1;
+      if(colorByArtno[artno]) continue;
+      const ay = it.transform[5];
+      // Sektion
+      let currentSection = null;
+      for(const sm of sectionMarkers){
+        if(sm.page < p || (sm.page === p && sm.y >= ay)){
+          currentSection = sm.key;
         }
       }
-      // Beste Stimme
-      let best = null, bestN = 0;
-      for(const k in votes){
-        if(votes[k] > bestN){ bestN = votes[k]; best = k; }
+      if(!currentSection) continue;
+      // Bake / Auftau
+      let isBake = false;
+      if(imgData){
+        const tx = pdfjsLib.Util.transform(viewport.transform, it.transform);
+        const cyArt = tx[5];
+        isBake = detectBake(imgData, canvas.width, canvas.height, cyArt);
       }
-      if(best && !colorByArtno[artno]) colorByArtno[artno] = best;
+      // Tiefkuehl-Sektion ist konzeptionell immer Auftau – behalten wir aber als
+      // einzige Gruppe "tiefkuehl_bake" (siehe ORDERSATZ_SECTIONS-Liste, dort heisst
+      // der Titel "Tiefkühl (Auftau)") fuer konsistente Sortierung.
+      const finalSuffix = (currentSection === "tiefkuehl") ? "bake" : (isBake ? "bake" : "auftau");
+      colorByArtno[artno] = `${currentSection}_${finalSuffix}`;
     }
 
-    // Canvas freigeben (Speicher)
+    // Canvas freigeben
     canvas.width = 0; canvas.height = 0;
   }
 
-  // lookupColor wird in dieser Strategie nicht mehr genutzt, aber Schnittstelle behalten
   const lookupColor = () => null;
-  return {lines, lineMeta, lookupColor, colorByArtno};
+  return {lines, lineMeta, lookupColor, colorByArtno, sectionMarkers};
 }
 
 function dispoParseFEA(lines, ctx){
