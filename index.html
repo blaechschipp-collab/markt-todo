@@ -365,7 +365,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.15-3"; // Backprogramme aus EDEKA-Auflagenplan + Sortierung
+const APP_VERSION = "v2026.05.15-4"; // Pattern-Matching final überarbeitet (alle 106 Artikel zugeordnet)
 const APP_VERSION_DATE = "15.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Version sofort ins UI rendern (sobald DOM bereit)
@@ -3183,31 +3183,55 @@ const ORDERSATZ_SECTIONS = [
 // Automatische Kategorisierung anhand des Artikelnamens (EDEKA-Auflagenplan)
 // Patterns werden in dieser Reihenfolge geprueft, erstes Match gewinnt
 const ARTIKEL_PATTERN_RULES = [
-  // === LAUGE DUNKELGRÜN === (Laugen-Brötchen / aufgetauter Zustand)
-  {pattern: /LAUGEN.?BROETCH|LAUGEN.?BR(\.|\b)|LAUGEN.?BROT|LAUGENZOPF/i, key: "lauge_dunkelgruen"},
+  // === EXPLIZITE AUFTAU-AUSNAHMEN (zuerst, sonst werden sie als Croissant/Lauge erkannt) ===
+  {pattern: /BUTTER.?APFEL/i, key: "auftau"},        // Butter-Apfeltasche -> Auftau (laut PDF)
+  {pattern: /PUDDING.?BREZ/i, key: "auftau"},        // Puddingbrezel -> Auftau
+  {pattern: /BERLINER.?BREZ/i, key: "auftau"},       // Berliner Brezel -> Auftau
 
-  // === LAUGE HELLGRÜN === (Brezel / Stangen)
-  {pattern: /LAUGEN.?BREZ|LAUGEN.?STANG|LAUGEN.?ST(\.|\b)|LAUGEN.?ECKE|LAUGEN.?KRANZ|LAUGEN.?STAB|BREZEL/i, key: "lauge_hellgruen"},
+  // === BAGUETTE === (vor BROT, weil "Peperoni Baguette" sonst zu BROT würde)
+  {pattern: /BAGUETTE|BAGUET\b|CIABATTA|PEPERO|MINI.?KRUSTE/i, key: "baguette"},
 
-  // === AUFTAU === (Berliner, Donuts, suesse Schnecken, Berliner Brezel)
-  {pattern: /BERLINER|DONUT|FRUCHT.?STREU|NUSS.?SCHNECK|FRUCHTSTR|SCHNECKE|SPRITZRING|QUARKBAELL|MUFFIN|PUDDING.?BREZ|VANILLE.?KIPFERL|FRANZ.?CHURRO/i, key: "auftau"},
+  // === PIZZA-DONUT === (vor AUFTAU, sonst wird DONUT als Auftau erkannt)
+  {pattern: /PIZ\.?DONU|PIZZA.?DONU/i, key: "croissants"},
 
-  // === CROISSANT === (Croissants + alle herzhaften Snacks + suesse Teilchen mit Backprogramm)
+  // === AUFTAU === (Berliner, Donuts, sw. Schnecken etc.)
+  {pattern: /BERLINER|BERLIN\.|DONUT|FRUCHT.?STR|NUSS.?SCHNECK|ROSIN.?SCHNECK|SPRITZRING|QUARKBAELL|MUFFIN|VANILLE.?KIPFERL/i, key: "auftau"},
+
+  // === LAUGE === Laugencroissant ist Ausnahme -> Croissant
+  {pattern: /LAU(GE|GEN)?\.?\s?CRO|LAU\.CRO/i, key: "croissants"},
+  // Laugenbrötchen / Laugenzopf -> dunkelgrün
+  {pattern: /LAUGEN.?BROETCH|LAUGEN.?BROET|LAUGENZOPF|LAUGEN.?ZOPF/i, key: "lauge_dunkelgruen"},
+  // Alles andere mit LAUGE/BREZEL -> hellgrün
+  {pattern: /LAUGEN|LAUGE|BREZEL|BREZ\b/i, key: "lauge_hellgruen"},
+
+  // === CROISSANT (blau) ===
   {pattern: /CROISSANT|CROI(\.|\b)/i, key: "croissants"},
-  {pattern: /QUARKTAS|APFEL.?TAS|VANILLE.?STANGE|KIRSCH.?KISSEN|FRANZ.?BROETCH|ROSINEN.?SCHNECK|BUTTER.?APFEL/i, key: "croissants"},
-  {pattern: /SCH(\.|).?KAESE|SCHINK.?KAESE|KAES.?SCH|KAESE.?MOZ|MOZZAR|KAESE.?TASCH|KAESE.?BR(\.|E)/i, key: "croissants"},
-  {pattern: /PIZZA|GEFLUEGEL|WUERST|HAEHN|DOENER|KEBAB|BOEREK|FOODPLY|FRUSTE|SPI(\.|).?FET|SPINAT|FET\.?\s?KAES|FRUEHSTUECK/i, key: "croissants"},
-  {pattern: /SCHOKO?(.?BROET|.?KISSEN|.?TASCHE)|NOUG|MOHNHOERN|BRIOC|BRIOCHE|BUTTER.?PLUNDER|MARZIPAN/i, key: "croissants"},
+  // Süße Teilchen (Croissant-Familie laut EDEKA-PDF)
+  {pattern: /QUARKT|APFELTASCH|APFEL.?DREIECK|VANILLE.?STANGE|KIRSCH.?KISSEN|FRANZ.?BROETCH|FRANZBROETCH|STICH\b/i, key: "croissants"},
+  // Schoko-Croissants / Pain au Chocolat
+  {pattern: /SCHOKOBR|SCHOK.?BROET|P\.\s?CHOC|NOUG|MOHNHOERN|BRIOC|MARZIPAN|BUTTER.?PLUNDER/i, key: "croissants"},
+  // Herzhafte Snacks (laut EDEKA-PDF auch in Croissant-Spalte)
+  {pattern: /KAESE.?SCH|SCH.?KAESE|SCHINK.?KAESE|KAESE.?MOZ|MOZZAR|KAESE.?FAECH|KAES.?CRO/i, key: "croissants"},
+  {pattern: /PIZZA|GEFLUEGEL|WUERST|HAEHN|DOENER|KEBAB|BOEREK|FOODPLY|FRUSTE/i, key: "croissants"},
+  {pattern: /SP[\.\-]?KAESE|SPINAT|SPI[\.\-]?FET|FET\.?\s?KAES|FRUEHSTUECK/i, key: "croissants"},
+  {pattern: /\bFAECH\b|\bTASCHE\b/i, key: "croissants"},
 
-  // === BAGUETTE === (Baguette + Ciabatta)
-  {pattern: /BAGUETTE|CIABATTA|PEPERONI|MINI.?KRUSTE|MINI.?BROT.?STAB/i, key: "baguette"},
+  // === BROT (orange) === (alle groesseren Brotlaibe)
+  {pattern: /OFENBUERLI|OFEN.?BUERLI/i, key: "brot"},
+  {pattern: /WELTMEISTERBROT|WELTMEISTER.?BROT/i, key: "brot"},
+  {pattern: /KARTOFFELBROT|HAUSBROT|GOLDKRUSTE|WEIZEN.?KRUSTE|ROGGEN.?KRUSTE|DINKEL.?BROT|VITALBROT|ZWIEBELBROT|ROGGENZWILL|MEHRKORNBROT|CHIABROT|NETZBROT|PARTYKRAN|WEISSBROT|RUSTI.?BROT|BAUERN|LANDBROT|VOLLK|KUERBIS.?KERN.?BROT|WALNUSSBROT|WEIZ\.BROT|WEIZENBROT(?!ETCH)/i, key: "brot"},
+  // Brot-Variante: NAME mit "...BROT" am Ende + kg-Angabe
+  {pattern: /DINKEL.?VOL|DINKELVOL|VK[\.\-]?BROT|VOLLKORN.?BROT|VK.?KRUSTE/i, key: "brot"},
+  {pattern: /BROT(?!ETCH|ETCHEN|CHEN|EN).{0,5}\d.*KG/i, key: "brot"},  // BROT...12X750G etc.
 
-  // === BROT === (alle groesseren Brotlaibe)
-  {pattern: /KARTOFFELBROT|HAUSBROT|KUERBIS.?KERN.?BROT|GOLDKRUSTE|WEIZEN.?KRUSTE|WEIZEN.?BROT|ROGGEN.?KRUSTE|DINKEL.?BROT|DINKEL.?VK|VK[\-\.]?BROT|RUSTIK|MEHRKORN.?BROT|CHIABROT|NETZBROT|PARTYKRAN|WEISSBROT|VOLLKORN.?BROT|BAUERN.?BROT|LANDBROT/i, key: "brot"},
-  {pattern: /\bBROT\b.*\d.*KG/i, key: "brot"}, // generisches Brot mit kg-Angabe
-
-  // === BRÖTCHEN === (Standard-Brötchen-Familie)
-  {pattern: /BROETCHEN|BROETCH|BRÖTCHEN|SEMMEL|DOPPELSEMM|MUSCHEL|KAISER|DINKEL.?KRUSTI|KRUSTI|WELTMEISTER|SONN.?KERN|KUERBIS.?KERN|WALNUSS|MEHRKORN(?!.?BROT)|HI\.PROT|SENNER|POTATOE|STEINOFEN|FLADEN.?BR|TOSC|SIMITRING|SEELE|MINIBROET|BAGEL/i, key: "broetchen"}
+  // === BRÖTCHEN === (Standard-Familie)
+  // Spezielle Kurzformen aus HERZSTUECKE B.O.: ROG.BR. / ME.BROE.
+  {pattern: /\.ROG\.?BR\.|\.ME\.?BROE|\.ME\.?BR\./i, key: "broetchen"},
+  // Bio-Dinkel-Rusti-Brötchen
+  {pattern: /DINKELRUS|DINKEL.?RUS/i, key: "broetchen"},
+  // Mehrkorn-Krusti (Brötchen-Variante)
+  {pattern: /MEHRKORNKRUEST|MEHRKORN.?KRUEST|MEHRKORN.?KRUSTI/i, key: "broetchen"},
+  {pattern: /BROETCHEN|BROETCH|BROET\.|BRÖTCHEN|SEMMEL|MUSCHEL|KAISER|DINKEL.?KRUSTI|KRUSTI(?!.*BROT)|WELTMEISTER(?!BROT)|SONN.?KERN|KUERBIS.?KERN(?!.?BROT)|WALNUSSBROET|HI\.PROT|SENNER|POTATO|STEINOFENBROE|FLADEN.?BR|TOSC|SIMITRING|SEELE|MINIBROET|BAGEL/i, key: "broetchen"}
 ];
 
 function artikelToBackprogramm(name){
