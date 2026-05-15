@@ -1851,10 +1851,7 @@ async function uploadOrdersatzPdf(){
       msg.innerHTML = `❌ Keine Bestellartikel im PDF erkannt.<br><br><strong>Erste 40 extrahierte Zeilen zur Diagnose (bitte als Text oder Screenshot zurückschicken):</strong><br><pre style="background:#f1f5f9;padding:8px;border-radius:6px;font-size:11px;white-space:pre-wrap;word-break:break-word;max-height:400px;overflow-y:auto">${diag.replace(/</g,"&lt;")}</pre>`;
       return;
     }
-    // Alte Ordersatz-Einträge entfernen, dann neue einfügen
     msg.innerHTML = `Speichere ${blocks.length} Bestellartikel ...`;
-    const delResult = await db.from("ordersatz_items").delete().neq("artno", "__nonexistent__");
-    if(delResult.error){ msg.innerHTML = "Fehler beim Aufräumen: " + delResult.error.message; return; }
     const rows = blocks.map(b => ({
       ean: b.ean,
       artno: b.artno,
@@ -1866,15 +1863,16 @@ async function uploadOrdersatzPdf(){
       skz: b.skz || null,
       vk_artnos: (b.children || []).map(c => c.artno)
     }));
+    // Upsert: vorhandene Bestellartikel aktualisieren, neue einfügen (Konflikt-Spalte ist artno)
     const BATCH = 200;
     let inserted = 0;
     for(let i = 0; i < rows.length; i += BATCH){
       const slice = rows.slice(i, i + BATCH);
-      const r = await db.from("ordersatz_items").insert(slice);
+      const r = await db.from("ordersatz_items").upsert(slice, {onConflict: "artno"});
       if(r.error){ msg.innerHTML = `Fehler nach ${inserted} Zeilen: ${r.error.message}`; return; }
       inserted += slice.length;
     }
-    msg.innerHTML = `✅ ${inserted} Bestellartikel gespeichert. ${rows.reduce((s,r)=>s+(r.vk_artnos||[]).length,0)} verknüpfte Verkaufsartikel-Codes.`;
+    msg.innerHTML = `✅ ${inserted} Bestellartikel gespeichert (vorhandene wurden aktualisiert). ${rows.reduce((s,r)=>s+(r.vk_artnos||[]).length,0)} verknüpfte Verkaufsartikel-Codes.`;
     input.value = "";
     bestellState.ordersatz = []; // Cache invalidieren
   }catch(e){
