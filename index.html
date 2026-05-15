@@ -1859,6 +1859,24 @@ async function uploadOrdersatzPdf(){
     const pdf = await pdfjsLib.getDocument({data: buf}).promise;
     const {lines, lineMeta, lookupColor, colorByArtno} = await extractOrdersatzWithColors(pdf);
     const blocks = parseOrdersatzLines(lines, lineMeta, lookupColor, colorByArtno);
+    // Propagiere EK-Farbe an alle VK-Children (VK-Zeilen stehen im PDF unter dem
+    // farbigen Rechteck und werden vom Edge-Sampling sonst als grau/Auftau erkannt)
+    blocks.forEach(b => {
+      if(b.color && b.children){
+        b.children.forEach(c => {
+          if(c.artno){ colorByArtno[c.artno] = b.color; }
+        });
+      } else if(!b.color && b.children){
+        // Fallback: wenn EK keine Farbe hat, aber Children eine -> EK uebernimmt
+        for(const c of b.children){
+          if(c.artno && colorByArtno[c.artno]){
+            b.color = colorByArtno[c.artno];
+            colorByArtno[b.artno] = b.color;
+            break;
+          }
+        }
+      }
+    });
     if(!blocks.length){
       // Diagnose: zeige die ersten 40 Zeilen, damit ich die Regex präzise anpassen kann
       const diag = lines.slice(0, 40).map((l, i) => `[${i+1}] ${l}`).join("\n");
