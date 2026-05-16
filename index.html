@@ -365,7 +365,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.15-8"; // Strichcode immer anzeigen (Best.-Nr. als Fallback)
+const APP_VERSION = "v2026.05.15-9"; // Bestellempfehlung: „Auffüllen auf" (inkl. Reserve bis Lieferung)
 const APP_VERSION_DATE = "15.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Version sofort ins UI rendern (sobald DOM bereit)
@@ -2218,13 +2218,25 @@ function renderBestellung(){
   }
   const deliveryDateISO = formatDate(delivery);
   const lastDayISO = days[days.length - 1].date;
-  // Pro Ordersatz-Artikel: Prognose der Verkäufe in horizonDays
-  const enriched = bestellState.ordersatz.map(o => {
-    const childArtnos = o.vk_artnos || [];
-    let forecast = 0;
+  // Tage von heute (exklusiv) bis Lieferung (exklusiv) — der Verkauf in dieser Zeit
+  // muss noch aus dem aktuellen TK-Bestand bedient werden ("Reserve bis Lieferung")
+  const untilDeliveryDays = [];
+  let cur2 = new Date(today.dateISO + "T00:00:00");
+  while(formatDate(cur2) < deliveryDateISO){
+    const d = formatDate(cur2);
+    if(isWorkingDay(d)){
+      const dow = cur2.getDay();
+      const idx = dow === 0 ? 6 : dow - 1;
+      untilDeliveryDays.push({date: d, weekday: WEEKDAYS_DE_ORDERED[idx]});
+    }
+    cur2.setDate(cur2.getDate() + 1);
+  }
+  // Hilfsfunktion: gewichtete Verkaufsprognose fuer eine Tagesmenge
+  function forecastForDays(childArtnos, dayList){
+    let fc = 0;
     childArtnos.forEach(art => {
       const pts = salesByArt[art] || [];
-      days.forEach(day => {
+      dayList.forEach(day => {
         const dayPts = pts.filter(p => p.weekday === day.weekday);
         if(!dayPts.length) return;
         const byHour = {};
@@ -2234,32 +2246,40 @@ function renderBestellung(){
           byHour[p.hour].sum += p.menge * wt;
           byHour[p.hour].w += wt;
         });
-        Object.values(byHour).forEach(h => {
-          if(h.w > 0) forecast += h.sum / h.w;
-        });
+        Object.values(byHour).forEach(h => { if(h.w > 0) fc += h.sum / h.w; });
       });
     });
-    // Stueck-pro-Karton: bevorzugt aus DB, sonst aus Name ableiten (Fallback ohne Re-Upload)
+    return fc;
+  }
+  // Pro Ordersatz-Artikel: Prognose der Verkäufe in horizonDays + "bis Lieferung"
+  const enriched = bestellState.ordersatz.map(o => {
+    const childArtnos = o.vk_artnos || [];
+    const forecast = forecastForDays(childArtnos, days);            // nach Lieferung
+    const forecastUntilDelivery = forecastForDays(childArtnos, untilDeliveryDays); // bis Lieferung
+    // Stueck-pro-Karton
     let pcs = (o.pcs_per_carton && o.pcs_per_carton > 0) ? o.pcs_per_carton : null;
     if(!pcs){
       const parsed = parsePcsFromOrdersatzName(o.name);
       if(parsed && parsed > 0) pcs = parsed;
     }
     const cartons = pcs ? Math.ceil(forecast / pcs) : 0;
-    return {...o, forecast, cartons, pcs_per_carton_effective: pcs};
+    const cartonsUntilDelivery = pcs ? Math.ceil(forecastUntilDelivery / pcs) : 0;
+    // "Auffuellen auf" = was im TK insgesamt da sein muss, damit es bis Ende der
+    // Verkaufsperiode reicht: Verkauf bis Lieferung + Bestellung
+    const refillTarget = cartons + cartonsUntilDelivery;
+    return {...o, forecast, forecastUntilDelivery, cartons, cartonsUntilDelivery, refillTarget, pcs_per_carton_effective: pcs};
   });
   // Filter + Sortierung
   let visible = enriched;
-  // "needed" = Artikel mit Bedarf. Wenn pcs_per_carton fehlt, ist cartons=0, daher
-  // zusaetzlich forecast > 0 erlauben (Bedarf vorhanden, Kartonanzahl unbekannt).
-  if(filterMode === "needed") visible = visible.filter(x => x.cartons > 0 || x.forecast > 0);
+  // "needed" = Artikel mit Bedarf (Auffuell-Ziel > 0 oder Verkaufsprognose > 0)
+  if(filterMode === "needed") visible = visible.filter(x => x.refillTarget > 0 || (x.forecast + x.forecastUntilDelivery) > 0);
   if(searchRaw){
     visible = visible.filter(x => {
       const hay = `${x.name||""} ${x.artno||""} ${x.ean||""}`.toLowerCase();
       return hay.includes(searchRaw);
     });
   }
-  visible.sort((a, b) => b.forecast - a.forecast || a.name.localeCompare(b.name, "de"));
+  visible.sort((a, b) => b.refillTarget - a.refillTarget || b.forecast - a.forecast || a.name.localeCompare(b.name, "de"));
   if(!visible.length){
     // Detaillierte Diagnose, warum nichts angezeigt wird
     const numOrdersatz = enriched.length;
@@ -2305,12 +2325,12 @@ function renderBestellung(){
     return;
   }
   // Gesamt-Summen
-  const sumCartons = visible.reduce((s, x) => s + x.cartons, 0);
-  const sumEK = visible.reduce((s, x) => s + (x.cartons * (Number(x.ek_price) || 0)), 0);
+  const sumRefill = visible.reduce((s, x) => s + (x.refillTarget || 0), 0);
+  const sumEK = visible.reduce((s, x) => s + ((x.refillTarget || 0) * (Number(x.ek_price) || 0)), 0);
   const noPcsCount = visible.filter(x => !x.pcs_per_carton_effective).length;
   let html = `<div class="box"><h3 style="margin-top:0">📦 Bestellempfehlung für ${market}</h3>
-    <div class="small">📦 Lieferung am <strong>${formatDateDE(deliveryDateISO)}</strong>, deckt <strong>${horizonDays} Verkaufstage</strong> bis <strong>${formatDateDE(lastDayISO)}</strong> ab (Sonntage und RLP-Feiertage werden übersprungen)</div>
-    <div class="small" style="margin-top:6px">Gesamt: <strong>${sumCartons} Kartons</strong> · EK ca. <strong>${sumEK.toLocaleString("de-DE",{maximumFractionDigits:2})} €</strong> · ${visible.length} Artikel${noPcsCount > 0 ? ` · <span style="color:#dc2626">${noPcsCount} ohne Karton-Größe</span>` : ""}</div></div>`;
+    <div class="small">📦 Lieferung am <strong>${formatDateDE(deliveryDateISO)}</strong>, deckt <strong>${horizonDays} Verkaufstage</strong> bis <strong>${formatDateDE(lastDayISO)}</strong> ab. „Auffüllen auf" = was im TK-Haus liegen sollte (Reserve bis Lieferung + Bedarf der Verkaufsperiode).</div>
+    <div class="small" style="margin-top:6px">Gesamt: <strong>${sumRefill} Kartons</strong> im TK · EK ca. <strong>${sumEK.toLocaleString("de-DE",{maximumFractionDigits:2})} €</strong> · ${visible.length} Artikel${noPcsCount > 0 ? ` · <span style="color:#dc2626">${noPcsCount} ohne Karton-Größe</span>` : ""}</div></div>`;
   if(noPcsCount > 0){
     html += `<div class="box" style="background:#fef9c3;border:1px solid #fde68a"><div class="small">⚠️ Bei ${noPcsCount} Artikel(n) konnte die Karton-Größe weder aus der Datenbank noch aus dem Namen ermittelt werden. Diese werden als Stück-Schätzung angezeigt.</div></div>`;
   }
@@ -2318,12 +2338,14 @@ function renderBestellung(){
   visible.forEach(o => {
     const barcodeId = `bcord_${o.id || o.artno}`;
     const pcsEff = o.pcs_per_carton_effective;
-    const totalPcs = o.cartons * (pcsEff || 0);
+    const refillTarget = o.refillTarget || 0;
+    const totalPcs = refillTarget * (pcsEff || 0);
     const noPcs = !pcsEff;
-    const recommendVal = noPcs ? `~${Math.round(o.forecast)}` : `${o.cartons}`;
+    // "Auffüllen auf": Bestellung + Reserve bis Lieferung — das soll insgesamt im TK liegen
+    const recommendVal = noPcs ? `~${Math.round(o.forecast + o.forecastUntilDelivery)}` : `${refillTarget}`;
     const recommendSub = noPcs
       ? `Stück <span style="color:#dc2626">⚠ Karton-Größe unbekannt</span>`
-      : `${o.cartons === 1 ? "Karton" : "Kartons"} · ${totalPcs} St.`;
+      : `${refillTarget === 1 ? "Karton" : "Kartons"} im TK · ${totalPcs} St.`;
     // EAN bevorzugen, sonst Bestellnummer als Code128 fuer den Strichcode
     const eanRaw = (o.ean && o.ean !== "undefined") ? String(o.ean).trim() : "";
     const hasValidEan = /^\d{8,14}$/.test(eanRaw);
@@ -2338,14 +2360,14 @@ function renderBestellung(){
           <div class="bc-meta">Best.-Nr. ${o.artno}${hasValidEan ? " · EAN " + eanRaw : ""}${o.skz ? " · SKZ " + o.skz : ""}</div>
         </div>
         <div class="bc-recommend">
-          <div class="lbl">Bestellen</div>
+          <div class="lbl">Auffüllen auf</div>
           <div class="val">${recommendVal}</div>
           <div class="sub">${recommendSub}</div>
         </div>
       </div>
       <div class="bc-grid">
         <div class="bc-cell"><div class="lbl">Karton</div><div class="val">${pcsEff || "?"} St.</div></div>
-        <div class="bc-cell"><div class="lbl">Erwart. Verkauf</div><div class="val">${Math.round(o.forecast)}</div></div>
+        <div class="bc-cell"><div class="lbl">Erwart. Verkauf</div><div class="val">${Math.round(o.forecast + o.forecastUntilDelivery)}</div></div>
         <div class="bc-cell"><div class="lbl">EK / Karton</div><div class="val">${(Number(o.ek_price) || 0).toLocaleString("de-DE",{maximumFractionDigits:2})} €</div></div>
       </div>
       ${barcodeValue ? `<div class="bc-barcode"><svg id="${barcodeId}"></svg>${!hasValidEan ? '<div class="small" style="text-align:center;color:#64748b;margin-top:2px">Best.-Nr. (kein EAN-Strichcode hinterlegt)</div>' : ''}</div>` : ""}
