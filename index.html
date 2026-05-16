@@ -365,7 +365,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.15-7"; // Artikelname-Fallback aus Ordersatz-Map
+const APP_VERSION = "v2026.05.15-8"; // Strichcode immer anzeigen (Best.-Nr. als Fallback)
 const APP_VERSION_DATE = "15.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Version sofort ins UI rendern (sobald DOM bereit)
@@ -2324,10 +2324,13 @@ function renderBestellung(){
     const recommendSub = noPcs
       ? `Stück <span style="color:#dc2626">⚠ Karton-Größe unbekannt</span>`
       : `${o.cartons === 1 ? "Karton" : "Kartons"} · ${totalPcs} St.`;
-    // EAN nur anzeigen, wenn tatsaechlich vorhanden (sonst gar nichts statt "EAN —")
+    // EAN bevorzugen, sonst Bestellnummer als Code128 fuer den Strichcode
     const eanRaw = (o.ean && o.ean !== "undefined") ? String(o.ean).trim() : "";
     const hasValidEan = /^\d{8,14}$/.test(eanRaw);
-    if(hasValidEan){ barcodesToRender.push({id: barcodeId, ean: eanRaw}); }
+    const artnoStr = String(o.artno || "").trim();
+    const barcodeValue = hasValidEan ? eanRaw : artnoStr;
+    const barcodeKind = hasValidEan ? "ean" : "artno";
+    if(barcodeValue){ barcodesToRender.push({id: barcodeId, ean: barcodeValue, kind: barcodeKind}); }
     html += `<div class="bestell-card">
       <div class="bc-head">
         <div>
@@ -2345,7 +2348,7 @@ function renderBestellung(){
         <div class="bc-cell"><div class="lbl">Erwart. Verkauf</div><div class="val">${Math.round(o.forecast)}</div></div>
         <div class="bc-cell"><div class="lbl">EK / Karton</div><div class="val">${(Number(o.ek_price) || 0).toLocaleString("de-DE",{maximumFractionDigits:2})} €</div></div>
       </div>
-      ${hasValidEan ? `<div class="bc-barcode"><svg id="${barcodeId}"></svg></div>` : ""}
+      ${barcodeValue ? `<div class="bc-barcode"><svg id="${barcodeId}"></svg>${!hasValidEan ? '<div class="small" style="text-align:center;color:#64748b;margin-top:2px">Best.-Nr. (kein EAN-Strichcode hinterlegt)</div>' : ''}</div>` : ""}
     </div>`;
   });
   content.innerHTML = html;
