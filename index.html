@@ -276,7 +276,7 @@
         <h2 style="margin-top:0">📦 Backshop – Bestellempfehlung</h2>
         <div class="small">Basierend auf den historischen Verkäufen und dem aktuellen Ordersatz. Standard-Zeitraum: nächste 7 Tage.</div>
         <div class="control-grid" style="margin-top:14px">
-          <div><label>Markt</label><select id="bestellMarket" onchange="renderBestellung()"><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
+          <div><label>Markt</label><select id="bestellMarket" onchange="loadBestellung()"><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
           <div><label>Reichweite (ab Lieferung)</label><select id="bestellHorizon" onchange="renderBestellung()">
             <option value="3" selected>3 Verkaufstage (Standard)</option>
             <option value="5">5 Verkaufstage</option>
@@ -365,7 +365,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.15-5"; // Pattern-Match direkt im Backshop (kein Re-Upload nötig)
+const APP_VERSION = "v2026.05.15-7"; // Artikelname-Fallback aus Ordersatz-Map
 const APP_VERSION_DATE = "15.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Version sofort ins UI rendern (sobald DOM bereit)
@@ -2317,7 +2317,6 @@ function renderBestellung(){
   const barcodesToRender = [];
   visible.forEach(o => {
     const barcodeId = `bcord_${o.id || o.artno}`;
-    if(o.ean) barcodesToRender.push({id: barcodeId, ean: o.ean});
     const pcsEff = o.pcs_per_carton_effective;
     const totalPcs = o.cartons * (pcsEff || 0);
     const noPcs = !pcsEff;
@@ -2325,12 +2324,15 @@ function renderBestellung(){
     const recommendSub = noPcs
       ? `Stück <span style="color:#dc2626">⚠ Karton-Größe unbekannt</span>`
       : `${o.cartons === 1 ? "Karton" : "Kartons"} · ${totalPcs} St.`;
-    const eanDisp = (o.ean && o.ean !== "undefined") ? o.ean : "—";
+    // EAN nur anzeigen, wenn tatsaechlich vorhanden (sonst gar nichts statt "EAN —")
+    const eanRaw = (o.ean && o.ean !== "undefined") ? String(o.ean).trim() : "";
+    const hasValidEan = /^\d{8,14}$/.test(eanRaw);
+    if(hasValidEan){ barcodesToRender.push({id: barcodeId, ean: eanRaw}); }
     html += `<div class="bestell-card">
       <div class="bc-head">
         <div>
           <div class="bc-name">${o.name}</div>
-          <div class="bc-meta">Best.-Nr. ${o.artno} · EAN ${eanDisp}${o.skz ? " · SKZ " + o.skz : ""}</div>
+          <div class="bc-meta">Best.-Nr. ${o.artno}${hasValidEan ? " · EAN " + eanRaw : ""}${o.skz ? " · SKZ " + o.skz : ""}</div>
         </div>
         <div class="bc-recommend">
           <div class="lbl">Bestellen</div>
@@ -2343,7 +2345,7 @@ function renderBestellung(){
         <div class="bc-cell"><div class="lbl">Erwart. Verkauf</div><div class="val">${Math.round(o.forecast)}</div></div>
         <div class="bc-cell"><div class="lbl">EK / Karton</div><div class="val">${(Number(o.ek_price) || 0).toLocaleString("de-DE",{maximumFractionDigits:2})} €</div></div>
       </div>
-      ${o.ean ? `<div class="bc-barcode"><svg id="${barcodeId}"></svg></div>` : ""}
+      ${hasValidEan ? `<div class="bc-barcode"><svg id="${barcodeId}"></svg></div>` : ""}
     </div>`;
   });
   content.innerHTML = html;
@@ -2991,13 +2993,17 @@ function renderBackshop(){
     if(highlightTop10){
       visibleArticles.slice(0, 10).forEach(a => top10Set.add(a.article_no));
     }
-    // Backprogramm pro Artikel zuordnen.
+    // Backprogramm pro Artikel zuordnen + Artikelname-Fallback.
     // Strategie: 1) DB-Map (skzByVkArt) zuerst pruefen
     //            2) Falls leer/null: Pattern-Match direkt auf VK-Artikelnamen
     //               (funktioniert sofort, ohne neuen Ordersatz-Upload)
     const skzMap = backshopState.skzByVkArt || {};
     visibleArticles.forEach(a => {
       const info = skzMap[a.article_no];
+      // Artikelname-Fallback: wenn aus Sales kein Name kam, EK-Parent-Name aus Ordersatz
+      if((!a.article_name || !String(a.article_name).trim()) && info && info.parent){
+        a.article_name = info.parent;
+      }
       let color = info && info.color ? info.color : null;
       if(!color && a.article_name && typeof artikelToBackprogramm === "function"){
         color = artikelToBackprogramm(a.article_name);
