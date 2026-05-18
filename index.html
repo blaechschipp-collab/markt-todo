@@ -316,7 +316,8 @@
         <div><label>Fallback Datum</label><input id="metricsUploadDate" type="date"></div>
       </div>
       <div class="small" style="margin-top:8px">Hinweis: Ein Upload fügt Werte hinzu und löscht nichts. Zum Reset bitte den roten Knopf unten verwenden.</div>
-      <input id="metricsExcelFile" type="file" accept=".xlsx,.xls" style="margin-top:10px" />
+      <input id="metricsExcelFile" type="file" accept=".xlsx,.xls" multiple style="margin-top:10px" />
+      <div class="small" style="margin-top:6px;color:#475569">💡 Du kannst mehrere Excel-Dateien gleichzeitig auswählen. Überlappende Wochen werden automatisch durch die neuen Werte ersetzt — ältere Wochen, die nicht in den hochgeladenen Dateien stehen, bleiben unverändert in der Datenbank.</div>
       <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn-green" onclick="uploadMetricsExcel()" style="width:auto">Excel hochladen</button>
         <button class="btn-red" onclick="clearAllMetrics()" style="width:auto">Alle Kennzahlen löschen (Reset)</button>
@@ -365,7 +366,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.18-3"; // Bestellmenge: nur einmal aufrunden + Excel-Diagnose verbessert
+const APP_VERSION = "v2026.05.18-4"; // Multi-Datei-Excel-Upload + Auto-Dedup pro Woche
 const APP_VERSION_DATE = "18.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Version sofort ins UI rendern (sobald DOM bereit)
@@ -1800,20 +1801,29 @@ async function uploadMetricsExcel(){
   }
   const input = document.getElementById("metricsExcelFile");
   const msg = document.getElementById("metricsUploadMsg");
-  msg.innerHTML = "Datei wird gelesen ...";
   if(!input.files || !input.files.length){
-    alert("Bitte Excel-Datei auswählen.");
+    alert("Bitte Excel-Datei(en) auswählen.");
     msg.innerHTML = "";
     return;
   }
   const fallbackMarket = document.getElementById("metricsUploadMarket").value;
   const fallbackArea = document.getElementById("metricsUploadArea").value;
   const fallbackDate = document.getElementById("metricsUploadDate").value || todayISO();
-  const file = input.files[0];
-  const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, {type:"array"});
+  const fileList = Array.from(input.files);
+  msg.innerHTML = `${fileList.length} Datei(en) werden gelesen ...`;
   const inserts = [];
   const debug = [];
+
+  for(const file of fileList){
+    let workbook;
+    try{
+      const buffer = await file.arrayBuffer();
+      workbook = XLSX.read(buffer, {type:"array"});
+    }catch(e){
+      debug.push(`<strong>${file.name}:</strong> Fehler beim Öffnen — ${e.message}`);
+      continue;
+    }
+    debug.push(`<strong>📄 ${file.name}</strong>`);
 
   for(const sheetName of workbook.SheetNames){
     {
@@ -1881,6 +1891,7 @@ async function uploadMetricsExcel(){
       });
     });
   }
+  } // end of file loop
 
   if(!inserts.length){
     msg.innerHTML = "Keine gültigen Zeilen gefunden.<br>" + debug.join("<br>") +
@@ -1891,8 +1902,43 @@ async function uploadMetricsExcel(){
     return;
   }
 
-  // Kein automatisches Loeschen mehr. Aufraeumen passiert nur ueber den Reset-Knopf.
-  // In Batches einfuegen
+  // === Auto-Dedup ===
+  // Bevor neue Zeilen eingefuegt werden: alle existierenden Zeilen mit gleichen
+  // (market, area, metric_date)-Kombinationen loeschen. So ueberschreiben neue
+  // Uploads sauber die abgedeckten Wochen, alte Wochen bleiben erhalten.
+  msg.innerHTML = `${inserts.length} Werte gelesen — bereinige überlappende Wochen ...`;
+  const dedupGroups = {}; // market||area -> Set of dates
+  inserts.forEach(r => {
+    const key = `${r.market}||${r.area}`;
+    if(!dedupGroups[key]) dedupGroups[key] = new Set();
+    dedupGroups[key].add(r.metric_date);
+  });
+  let deletedRows = 0;
+  let dateMin = null, dateMax = null;
+  const marketsSet = new Set();
+  for(const [key, datesSet] of Object.entries(dedupGroups)){
+    const [market, area] = key.split("||");
+    marketsSet.add(market);
+    const datesArr = [...datesSet];
+    datesArr.forEach(d => {
+      if(!dateMin || d < dateMin) dateMin = d;
+      if(!dateMax || d > dateMax) dateMax = d;
+    });
+    // In Batches von 100 Datums-Werten loeschen (Supabase URL-Laenge begrenzt)
+    for(let i=0; i<datesArr.length; i+=100){
+      const slice = datesArr.slice(i, i+100);
+      const dr = await db.from("metrics").delete({count: "exact"})
+        .eq("market", market).eq("area", area).in("metric_date", slice);
+      if(dr.error){
+        msg.innerHTML = `Fehler beim Bereinigen: ${dr.error.message}<br>` + debug.join("<br>");
+        return;
+      }
+      if(typeof dr.count === "number") deletedRows += dr.count;
+    }
+  }
+
+  // Insert neue Zeilen in Batches
+  msg.innerHTML = `${inserts.length} Werte werden gespeichert ...`;
   const BATCH = 500;
   let inserted = 0;
   for(let i=0; i<inserts.length; i+=BATCH){
@@ -1905,7 +1951,12 @@ async function uploadMetricsExcel(){
     inserted += slice.length;
   }
 
-  msg.innerHTML = `${inserted} Kennzahlen wurden hochgeladen.<br><span class="small">${debug.join("<br>")}</span>`;
+  // Erfolgsmeldung mit Zusammenfassung
+  const marketList = [...marketsSet].join(", ");
+  const periodStr = (dateMin && dateMax) ? ((dateMin === dateMax) ? formatDateDE(dateMin) : `${formatDateDE(dateMin)} bis ${formatDateDE(dateMax)}`) : "—";
+  msg.innerHTML = `✅ <strong>${inserted} Kennzahlen</strong> gespeichert für Märkte: <strong>${marketList}</strong>.<br>` +
+    `Zeitraum: <strong>${periodStr}</strong> · ${deletedRows} alte Werte in diesem Zeitraum wurden ersetzt.<br>` +
+    `<details style="margin-top:8px"><summary style="cursor:pointer;color:#0284c7">Details anzeigen</summary><span class="small">${debug.join("<br>")}</span></details>`;
   input.value = "";
   await fillAnalyticsMarkets();
   await fillAnalyticsAreas();
