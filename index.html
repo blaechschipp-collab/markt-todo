@@ -365,7 +365,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.18-2"; // EDEKA-BO Excel-Parser mit Merge-Cell-Expand
+const APP_VERSION = "v2026.05.18-3"; // Bestellmenge: nur einmal aufrunden + Excel-Diagnose verbessert
 const APP_VERSION_DATE = "18.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Version sofort ins UI rendern (sobald DOM bereit)
@@ -1821,15 +1821,32 @@ async function uploadMetricsExcel(){
       if(sn.includes("metadaten") || sn === "filter") continue;
     }
     const ws = workbook.Sheets[sheetName];
-    const matrix = expandMergedCells(ws, XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true}));
+    let matrix;
+    try{
+      matrix = expandMergedCells(ws, XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true}));
+    }catch(e){
+      debug.push(`Sheet "${sheetName}": Fehler beim Lesen / Merge-Expand: ${e.message}`);
+      continue;
+    }
     const fmt = detectEdekaBoFormat(matrix);
     if(fmt){
       const year = detectYearFromWorkbook(workbook);
-      const parsed = parseEdekaBoSheet(matrix, fmt, year);
+      let parsed = [];
+      try{
+        parsed = parseEdekaBoSheet(matrix, fmt, year);
+      }catch(e){
+        debug.push(`Sheet "${sheetName}": Parser-Fehler: ${e.message}`);
+        continue;
+      }
       inserts.push(...parsed);
-      debug.push(`Sheet "${sheetName}": EDEKA-BO ${fmt.type.toUpperCase()} (Jahr ${year}) erkannt – ${parsed.length} Werte gelesen.`);
+      const arts = parsed.filter(p => (p.metric_name || "").startsWith(ART_PREFIX)).length;
+      const markets = {};
+      parsed.forEach(p => { markets[p.market] = (markets[p.market] || 0) + 1; });
+      const marketSummary = Object.entries(markets).map(([m,c]) => `${m}: ${c}`).join(", ");
+      debug.push(`Sheet "${sheetName}": EDEKA-BO ${fmt.type.toUpperCase()} (Jahr ${year}) erkannt – <strong>${parsed.length} Werte</strong> (davon ${arts} Artikel-Details). Märkte: ${marketSummary || "—"}.`);
       continue;
     }
+    debug.push(`Sheet "${sheetName}": Format NICHT erkannt (kein EDEKA-BO-Format gefunden).`);
     // Fallback: flaches Format
     const rows = XLSX.utils.sheet_to_json(ws, {defval:""});
     if(!rows.length){
@@ -2297,11 +2314,14 @@ function renderBestellung(){
       const parsed = parsePcsFromOrdersatzName(o.name);
       if(parsed && parsed > 0) pcs = parsed;
     }
-    const cartons = pcs ? Math.ceil(forecast / pcs) : 0;
-    const cartonsUntilDelivery = pcs ? Math.ceil(forecastUntilDelivery / pcs) : 0;
-    // "Auffuellen auf" = was im TK insgesamt da sein muss, damit es bis Ende der
-    // Verkaufsperiode reicht: Verkauf bis Lieferung + Bestellung
-    const refillTarget = cartons + cartonsUntilDelivery;
+    // "Auffüllen auf" = Gesamtbedarf in Stück (bis Ende Verkaufsperiode), EINMAL aufgerundet.
+    // Wichtig: nicht zweimal aufrunden (forecast und untilDelivery separat),
+    // sonst kommt es zu Überschätzung (z.B. 5.5+1.0 -> ceil(5.5)+ceil(1.0)=7 statt 7 ceil(6.5)=7 — Beispiel zeigt das Problem klar bei kleineren Bruchteilen wie 3.0+3.5 → 7 vs. ceil(6.5)=7. Konkret: ceil(2.5)+ceil(2.5)=6, ceil(5.0)=5).
+    const totalForecast = forecast + forecastUntilDelivery;
+    const refillTarget = pcs ? Math.ceil(totalForecast / pcs) : 0;
+    // Reine Bestell- bzw. Reserve-Kartons separat (fuer evtl. spaetere Details)
+    const cartons = pcs ? Math.ceil(forecast / pcs) : 0;                       // Bestellteil
+    const cartonsUntilDelivery = Math.max(0, refillTarget - cartons);          // Reserve-Anteil
     return {...o, forecast, forecastUntilDelivery, cartons, cartonsUntilDelivery, refillTarget, pcs_per_carton_effective: pcs};
   });
   // Filter + Sortierung
