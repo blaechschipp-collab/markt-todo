@@ -365,7 +365,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.18-1"; // EDEKA-BO Excel-Parser für neues Datei-Format
+const APP_VERSION = "v2026.05.18-2"; // EDEKA-BO Excel-Parser mit Merge-Cell-Expand
 const APP_VERSION_DATE = "18.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Version sofort ins UI rendern (sobald DOM bereit)
@@ -1571,6 +1571,31 @@ function findCellInMatrix(matrix, value, maxRow){
   }
   return null;
 }
+// EDEKA-BO Files nutzen gemergte Zellen fuer Markt-Header (z.B. G4:V4 = "Billigheim-Ingenheim")
+// SheetJS liest nur den oberen-linken Wert, der Rest bleibt null. Diese Funktion expandiert
+// alle Merge-Ranges, indem sie den top-left Wert in alle Zellen der Range schreibt.
+function expandMergedCells(ws, matrix){
+  if(!ws || !ws["!merges"] || !Array.isArray(ws["!merges"])) return matrix;
+  ws["!merges"].forEach(range => {
+    if(!range || !range.s || !range.e) return;
+    // sicherstellen, dass die top-left-Zelle existiert
+    while(matrix.length <= range.s.r) matrix.push([]);
+    const topLeft = matrix[range.s.r][range.s.c];
+    if(topLeft === null || topLeft === undefined || topLeft === "") return;
+    for(let r = range.s.r; r <= range.e.r; r++){
+      while(matrix.length <= r) matrix.push([]);
+      if(!matrix[r]) matrix[r] = [];
+      for(let c = range.s.c; c <= range.e.c; c++){
+        if(r === range.s.r && c === range.s.c) continue;
+        // Nur leere Zellen ueberschreiben (Sicherheit)
+        if(matrix[r][c] === null || matrix[r][c] === undefined || matrix[r][c] === ""){
+          matrix[r][c] = topLeft;
+        }
+      }
+    }
+  });
+  return matrix;
+}
 function detectEdekaBoFormat(matrix){
   if(!matrix || matrix.length < 4) return null;
   // Header kann ab Zeile 1 (alte Datei) oder Zeile 4 (neue Datei mit Titel-Vorlauf) starten
@@ -1796,7 +1821,7 @@ async function uploadMetricsExcel(){
       if(sn.includes("metadaten") || sn === "filter") continue;
     }
     const ws = workbook.Sheets[sheetName];
-    const matrix = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true});
+    const matrix = expandMergedCells(ws, XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true}));
     const fmt = detectEdekaBoFormat(matrix);
     if(fmt){
       const year = detectYearFromWorkbook(workbook);
