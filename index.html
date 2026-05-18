@@ -365,8 +365,8 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.15-9"; // Bestellempfehlung: „Auffüllen auf" (inkl. Reserve bis Lieferung)
-const APP_VERSION_DATE = "15.05.2026";
+const APP_VERSION = "v2026.05.18-1"; // EDEKA-BO Excel-Parser für neues Datei-Format
+const APP_VERSION_DATE = "18.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Version sofort ins UI rendern (sobald DOM bereit)
 if(typeof document !== "undefined"){
@@ -1573,27 +1573,32 @@ function findCellInMatrix(matrix, value, maxRow){
 }
 function detectEdekaBoFormat(matrix){
   if(!matrix || matrix.length < 4) return null;
-  const marktPos = findCellInMatrix(matrix, "Markt", 4);
+  // Header kann ab Zeile 1 (alte Datei) oder Zeile 4 (neue Datei mit Titel-Vorlauf) starten
+  const marktPos = findCellInMatrix(matrix, "Markt", 12);
   if(!marktPos) return null;
-  const wochePos = findCellInMatrix(matrix, "Woche", 4);
+  const wochePos = findCellInMatrix(matrix, "Woche", 12);
   if(!wochePos || wochePos.col !== marktPos.col) return null;
   const marketRow = matrix[marktPos.row] || [];
   const hasKnownMarket = marketRow.some(cell => KNOWN_EDEKA_MARKETS.includes(String(cell||"").trim()));
   if(!hasKnownMarket) return null;
   const dataStartCol = marktPos.col + 1;
-  const row2 = matrix[2] || [];
-  const isAbschriften = row2.some(cell => {
-    const v = String(cell||"").trim();
-    return v === "Artikel" || v === "GTIN";
-  });
-  if(isAbschriften){
-    const gtinCol = row2.findIndex(c => String(c||"").trim() === "GTIN");
+  // KPI-Zeile fuer Abschriften: enthaelt "Artikel" und "GTIN" — ein Stueck unter Markt/Woche
+  let kpiRow = -1;
+  for(let r = wochePos.row; r < Math.min(matrix.length, wochePos.row + 4); r++){
+    const cells = matrix[r] || [];
+    const hasArticle = cells.some(c => String(c||"").trim() === "Artikel");
+    const hasGtin = cells.some(c => String(c||"").trim() === "GTIN");
+    if(hasArticle || hasGtin){ kpiRow = r; break; }
+  }
+  if(kpiRow !== -1){
+    const kpiCells = matrix[kpiRow] || [];
+    const gtinCol = kpiCells.findIndex(c => String(c||"").trim() === "GTIN");
     return {
       type:"abschriften",
       marketRow: marktPos.row,
       weekRow: wochePos.row,
-      kpiRow: 2,
-      dataStartRow: 3,
+      kpiRow,
+      dataStartRow: kpiRow + 1,
       dataStartCol,
       deptCol: 0,
       articleCol: 1,
@@ -1601,11 +1606,12 @@ function detectEdekaBoFormat(matrix){
       gtinCol: gtinCol !== -1 ? gtinCol : 3
     };
   }
+  // Umsatz-Format: Daten beginnen unmittelbar unter der Woche-Zeile
   return {
     type:"umsatz",
     marketRow: marktPos.row,
     weekRow: wochePos.row,
-    dataStartRow: 2,
+    dataStartRow: wochePos.row + 1,
     dataStartCol,
     deptCol: 0,
     kpiCol: 1
@@ -1629,9 +1635,10 @@ function inferMetricUnit(kpiName){
   return "";
 }
 function detectYearFromWorkbook(workbook){
-  // Sucht nach DD.MM.YYYY in den Metadaten-Sheets, sonst aktuelles Jahr
+  // Sucht nach DD.MM.YYYY in den Metadaten- oder Filter-Sheets, sonst aktuelles Jahr
   for(const name of workbook.SheetNames){
-    if(String(name).toLowerCase().includes("metadaten")){
+    const lower = String(name).toLowerCase();
+    if(lower.includes("metadaten") || lower.includes("filter")){
       const ws = workbook.Sheets[name];
       const arr = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:false});
       for(const row of arr){
@@ -1784,7 +1791,10 @@ async function uploadMetricsExcel(){
   const debug = [];
 
   for(const sheetName of workbook.SheetNames){
-    if(String(sheetName).toLowerCase().includes("metadaten")) continue;
+    {
+      const sn = String(sheetName).toLowerCase();
+      if(sn.includes("metadaten") || sn === "filter") continue;
+    }
     const ws = workbook.Sheets[sheetName];
     const matrix = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true});
     const fmt = detectEdekaBoFormat(matrix);
