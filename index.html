@@ -180,7 +180,7 @@
 <main class="main">
   <div class="tabs"><button id="todoTab" class="tab active todo-tab" onclick="showTab('todo')">☑ ToDo</button><button id="dispoTab" class="tab dispo-tab" onclick="showTab('dispo')">📦 Dispo <span class="beta-pill">Beta</span></button><button id="backshopTab" class="tab backshop-tab" onclick="showTab('backshop')">🥐 Backshop <span class="beta-pill">Beta</span></button><button id="analyticsTab" class="tab analytics-tab" onclick="showTab('analytics')">📊 Auswertungen</button><button id="adminTab" class="tab admin-tab" onclick="openAdminPin()">🔒 Admin</button></div>
   <section id="todoSection">
-    <div class="box"><div class="control-grid"><div><label>Dein Name</label><input id="name" placeholder="Dein Name"></div><div><label>Markt</label><select id="marketFilter" onchange="handleMarketChange()"><option value="ALLE">Alle Märkte</option><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="areaFilter" onchange="handleAreaChange()"><option value="">Alle Bereiche außer Hausmeister</option></select></div><div id="dayControl"><label>Tag</label><select id="day" onchange="loadTasks()"></select></div><div id="monthControl" style="display:none"><label>Monat</label><input id="monthFilter" type="month" onchange="loadTasks()"></div><div><label>&nbsp;</label><button class="btn-yellow" onclick="loadTasks()">Aktualisieren</button></div></div></div>
+    <div class="box"><div class="control-grid"><div><label>Dein Name</label><input id="name" placeholder="Dein Name"></div><div><label>Markt</label><select id="marketFilter" onchange="handleMarketChange()"><option value="ALLE">Alle Märkte</option><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="areaFilter" onchange="handleAreaChange()"><option value="">Alle Bereiche außer Hausmeister</option></select></div><div id="dayControl"><label>Tag</label><select id="day" onchange="loadTasks()"></select></div><div id="monthControl" style="display:none"><label>Monat</label><input id="monthFilter" type="month" onchange="loadTasks()"></div><div><label>Erledigte</label><select id="todoDoneFilter" onchange="handleDoneFilterChange()"><option value="hide">Ausblenden</option><option value="show">Anzeigen</option><option value="only">Nur erledigte</option></select></div><div><label>&nbsp;</label><button class="btn-yellow" onclick="loadTasks()">Aktualisieren</button></div></div></div>
     <div id="tasks" class="box"></div>
     <div class="box"><h2>Übergabe an morgen</h2><div class="small">Nur für den aktuell gewählten Bereich sichtbar.</div><textarea id="handoverText" placeholder="Info für morgen eingeben..."></textarea><button class="btn-blue" onclick="createHandover()" style="margin-top:10px;width:auto">Info für morgen speichern</button><div id="handoverMsg" class="small"></div></div>
   </section>
@@ -294,6 +294,19 @@
     </div><!-- /backshopSubBestellung -->
   </section>
   <section id="adminSection" style="display:none">
+    <div id="adminLoginBox" class="box">
+      <h2 style="margin-top:0">🔒 Admin-Bereich</h2>
+      <div class="small">Bitte Admin-PIN eingeben, um Aufgaben und Uploads zu verwalten.</div>
+      <div style="background:#0c1f3c;color:#fff;padding:8px 12px;border-radius:6px;margin:12px 0;font-size:13px">
+        🔖 App-Version: <strong><span id="adminVersionInfoNumber"></span></strong> · <span id="adminVersionInfoDate"></span>
+      </div>
+      <div class="control-grid">
+        <div><label>PIN</label><input id="adminPinInput" type="password" placeholder="Admin-PIN" onkeydown="if(event.key==='Enter') loginAdmin()"></div>
+        <div><label>&nbsp;</label><button class="btn-yellow" onclick="loginAdmin()">Admin öffnen</button></div>
+      </div>
+      <div id="adminLoginMsg" class="small" style="margin-top:8px;color:#c62828"></div>
+    </div>
+    <div id="adminContent" style="display:none">
     <div id="versionInfo" style="background:#0c1f3c;color:#fff;padding:10px 14px;border-radius:8px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;font-size:13px;flex-wrap:wrap;gap:8px">
       <div>🔖 <strong>App-Version: <span id="versionInfoNumber"></span></strong> · <span id="versionInfoDate"></span></div>
       <div style="color:#94a3b8;font-size:12px">Diese Anzeige hilft beim Bestätigen, dass die aktuelle App-Version geladen ist.</div>
@@ -363,10 +376,11 @@
       </div>
       <div id="adminTasks" style="margin-top:14px"></div></div>
     <div class="box admin admin-todopflege"><h2>Kontrolle / Historie</h2><div class="small">Rückwirkende Kontrolle nach Zeitraum.</div><div class="control-grid" style="margin-top:14px"><div><label>Markt</label><select id="controlMarket" onchange="handleControlMarketChange()"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="controlArea" onchange="loadControlTasks()"><option value="">Alle Bereiche</option></select></div><div><label>Von</label><input id="controlDateFrom" type="date" onchange="loadControlTasks()"></div><div><label>Bis</label><input id="controlDateTo" type="date" onchange="loadControlTasks()"></div><div><label>Status</label><select id="controlStatus" onchange="loadControlTasks()"><option value="all">Alle</option><option value="open">Offen</option><option value="done">Erledigt</option><option value="late">Fehler: verspätet bestätigt</option></select></div></div><div id="controlTasks" style="margin-top:14px"></div></div>
+    </div><!-- /adminContent -->
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.18-4"; // Multi-Datei-Excel-Upload + Auto-Dedup pro Woche
+const APP_VERSION = "v2026.05.18-6"; // ToDo-Filter erledigte + Admin-Login-Gate
 const APP_VERSION_DATE = "18.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Version sofort ins UI rendern (sobald DOM bereit)
@@ -1252,33 +1266,70 @@ function showTab(tab){
   document.getElementById("backshopTab").classList.toggle("active",tab==="backshop");
   document.getElementById("analyticsTab").classList.toggle("active",tab==="analytics");
   document.getElementById("adminTab").classList.toggle("active",tab==="admin");
-  if(tab==="admin"){showAdminSubTab("todopflege")}
+  if(tab==="admin"){ if(adminUnlocked) showAdminSubTab("todopflege"); }
   else if(tab==="analytics"){prepareAnalytics()}
   else if(tab==="dispo"){loadDispo()}
   else if(tab==="backshop"){loadBackshop()}
   else loadTasks()
 }
-async function openAdminPin(){
-  if(!adminUnlocked){
-    const pin = prompt("Admin-PIN eingeben:");
-    if(pin === null) return;
-    let currentPin = null;
-    let errorDetail = null;
-    try{
-      const {data, error} = await db.from("app_settings").select("value").eq("key","admin_pin").maybeSingle();
-      if(error) errorDetail = error.message || String(error);
-      else if(!data) errorDetail = "Keine Zeile mit key='admin_pin' in der Tabelle app_settings gefunden.";
-      else if(!data.value) errorDetail = "Spalte 'value' ist leer.";
-      else currentPin = data.value;
-    }catch(e){ errorDetail = e.message || String(e); }
-    if(!currentPin){
-      alert("Admin-PIN konnte nicht geladen werden.\n\nDetail: " + (errorDetail || "Unbekannter Fehler") + "\n\nBitte in Supabase prüfen: Tabelle app_settings → Zeile mit key='admin_pin' muss Wert in 'value' haben.");
-      return;
-    }
-    if(pin !== currentPin) return alert("Falsche PIN.");
-    adminUnlocked = true;
-  }
+// Admin-Tab Aufruf: zeigt entweder Login-Box oder den freigeschalteten Inhalt
+function openAdminPin(){
   showTab("admin");
+  // beim Anzeigen die richtige Sicht setzen (Login vs. Inhalt)
+  const loginBox = document.getElementById("adminLoginBox");
+  const content = document.getElementById("adminContent");
+  if(loginBox && content){
+    if(adminUnlocked){
+      loginBox.style.display = "none";
+      content.style.display = "block";
+    } else {
+      loginBox.style.display = "block";
+      content.style.display = "none";
+      // Versionsnummer im Login-Bildschirm aktualisieren
+      const vn = document.getElementById("adminVersionInfoNumber");
+      const vd = document.getElementById("adminVersionInfoDate");
+      if(vn) vn.textContent = APP_VERSION;
+      if(vd) vd.textContent = APP_VERSION_DATE;
+      // Fokus aufs PIN-Feld setzen
+      const inp = document.getElementById("adminPinInput");
+      if(inp){ setTimeout(() => inp.focus(), 50); }
+    }
+  }
+}
+
+async function loginAdmin(){
+  const pinInput = document.getElementById("adminPinInput");
+  const msg = document.getElementById("adminLoginMsg");
+  if(!pinInput) return;
+  const pin = pinInput.value.trim();
+  msg.innerHTML = "";
+  if(!pin){ msg.innerHTML = "Bitte PIN eingeben."; return; }
+  let currentPin = null;
+  let errorDetail = null;
+  try{
+    const {data, error} = await db.from("app_settings").select("value").eq("key","admin_pin").maybeSingle();
+    if(error) errorDetail = error.message || String(error);
+    else if(!data) errorDetail = "Keine Zeile mit key='admin_pin' in app_settings gefunden.";
+    else if(!data.value) errorDetail = "Spalte 'value' ist leer.";
+    else currentPin = data.value;
+  }catch(e){ errorDetail = e.message || String(e); }
+  if(!currentPin){
+    msg.innerHTML = "Admin-PIN konnte nicht geladen werden: " + (errorDetail || "Unbekannter Fehler");
+    return;
+  }
+  if(pin !== currentPin){
+    msg.innerHTML = "Falsche PIN.";
+    pinInput.value = "";
+    return;
+  }
+  adminUnlocked = true;
+  pinInput.value = "";
+  msg.innerHTML = "";
+  // Sicht umschalten
+  document.getElementById("adminLoginBox").style.display = "none";
+  document.getElementById("adminContent").style.display = "block";
+  // Erste Sub-Tab anzeigen
+  showAdminSubTab("todopflege");
 }
 function handleAreaChange(){const area=document.getElementById("areaFilter").value,isHaus=area==="Hausmeister",marketSelect=document.getElementById("marketFilter");document.getElementById("dayControl").style.display=isHaus?"none":"block";document.getElementById("monthControl").style.display=isHaus?"block":"none";marketSelect.options[0].style.display=isHaus?"block":"none";if(!isHaus&&marketSelect.value==="ALLE")marketSelect.value="Freckenfeld";localStorage.setItem("selectedArea",area);localStorage.setItem("selectedMarket",marketSelect.value);loadTasks()}
 function toggleAdminPeriodFields(){const area=(document.getElementById("adminCustomArea").value.trim()||document.getElementById("adminArea").value),mode=document.getElementById("adminTaskMode").value,isHaus=area==="Hausmeister",isSingle=mode==="single";document.getElementById("adminDaysBox").style.display=(!isHaus&&!isSingle)?"block":"none";document.getElementById("adminMonthBox").style.display=isHaus?"block":"none";document.getElementById("adminDateRangeBox").style.display=(!isHaus&&isSingle)?"block":"none"}
@@ -1310,6 +1361,23 @@ function taskApplies(task, dateISO, day){
   if(task.task_type==="recurring" && !isWorkingDay(dateISO)) return false;
   return task.day===day;
 }
+function handleDoneFilterChange(){
+  const v = document.getElementById("todoDoneFilter").value;
+  localStorage.setItem("todoDoneFilter", v);
+  loadTasks();
+}
+function getTodoDoneFilter(){
+  const sel = document.getElementById("todoDoneFilter");
+  if(!sel) return "hide";
+  // beim ersten Laden aus localStorage holen
+  if(!sel.dataset.initDone){
+    const saved = localStorage.getItem("todoDoneFilter");
+    if(saved && ["hide","show","only"].includes(saved)) sel.value = saved;
+    sel.dataset.initDone = "1";
+  }
+  return sel.value || "hide";
+}
+
 async function loadTasks(){
   const market = document.getElementById("marketFilter").value;
   const area = document.getElementById("areaFilter").value;
@@ -1345,14 +1413,36 @@ async function loadTasks(){
   carryOvers.sort(prioritySort);
   todaysTasks.sort(prioritySort);
   const allDisplay = [...carryOvers, ...todaysTasks];
+  // Filter: erledigte ein-/ausblenden
+  const doneFilter = getTodoDoneFilter();
+  const filteredDisplay = allDisplay.filter(task => {
+    if(task._carryOver) return doneFilter !== "only"; // Carry-overs sind per Definition offen
+    const log = todaysLogs[task.id];
+    if(doneFilter === "hide") return !log;
+    if(doneFilter === "only") return !!log;
+    return true;
+  });
+  const hiddenCount = allDisplay.length - filteredDisplay.length;
   container.innerHTML = `<h2>${day} – ${formatDateDE(dateISO)}</h2>`;
-  if(carryOvers.length){
+  if(carryOvers.length && doneFilter !== "only"){
     const note = document.createElement("div");
     note.style.cssText = "background:#fff4e0;border:1px solid #f59e0b;border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:14px";
     note.innerHTML = `⚠️ <strong>${carryOvers.length}</strong> offene Aufgabe(n) vom ${formatDateDE(carryOvers[0]._origDateISO)} wurden auf heute übertragen. Die Wichtigkeit ist automatisch um eine Stufe erhöht.`;
     container.appendChild(note);
   }
-  allDisplay.forEach(task => {
+  if(hiddenCount > 0){
+    const note = document.createElement("div");
+    note.style.cssText = "background:#eef2f7;border:1px solid #cbd5e1;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:13px;color:#475569";
+    note.innerHTML = `ℹ️ ${hiddenCount} ${doneFilter === "only" ? "offene" : "erledigte"} Aufgabe(n) ausgeblendet. Filter „Erledigte" oben ändern, um alle zu sehen.`;
+    container.appendChild(note);
+  }
+  if(filteredDisplay.length === 0){
+    const empty = document.createElement("div");
+    empty.className = "small";
+    empty.innerHTML = doneFilter === "only" ? "Heute sind noch keine Aufgaben erledigt." : "Keine offenen Aufgaben für diesen Tag — alles erledigt 🎉";
+    container.appendChild(empty);
+  }
+  filteredDisplay.forEach(task => {
     const isCarry = task._carryOver;
     const logDateISO = isCarry ? task._origDateISO : dateISO;
     const log = isCarry ? null : todaysLogs[task.id];
@@ -1371,7 +1461,46 @@ async function loadTasks(){
     container.appendChild(div);
   });
 }
-async function loadMonthlyTasks(market){const month=document.getElementById("monthFilter").value,container=document.getElementById("tasks");container.innerHTML="";let query=db.from("tasks").select("*").eq("area","Hausmeister").eq("month",month);if(market!=="ALLE")query=query.eq("market",market);const{data,error}=await query;if(error)return container.innerHTML="Fehler: "+error.message;if(!data||!data.length)return container.innerHTML="Keine Hausmeister-Aufgaben für diesen Markt / Monat.";const monthDate=`${month}-01`,logs=await fetchLogs(data.map(t=>t.id),monthDate);data.sort(prioritySort);container.innerHTML=`<h2>Hausmeister Aufgaben – ${new Date(month+"-01T00:00:00").toLocaleDateString("de-DE",{month:"long",year:"numeric"})}</h2>`;data.forEach(task=>{const log=logs[task.id],checked=log?"checked":"",doneClass=log?"done":"";const div=document.createElement("div");div.className=`task ${priorityClass(task.priority)}`;div.innerHTML=`<input type="checkbox" ${checked} onchange="toggleTask('${task.id}','${monthDate}',this.checked)"><div><div class="${doneClass}"><strong>${task.market||""}</strong> | <strong>${task.area||""}</strong> – ${task.title} ${priorityPill(task.priority)}</div><div class="small">Monat: ${month.split("-")[1]}.${month.split("-")[0]}${log?" | Erledigt von: "+log.done_by+" | "+formatDateTimeDE(log.done_at):""}</div></div>`;container.appendChild(div)})}
+async function loadMonthlyTasks(market){
+  const month=document.getElementById("monthFilter").value, container=document.getElementById("tasks");
+  container.innerHTML="";
+  let query=db.from("tasks").select("*").eq("area","Hausmeister").eq("month",month);
+  if(market!=="ALLE") query=query.eq("market",market);
+  const {data,error}=await query;
+  if(error) return container.innerHTML="Fehler: "+error.message;
+  if(!data||!data.length) return container.innerHTML="Keine Hausmeister-Aufgaben für diesen Markt / Monat.";
+  const monthDate=`${month}-01`, logs=await fetchLogs(data.map(t=>t.id),monthDate);
+  data.sort(prioritySort);
+  // Filter: erledigte ein-/ausblenden
+  const doneFilter = getTodoDoneFilter();
+  const filtered = data.filter(task => {
+    const log = logs[task.id];
+    if(doneFilter === "hide") return !log;
+    if(doneFilter === "only") return !!log;
+    return true;
+  });
+  const hiddenCount = data.length - filtered.length;
+  container.innerHTML=`<h2>Hausmeister Aufgaben – ${new Date(month+"-01T00:00:00").toLocaleDateString("de-DE",{month:"long",year:"numeric"})}</h2>`;
+  if(hiddenCount > 0){
+    const note = document.createElement("div");
+    note.style.cssText = "background:#eef2f7;border:1px solid #cbd5e1;border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:13px;color:#475569";
+    note.innerHTML = `ℹ️ ${hiddenCount} ${doneFilter === "only" ? "offene" : "erledigte"} Aufgabe(n) ausgeblendet.`;
+    container.appendChild(note);
+  }
+  if(filtered.length === 0){
+    const empty = document.createElement("div");
+    empty.className = "small";
+    empty.innerHTML = doneFilter === "only" ? "Keine erledigten Aufgaben in diesem Monat." : "Alles erledigt 🎉";
+    container.appendChild(empty);
+  }
+  filtered.forEach(task=>{
+    const log=logs[task.id], checked=log?"checked":"", doneClass=log?"done":"";
+    const div=document.createElement("div");
+    div.className=`task ${priorityClass(task.priority)}`;
+    div.innerHTML=`<input type="checkbox" ${checked} onchange="toggleTask('${task.id}','${monthDate}',this.checked)"><div><div class="${doneClass}"><strong>${task.market||""}</strong> | <strong>${task.area||""}</strong> – ${task.title} ${priorityPill(task.priority)}</div><div class="small">Monat: ${month.split("-")[1]}.${month.split("-")[0]}${log?" | Erledigt von: "+log.done_by+" | "+formatDateTimeDE(log.done_at):""}</div></div>`;
+    container.appendChild(div);
+  });
+}
 async function toggleTask(taskId,dateISO,value){const ok=confirm(value?"Möchten Sie diese Aufgabe wirklich abhaken?":"Möchten Sie das Häkchen wirklich entfernen?");if(!ok){loadTasks();return}const name=document.getElementById("name").value.trim();if(!name){alert("Bitte Namen eingeben.");loadTasks();return}if(value&&dateISO<todayISO()){const lateOk=confirm("Sind Sie sicher, eine Aufgabe von gestern zu bestätigen?");if(!lateOk){loadTasks();return}}if(value){await db.from("task_logs").delete().eq("task_id",taskId).eq("done_date",dateISO);const{error}=await db.from("task_logs").insert({task_id:taskId,done_date:dateISO,done_by:name,done_at:berlinNowForDB()});if(error)alert("Fehler: "+error.message)}else{const{error}=await db.from("task_logs").delete().eq("task_id",taskId).eq("done_date",dateISO);if(error)alert("Fehler: "+error.message)}loadTasks();if(adminUnlocked)loadControlTasks()}
 async function createHandover(){
   const name = document.getElementById("name").value.trim();
@@ -1902,38 +2031,58 @@ async function uploadMetricsExcel(){
     return;
   }
 
-  // === Auto-Dedup ===
-  // Bevor neue Zeilen eingefuegt werden: alle existierenden Zeilen mit gleichen
-  // (market, area, metric_date)-Kombinationen loeschen. So ueberschreiben neue
-  // Uploads sauber die abgedeckten Wochen, alte Wochen bleiben erhalten.
+  // === Auto-Dedup (genau pro Markt + Bereich + Datum + Kennzahl) ===
+  // WICHTIG: Wir loeschen nur die Zeilen, deren `metric_name` auch im aktuellen Upload
+  // vorkommt. So bleiben z.B. Umsatz-Werte stehen, wenn nur Abschriften neu hochgeladen
+  // werden, und umgekehrt.
+  // Artikel-Details (Praefix __art__||) werden separat per LIKE-Filter geloescht
+  // (sie sind potentiell zu viele Tausende, um sie einzeln per IN-Filter zu loeschen).
   msg.innerHTML = `${inserts.length} Werte gelesen — bereinige überlappende Wochen ...`;
-  const dedupGroups = {}; // market||area -> Set of dates
+  const dedupGroups = {}; // market||area||date -> {kpis: Set<name>, hasArticles: bool}
   inserts.forEach(r => {
-    const key = `${r.market}||${r.area}`;
-    if(!dedupGroups[key]) dedupGroups[key] = new Set();
-    dedupGroups[key].add(r.metric_date);
+    const key = `${r.market}||${r.area}||${r.metric_date}`;
+    if(!dedupGroups[key]) dedupGroups[key] = {kpis: new Set(), hasArticles: false};
+    const isArt = (typeof r.metric_name === "string" && r.metric_name.startsWith(ART_PREFIX));
+    if(isArt) dedupGroups[key].hasArticles = true;
+    else dedupGroups[key].kpis.add(r.metric_name);
   });
   let deletedRows = 0;
   let dateMin = null, dateMax = null;
   const marketsSet = new Set();
-  for(const [key, datesSet] of Object.entries(dedupGroups)){
-    const [market, area] = key.split("||");
+  const tupleCount = Object.keys(dedupGroups).length;
+  let processed = 0;
+  for(const [key, group] of Object.entries(dedupGroups)){
+    const [market, area, date] = key.split("||");
     marketsSet.add(market);
-    const datesArr = [...datesSet];
-    datesArr.forEach(d => {
-      if(!dateMin || d < dateMin) dateMin = d;
-      if(!dateMax || d > dateMax) dateMax = d;
-    });
-    // In Batches von 100 Datums-Werten loeschen (Supabase URL-Laenge begrenzt)
-    for(let i=0; i<datesArr.length; i+=100){
-      const slice = datesArr.slice(i, i+100);
+    if(!dateMin || date < dateMin) dateMin = date;
+    if(!dateMax || date > dateMax) dateMax = date;
+    // 1. KPI-Namen (z.B. "Umsatz", "Abschriften VK [br]") in Batches loeschen
+    const kpiArr = [...group.kpis];
+    for(let i = 0; i < kpiArr.length; i += 200){
+      const slice = kpiArr.slice(i, i + 200);
       const dr = await db.from("metrics").delete({count: "exact"})
-        .eq("market", market).eq("area", area).in("metric_date", slice);
+        .eq("market", market).eq("area", area).eq("metric_date", date)
+        .in("metric_name", slice);
       if(dr.error){
-        msg.innerHTML = `Fehler beim Bereinigen: ${dr.error.message}<br>` + debug.join("<br>");
+        msg.innerHTML = `Fehler beim Bereinigen (${market}/${area}/${date}): ${dr.error.message}<br>` + debug.join("<br>");
         return;
       }
       if(typeof dr.count === "number") deletedRows += dr.count;
+    }
+    // 2. Artikel-Details: alle Zeilen mit __art__|| Praefix loeschen (nur wenn im Upload)
+    if(group.hasArticles){
+      const dr = await db.from("metrics").delete({count: "exact"})
+        .eq("market", market).eq("area", area).eq("metric_date", date)
+        .like("metric_name", ART_PREFIX + "%");
+      if(dr.error){
+        msg.innerHTML = `Fehler beim Bereinigen (Artikel, ${market}/${area}/${date}): ${dr.error.message}<br>` + debug.join("<br>");
+        return;
+      }
+      if(typeof dr.count === "number") deletedRows += dr.count;
+    }
+    processed++;
+    if(processed % 20 === 0){
+      msg.innerHTML = `Bereinige überlappende Wochen … ${processed} / ${tupleCount}`;
     }
   }
 
