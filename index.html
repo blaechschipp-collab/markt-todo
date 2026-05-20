@@ -176,7 +176,7 @@
     <div id="appGateMsg" style="margin-top:12px;color:#c62828;font-size:13px;min-height:16px"></div>
   </div>
 </div>
-<header class="header"><div class="brand"><img src="logo.png" alt="EDEKA Paul Logo" class="logo" onerror="this.style.display='none';document.getElementById('fallbackBrand').style.display='block';"><div id="fallbackBrand" style="display:none"><div class="brand-title">Paul.</div><div class="brand-subtitle">Regional. Frisch. Freundlich.</div></div></div></header>
+<header class="header"><div class="brand" onclick="reloadApp()" title="Tippen zum Neuladen" style="cursor:pointer"><img src="logo.png" alt="EDEKA Paul Logo" class="logo" onerror="this.style.display='none';document.getElementById('fallbackBrand').style.display='block';"><div id="fallbackBrand" style="display:none"><div class="brand-title">Paul.</div><div class="brand-subtitle">Regional. Frisch. Freundlich.</div></div></div></header>
 <main class="main">
   <div class="tabs"><button id="todoTab" class="tab active todo-tab" onclick="showTab('todo')">☑ ToDo</button><button id="dispoTab" class="tab dispo-tab" onclick="showTab('dispo')">📦 Dispo <span class="beta-pill">Beta</span></button><button id="backshopTab" class="tab backshop-tab" onclick="showTab('backshop')">🥐 Backshop <span class="beta-pill">Beta</span></button><button id="analyticsTab" class="tab analytics-tab" onclick="showTab('analytics')">📊 Auswertungen</button><button id="adminTab" class="tab admin-tab" onclick="openAdminPin()">🔒 Admin</button></div>
   <section id="todoSection">
@@ -221,6 +221,16 @@
       </div>
       <div id="articleModalBody"></div>
     </div>
+  </div>
+  <div id="pdfModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:1100;flex-direction:column">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 16px;background:#0c1f3c;color:#fff">
+      <h3 id="pdfModalTitle" style="margin:0;font-size:16px"></h3>
+      <div style="display:flex;gap:8px">
+        <a id="pdfDownloadLink" href="#" download class="btn-yellow" style="text-decoration:none;padding:8px 14px;border-radius:6px">⬇ Herunterladen</a>
+        <button class="btn-red" style="width:auto;padding:8px 14px" onclick="closePdfViewer()">Schließen ✕</button>
+      </div>
+    </div>
+    <iframe id="pdfModalFrame" style="flex:1;border:none;width:100%;background:#fff" src=""></iframe>
   </div>
   <section id="dispoSection" style="display:none">
     <div class="box">
@@ -380,9 +390,40 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.18-6"; // ToDo-Filter erledigte + Admin-Login-Gate
+const APP_VERSION = "v2026.05.18-7"; // PDF-Viewer-Modal + Logo-Reload
 const APP_VERSION_DATE = "18.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
+// Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
+function reloadApp(){
+  try{
+    const u = new URL(location.href);
+    u.searchParams.set("r", Date.now());
+    location.href = u.toString();
+  }catch(e){
+    location.reload();
+  }
+}
+// PDF-Viewer im Modal (statt window.open / target=_blank, was im Fully Kiosk leer bleibt)
+function openPdfViewer(url, title){
+  if(!url) return;
+  const modal = document.getElementById("pdfModal");
+  const frame = document.getElementById("pdfModalFrame");
+  const titleEl = document.getElementById("pdfModalTitle");
+  const dlLink = document.getElementById("pdfDownloadLink");
+  if(!modal || !frame) return;
+  // Google Docs Viewer rendert PDFs serverseitig — funktioniert auch im WebView
+  const viewerUrl = "https://docs.google.com/gview?embedded=true&url=" + encodeURIComponent(url);
+  frame.src = viewerUrl;
+  if(titleEl) titleEl.textContent = title || "PDF";
+  if(dlLink) dlLink.href = url;
+  modal.style.display = "flex";
+}
+function closePdfViewer(){
+  const modal = document.getElementById("pdfModal");
+  const frame = document.getElementById("pdfModalFrame");
+  if(frame) frame.src = "";
+  if(modal) modal.style.display = "none";
+}
 // Version sofort ins UI rendern (sobald DOM bereit)
 if(typeof document !== "undefined"){
   document.addEventListener("DOMContentLoaded", () => {
@@ -4136,11 +4177,13 @@ function renderDispo(){
     sortedDocs.forEach(d => {
       const label = DISPO_DOC_TYPE_LABEL[d.doc_type] || d.doc_type;
       const url = d.public_url || "#";
+      const urlEsc = url.replace(/'/g, "\\'");
+      const labelEsc = label.replace(/'/g, "\\'");
       docHtml += `<div class="dispo-doc-card">
         <div class="doc-market">${d.market}</div>
         <div class="doc-name">${label}</div>
         <div class="doc-meta">Stand: ${formatDateDE(d.upload_date)}${d.file_size ? " · " + Math.round(d.file_size/1024) + " KB" : ""}</div>
-        <a class="btn-doc" href="${url}" target="_blank" download="${d.file_name || ""}">Herunterladen ⬇</a>
+        <button class="btn-doc" onclick="openPdfViewer('${urlEsc}', '${labelEsc}')">📄 Anzeigen</button>
       </div>`;
     });
     docHtml += `</div>`;
