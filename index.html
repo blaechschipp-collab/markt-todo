@@ -49,7 +49,7 @@
     .dispo-doc-card .doc-name{font-weight:bold;color:var(--text);font-size:15px}
     .dispo-doc-card .doc-meta{color:#64748b;font-size:12px}
     .dispo-doc-card a.btn-doc{display:inline-block;background:var(--blue);color:#fff;text-align:center;padding:10px 12px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:14px;margin-top:4px}
-    .bs-headline{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+    .bs-headline{display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px}
     .bs-bigcard.bs-tomorrow{background:linear-gradient(135deg,#e0f2fe,#bae6fd);border-color:var(--blue)}
     .bs-bigcard.bs-clickable{cursor:pointer;transition:transform .1s ease, box-shadow .1s ease;user-select:none}
     .bs-bigcard.bs-clickable:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.12)}
@@ -396,7 +396,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.18-17"; // Modus-abhängige Felder in Artikel-Karten
+const APP_VERSION = "v2026.05.18-18"; // Backshop-Kacheln responsiv (volle Breite)
 const APP_VERSION_DATE = "18.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
