@@ -76,6 +76,10 @@
     .bs-color-darkgreen{background:#00b050;color:#fff}
     .bs-color-violet{background:#9b59b6;color:#fff}
     .bs-color-none{background:#e2e8f0}
+    .task-move-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:34px;border:1px solid #e2e8f0;background:#fef9c3;color:#0c1f3c;border-radius:6px;cursor:pointer;font-size:16px;padding:0;line-height:1}
+    .task-move-btn:hover{background:#fde047}
+    .task-move-btn:disabled{opacity:.35;cursor:not-allowed;background:#f1f5f9}
+    .task-move-cell{white-space:nowrap;display:flex;gap:4px}
     /* Dezentere Pastell-Hintergruende fuer die Karten (kraeftige Farben oben links als Streifen) */
     .bs-mobile-card.bp-broetchen{background:linear-gradient(90deg,#fff200 0,#fff200 6px,#fffdee 6px)}
     .bs-mobile-card.bp-croissants{background:linear-gradient(90deg,#8db4e2 0,#8db4e2 6px,#eef4fb 6px)}
@@ -390,7 +394,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.18-8"; // Manuelle Reihenfolge für ToDos
+const APP_VERSION = "v2026.05.18-9"; // Kompakte Move-Buttons in der Aufgaben-Tabelle
 const APP_VERSION_DATE = "18.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -1692,7 +1696,7 @@ async function loadAdminTasks(){
       const idsJson = JSON.stringify(g.ids).replace(/"/g, "&quot;");
       const upDisabled = !prevSameArea ? "disabled" : "";
       const downDisabled = !nextSameArea ? "disabled" : "";
-      moveCell = `<td style="white-space:nowrap"><button class="btn-yellow" ${upDisabled} onclick="moveTaskGroup(&quot;${idsJson}&quot;, 'up')" style="padding:4px 8px;font-size:14px">⬆️</button> <button class="btn-yellow" ${downDisabled} onclick="moveTaskGroup(&quot;${idsJson}&quot;, 'down')" style="padding:4px 8px;font-size:14px">⬇️</button></td>`;
+      moveCell = `<td><div class="task-move-cell"><button class="task-move-btn" ${upDisabled} title="Nach oben" onclick="moveTaskGroup(&quot;${idsJson}&quot;, 'up')">⬆</button><button class="task-move-btn" ${downDisabled} title="Nach unten" onclick="moveTaskGroup(&quot;${idsJson}&quot;, 'down')">⬇</button></div></td>`;
     }
     html+=`<tr>
       ${moveCell}
