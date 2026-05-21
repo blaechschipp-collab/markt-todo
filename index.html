@@ -260,13 +260,14 @@
   <section id="backshopSection" style="display:none">
     <!-- Sub-Reiter -->
     <div class="sub-tabs">
-      <button id="backshopSubTabBackempfehlung" class="sub-tab active" onclick="showBackshopSubTab('backempfehlung')">🥐 Backempfehlung</button>
+      <button id="backshopSubTabBackempfehlung" class="sub-tab active" onclick="showBackshopSubTab('backempfehlung')">🥐 Heute</button>
+      <button id="backshopSubTabMorgen" class="sub-tab" onclick="showBackshopSubTab('morgen')">🌅 Für morgen</button>
       <button id="backshopSubTabBestellung" class="sub-tab" onclick="showBackshopSubTab('bestellung')">📦 Bestellung</button>
     </div>
     <div id="backshopSubBackempfehlung">
     <div class="box">
-      <h2 style="margin-top:0">🥐 Backshop – Nachback-Hilfe</h2>
-      <div class="small">Auf Basis historischer Verkaufsdaten (gewichteter Mittelwert über vergangene Wochen, jüngste Wochen zählen stärker). Standard: aktueller Wochentag und aktuelle Uhrzeit.</div>
+      <h2 id="backshopHeading" style="margin-top:0">🥐 Backshop – Nachback-Hilfe</h2>
+      <div id="backshopHeadingHint" class="small">Auf Basis historischer Verkaufsdaten (gewichteter Mittelwert über vergangene Wochen, jüngste Wochen zählen stärker).</div>
       <div class="control-grid" style="margin-top:14px">
         <div><label>Markt</label><select id="backshopMarket" onchange="handleBackshopMarketChange()"><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
         <div><label>Wochentag</label><select id="backshopWeekday" onchange="renderBackshop()">
@@ -394,7 +395,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.18-13"; // Robuste DOM-Reihenfolge beim Verschieben
+const APP_VERSION = "v2026.05.18-14"; // Backshop: getrennte Tabs Heute / Für morgen
 const APP_VERSION_DATE = "18.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -2336,13 +2337,30 @@ function showAdminSubTab(name){
   document.getElementById("adminSubTabUploads").classList.toggle("active", name === "uploads");
   if(name === "todopflege"){ loadAdminTasks(); loadControlTasks(); }
 }
+// Modus fuer die Backempfehlung: "today" (aktuell, Heute-Fokus) oder "tomorrow" (Auflegen fuer morgen frueh)
+let backshopMode = "today";
 function showBackshopSubTab(name){
-  document.getElementById("backshopSubBackempfehlung").style.display = name === "backempfehlung" ? "block" : "none";
+  // Die Backempfehlung-Box wird sowohl fuer "heute" als auch "morgen" benutzt
+  const showBackempfehlung = (name === "backempfehlung" || name === "morgen");
+  document.getElementById("backshopSubBackempfehlung").style.display = showBackempfehlung ? "block" : "none";
   document.getElementById("backshopSubBestellung").style.display = name === "bestellung" ? "block" : "none";
   document.getElementById("backshopSubTabBackempfehlung").classList.toggle("active", name === "backempfehlung");
+  document.getElementById("backshopSubTabMorgen").classList.toggle("active", name === "morgen");
   document.getElementById("backshopSubTabBestellung").classList.toggle("active", name === "bestellung");
   if(name === "bestellung"){
     loadBestellung();
+    return;
+  }
+  if(name === "morgen"){
+    backshopMode = "tomorrow";
+    // automatisch morgen 08:00 setzen
+    if(typeof jumpToTomorrowMorning === "function") jumpToTomorrowMorning();
+    else renderBackshop();
+  } else {
+    // "backempfehlung" = heute
+    backshopMode = "today";
+    if(typeof resetBackshopToNow === "function") resetBackshopToNow();
+    else renderBackshop();
   }
 }
 
@@ -3411,22 +3429,34 @@ function renderBackshop(){
   const totalTomMorning = visibleArticles.reduce((s, a) => s + a.tomMorning, 0);
   // Wieviele Eingaben gab es heute insgesamt?
   const totalBakedToday = (backshopState.bakedToday || []).reduce((s, b) => s + (Number(b.qty) || 0), 0);
+  const showTomorrowCard = (typeof backshopMode !== "undefined" && backshopMode === "tomorrow");
+  // Header dynamisch anpassen je nach Modus
+  const headingEl = document.getElementById("backshopHeading");
+  const headingHintEl = document.getElementById("backshopHeadingHint");
+  if(headingEl){
+    headingEl.textContent = showTomorrowCard ? "🌅 Für morgen auflegen" : "🥐 Backempfehlung Heute";
+  }
+  if(headingHintEl){
+    headingHintEl.textContent = showTomorrowCard
+      ? "Diese Mengen sollten vor Ladenöffnung morgens schon aufgelegt sein."
+      : "Empfehlungen für die nächsten Stunden auf Basis der historischen Verkaufsdaten.";
+  }
   summary.innerHTML = `<div class="bs-headline">
-    <div class="bs-bigcard">
+    ${showTomorrowCard ? "" : `<div class="bs-bigcard">
       <div class="bs-lbl">Nächste ${BACKSHOP_HORIZON_HOURS} Stunden</div>
       <div class="bs-val">~${Math.round(totalNext3)}</div>
       <div class="bs-sub">Stück · ${visibleArticles.length} Artikel</div>
-    </div>
-    <div class="bs-bigcard">
+    </div>`}
+    ${showTomorrowCard ? "" : `<div class="bs-bigcard">
       <div class="bs-lbl">Heute noch insgesamt</div>
       <div class="bs-val">~${Math.round(totalToday)}</div>
       <div class="bs-sub">${String(currentHour).padStart(2,"0")}:00 bis ${String(maxHour).padStart(2,"0")}:59</div>
-    </div>
-    <div class="bs-bigcard bs-tomorrow bs-clickable" onclick="jumpToTomorrowMorning()" title="Klicken: Tab auf Morgen 08:00 stellen">
-      <div class="bs-lbl">Morgen zu Beginn</div>
+    </div>`}
+    ${!showTomorrowCard ? "" : `<div class="bs-bigcard bs-tomorrow">
+      <div class="bs-lbl">🌅 Für morgen auflegen</div>
       <div class="bs-val">~${Math.round(totalTomMorning)}</div>
       <div class="bs-sub">${tomorrowWeekday} ${String(tomMorningFrom).padStart(2,"0")}:00 bis ${String(tomMorningTo).padStart(2,"0")}:59</div>
-      <div class="bs-hint">→ Empfehlungen für morgen ansehen</div>
+      <div class="bs-hint">Diese Mengen vor Ladenöffnung bereitstellen</div>
     </div>
   </div>
   <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
