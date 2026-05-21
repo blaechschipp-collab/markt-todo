@@ -394,7 +394,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.18-9"; // Kompakte Move-Buttons in der Aufgaben-Tabelle
+const APP_VERSION = "v2026.05.18-10"; // Move-Buttons via Index statt JSON-Quoting
 const APP_VERSION_DATE = "18.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -1678,6 +1678,12 @@ async function loadAdminTasks(){
     return a.area.localeCompare(b.area,"de")||a.title.localeCompare(b.title,"de")||a.type.localeCompare(b.type,"de");
   });
   const showMoveBtns = (sortMode === "manual");
+  // Gruppen pro Bereich vorab indexieren (fuer Move-Buttons)
+  window._adminGroupsByArea = {};
+  rows.forEach(g => {
+    if(!window._adminGroupsByArea[g.area]) window._adminGroupsByArea[g.area] = [];
+    window._adminGroupsByArea[g.area].push(g);
+  });
   let html=`<div class="table-wrap"><table><thead><tr>${showMoveBtns ? "<th>↕</th>" : ""}<th>Markt</th><th>Bereich</th><th>Aufgabe / Info</th><th>Art</th><th>Tage / Zeitraum</th><th>Wichtigkeit</th><th>Aktion</th></tr></thead><tbody>`;
   rows.forEach((g, idx)=>{
     const daysOrder={Montag:1,Dienstag:2,Mittwoch:3,Donnerstag:4,Freitag:5,Samstag:6};
@@ -1688,15 +1694,15 @@ async function loadAdminTasks(){
     if(days.length) period=days.join(", ");
     else if(months.length) period=months.join(", ");
     else if(dates.length) period=dates.join(", ");
-    // Move-Buttons: nur fuer manuelle Sortierung, und nur innerhalb des gleichen Bereichs verschieben
+    // Move-Buttons: Index innerhalb des Bereichs als Referenz benutzen — kein JSON-Quoting
     let moveCell = "";
     if(showMoveBtns){
-      const prevSameArea = (idx > 0 && rows[idx-1].area === g.area);
-      const nextSameArea = (idx < rows.length - 1 && rows[idx+1].area === g.area);
-      const idsJson = JSON.stringify(g.ids).replace(/"/g, "&quot;");
-      const upDisabled = !prevSameArea ? "disabled" : "";
-      const downDisabled = !nextSameArea ? "disabled" : "";
-      moveCell = `<td><div class="task-move-cell"><button class="task-move-btn" ${upDisabled} title="Nach oben" onclick="moveTaskGroup(&quot;${idsJson}&quot;, 'up')">⬆</button><button class="task-move-btn" ${downDisabled} title="Nach unten" onclick="moveTaskGroup(&quot;${idsJson}&quot;, 'down')">⬇</button></div></td>`;
+      const areaList = window._adminGroupsByArea[g.area] || [];
+      const idxInArea = areaList.indexOf(g);
+      const upDisabled = (idxInArea <= 0) ? "disabled" : "";
+      const downDisabled = (idxInArea >= areaList.length - 1) ? "disabled" : "";
+      const areaKeyEsc = String(g.area).replace(/'/g, "\\'");
+      moveCell = `<td><div class="task-move-cell"><button class="task-move-btn" ${upDisabled} title="Nach oben" onclick="moveTaskByIndex('${areaKeyEsc}', ${idxInArea}, 'up')">⬆</button><button class="task-move-btn" ${downDisabled} title="Nach unten" onclick="moveTaskByIndex('${areaKeyEsc}', ${idxInArea}, 'down')">⬇</button></div></td>`;
     }
     html+=`<tr>
       ${moveCell}
@@ -1714,42 +1720,25 @@ async function loadAdminTasks(){
   });
   html+=`</tbody></table></div>`;
   c.innerHTML=html;
-  // Gruppen fuer moveTaskGroup speichern (gleicher Bereich)
-  window._adminGroupsByArea = {};
-  rows.forEach(g => {
-    if(!window._adminGroupsByArea[g.area]) window._adminGroupsByArea[g.area] = [];
-    window._adminGroupsByArea[g.area].push(g);
-  });
 }
 
-// Verschieben einer Aufgaben-Gruppe in der manuellen Reihenfolge
-async function moveTaskGroup(idsJsonStr, direction){
+// Verschieben einer Aufgaben-Gruppe ueber Index — robuster als JSON-String-Uebergabe
+async function moveTaskByIndex(area, idxInArea, direction){
   if(!adminUnlocked) return alert("Admin-PIN erforderlich.");
-  let ids;
-  try{ ids = JSON.parse(idsJsonStr.replace(/&quot;/g, '"')); }catch(e){ return; }
-  if(!ids || !ids.length) return;
-  // Finde die Gruppe + Nachbarn (im gleichen Bereich) aus dem zwischengespeicherten Layout
-  const allAreas = window._adminGroupsByArea || {};
-  let foundArea = null, foundIdx = -1;
-  Object.entries(allAreas).forEach(([area, list]) => {
-    list.forEach((g, i) => {
-      if(g.ids[0] === ids[0]){ foundArea = area; foundIdx = i; }
-    });
-  });
-  if(foundArea === null) return;
-  const list = allAreas[foundArea];
-  const swapIdx = direction === "up" ? foundIdx - 1 : foundIdx + 1;
+  const list = (window._adminGroupsByArea || {})[area];
+  if(!list || idxInArea < 0 || idxInArea >= list.length) return;
+  const swapIdx = direction === "up" ? idxInArea - 1 : idxInArea + 1;
   if(swapIdx < 0 || swapIdx >= list.length) return;
-  const current = list[foundIdx];
+  const current = list[idxInArea];
   const neighbor = list[swapIdx];
-  // Sicherstellen, dass beide einen sort_order haben — sonst initialisieren wir die Bereichs-Reihenfolge neu
+  // Sicherstellen, dass beide eine sort_order haben — sonst initialisieren
   const needsInit = list.some(g => g.sortOrder === null || g.sortOrder === undefined);
   if(needsInit){
-    // Allen Gruppen im Bereich frische sort_order in 10er-Schritten geben
     for(let i = 0; i < list.length; i++){
       const newOrder = (i + 1) * 10;
       for(const id of list[i].ids){
-        await db.from("tasks").update({sort_order: newOrder}).eq("id", id);
+        const r = await db.from("tasks").update({sort_order: newOrder}).eq("id", id);
+        if(r.error){ alert("Fehler beim Initialisieren: " + r.error.message); return; }
       }
       list[i].sortOrder = newOrder;
     }
@@ -1758,12 +1747,14 @@ async function moveTaskGroup(idsJsonStr, direction){
   const oCurrent = current.sortOrder;
   const oNeighbor = neighbor.sortOrder;
   for(const id of current.ids){
-    await db.from("tasks").update({sort_order: oNeighbor}).eq("id", id);
+    const r = await db.from("tasks").update({sort_order: oNeighbor}).eq("id", id);
+    if(r.error){ alert("Fehler beim Verschieben: " + r.error.message); return; }
   }
   for(const id of neighbor.ids){
-    await db.from("tasks").update({sort_order: oCurrent}).eq("id", id);
+    const r = await db.from("tasks").update({sort_order: oCurrent}).eq("id", id);
+    if(r.error){ alert("Fehler beim Verschieben: " + r.error.message); return; }
   }
-  loadAdminTasks();
+  await loadAdminTasks();
 }
 async function deleteTaskGroup(ids){
   if(!adminUnlocked)return alert("Admin-PIN erforderlich.");
