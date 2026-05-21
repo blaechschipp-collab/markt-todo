@@ -62,7 +62,10 @@
     .bs-bake-btn{background:#fff;border:2px solid #f59e0b;color:#c2410c;padding:18px 8px;border-radius:10px;font-weight:900;font-size:24px;cursor:pointer;transition:all .15s ease;box-shadow:0 1px 2px rgba(0,0,0,.05);min-height:60px;display:flex;align-items:center;justify-content:center}
     .bs-bake-btn:hover{background:#fed7aa;transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,.1)}
     .bs-bake-btn:active{transform:scale(.95);background:#fdba74}
-    .bs-bake-btn.confirmed{background:#16a34a;color:#fff;border-color:#15803d;animation:bake-pulse .9s ease}
+    .bs-bake-btn.confirmed{background:#16a34a;color:#fff;border-color:#15803d}
+    .bs-bake-btn.confirmed:hover{background:#15803d;color:#fff}
+    .bs-bake-btn.just-clicked{animation:bake-pulse .8s ease}
+    .bs-bake-btn .bs-bake-count{display:inline-block;margin-left:6px;background:rgba(255,255,255,.25);border-radius:10px;padding:1px 8px;font-size:14px;font-weight:bold}
     @keyframes bake-pulse{0%{transform:scale(1)}30%{transform:scale(1.12)}60%{transform:scale(1)}100%{transform:scale(1)}}
     .bs-bake-undo{background:transparent;border:none;color:#64748b;font-size:12px;cursor:pointer;padding:0;text-decoration:underline}
     .bs-bake-undo:hover{color:var(--red)}
@@ -398,7 +401,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.18-19"; // Nachback-Buttons größer + grüner Klick-Bestätigungspuls
+const APP_VERSION = "v2026.05.18-20"; // Nachback-Buttons bleiben grün + ×N-Badge
 const APP_VERSION_DATE = "18.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -3273,19 +3276,17 @@ function backshopColorOrder(color){
   return 99;
 }
 async function recordBackshopBake(articleNo, qty, btnEl){
-  // Klick-Feedback: gedrueckter Button kurz gruen aufleuchten lassen
+  // Klick-Feedback: gedrueckter Button gruen einfärben + Puls-Animation
   if(btnEl && btnEl.classList){
-    btnEl.classList.add("confirmed");
-    btnEl.textContent = "✓ +" + qty;
-    // Nach der Animation wird sowieso renderBackshop() alles neu aufbauen
+    btnEl.classList.add("confirmed", "just-clicked");
   }
   const market = document.getElementById("backshopMarket").value;
   const today = berlinNow();
   const r = await db.from("backshop_baked").insert({market, date: today.dateISO, article_no: articleNo, qty});
   if(r.error){ alert("Fehler beim Speichern: " + r.error.message); return; }
   await fetchBackshopBakedToday();
-  // Kurz warten, damit die Animation sichtbar ist, dann neu rendern
-  await new Promise(res => setTimeout(res, 700));
+  // Kurz warten, damit die Puls-Animation sichtbar abläuft, dann neu rendern
+  await new Promise(res => setTimeout(res, 800));
   renderBackshop();
 }
 async function undoLastBackshopBake(articleNo){
@@ -3522,9 +3523,14 @@ function renderBackshop(){
       mobile += `<div class="small" style="margin-bottom:8px;padding:6px 10px;background:#fef9c3;border-radius:6px">⭐ Top 10 ab 16 Uhr markiert — Fokus für die letzten Stunden + Frühstück morgen.</div>`;
     }
     // Heute schon gebackene Mengen pro Artikel berechnen
+    // bakedByArt[artno] = Summe; bakedQtyCount[artno][qty] = wie oft dieser exakte Wert geklickt wurde
     const bakedByArt = {};
+    const bakedQtyCount = {};
     (backshopState.bakedToday || []).forEach(b => {
-      bakedByArt[b.article_no] = (bakedByArt[b.article_no] || 0) + (Number(b.qty) || 0);
+      const q = Number(b.qty) || 0;
+      bakedByArt[b.article_no] = (bakedByArt[b.article_no] || 0) + q;
+      if(!bakedQtyCount[b.article_no]) bakedQtyCount[b.article_no] = {};
+      bakedQtyCount[b.article_no][q] = (bakedQtyCount[b.article_no][q] || 0) + 1;
     });
     // Top-10 Set berechnen für Highlight (basiert auf gesamter Sortierung, nicht nach Gruppe)
     const top10Set = new Set();
@@ -3596,7 +3602,12 @@ function renderBackshop(){
       mobile += `<div class="bs-bake-section">
         <div class="bs-bake-title"><span>🔥 Nachbacken vermerken</span><span class="bs-bake-counter">Heute: ${baked} St.</span></div>
         <div class="bs-bake-buttons">
-          ${BACKSHOP_BAKE_OPTIONS.map(q => `<button class="bs-bake-btn" onclick="recordBackshopBake('${artNoEsc}', ${q}, this)">+${q}</button>`).join("")}
+          ${BACKSHOP_BAKE_OPTIONS.map(q => {
+            const cnt = (bakedQtyCount[a.article_no] || {})[q] || 0;
+            const cls = cnt > 0 ? "bs-bake-btn confirmed" : "bs-bake-btn";
+            const badge = cnt > 0 ? `<span class="bs-bake-count">×${cnt}</span>` : "";
+            return `<button class="${cls}" onclick="recordBackshopBake('${artNoEsc}', ${q}, this)">+${q}${badge}</button>`;
+          }).join("")}
         </div>
         ${baked > 0 ? `<div style="display:flex;gap:12px;margin-top:6px;justify-content:flex-end"><button class="bs-bake-undo" onclick="undoLastBackshopBake('${artNoEsc}')">↶ Letzte rückgängig</button><button class="bs-bake-undo" style="color:var(--red)" onclick="resetBackshopBakeArticle('${artNoEsc}','${artNameEsc}')">🔄 Alles für diesen Artikel zurücksetzen</button></div>` : ""}
       </div>`;
