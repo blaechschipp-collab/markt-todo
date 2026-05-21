@@ -55,13 +55,15 @@
     .bs-bigcard.bs-clickable:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.12)}
     .bs-bigcard.bs-clickable:active{transform:translateY(0)}
     .bs-bigcard.bs-clickable .bs-hint{font-size:11px;color:var(--blue);font-weight:bold;margin-top:6px;text-transform:uppercase;letter-spacing:.5px}
-    .bs-bake-section{margin-top:10px;padding:10px;background:#fff7ed;border:1px solid #fdba74;border-radius:8px}
+    .bs-bake-section{margin-top:12px;padding:14px;background:#fff7ed;border:2px solid #fdba74;border-radius:10px}
     .bs-bake-title{font-size:12px;color:#c2410c;font-weight:bold;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
     .bs-bake-counter{font-size:14px;font-weight:bold;color:var(--blue-dark)}
-    .bs-bake-buttons{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
-    .bs-bake-btn{background:#fff;border:2px solid #f59e0b;color:#c2410c;padding:10px 0;border-radius:8px;font-weight:bold;font-size:16px;cursor:pointer;transition:all .1s}
-    .bs-bake-btn:hover{background:#fed7aa}
+    .bs-bake-buttons{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+    .bs-bake-btn{background:#fff;border:2px solid #f59e0b;color:#c2410c;padding:18px 8px;border-radius:10px;font-weight:900;font-size:24px;cursor:pointer;transition:all .15s ease;box-shadow:0 1px 2px rgba(0,0,0,.05);min-height:60px;display:flex;align-items:center;justify-content:center}
+    .bs-bake-btn:hover{background:#fed7aa;transform:translateY(-1px);box-shadow:0 3px 8px rgba(0,0,0,.1)}
     .bs-bake-btn:active{transform:scale(.95);background:#fdba74}
+    .bs-bake-btn.confirmed{background:#16a34a;color:#fff;border-color:#15803d;animation:bake-pulse .9s ease}
+    @keyframes bake-pulse{0%{transform:scale(1)}30%{transform:scale(1.12)}60%{transform:scale(1)}100%{transform:scale(1)}}
     .bs-bake-undo{background:transparent;border:none;color:#64748b;font-size:12px;cursor:pointer;padding:0;text-decoration:underline}
     .bs-bake-undo:hover{color:var(--red)}
     .bs-color-header{margin:18px 0 10px;padding:10px 14px;border-radius:8px;font-weight:bold;color:#1e293b;display:flex;justify-content:space-between;align-items:center;font-size:15px;border:2px solid rgba(0,0,0,0.08)}
@@ -396,7 +398,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.18-18"; // Backshop-Kacheln responsiv (volle Breite)
+const APP_VERSION = "v2026.05.18-19"; // Nachback-Buttons größer + grüner Klick-Bestätigungspuls
 const APP_VERSION_DATE = "18.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -3270,12 +3272,20 @@ function backshopColorOrder(color){
   if(LEGACY_COLOR_MAP[color]) return LEGACY_COLOR_MAP[color].order;
   return 99;
 }
-async function recordBackshopBake(articleNo, qty){
+async function recordBackshopBake(articleNo, qty, btnEl){
+  // Klick-Feedback: gedrueckter Button kurz gruen aufleuchten lassen
+  if(btnEl && btnEl.classList){
+    btnEl.classList.add("confirmed");
+    btnEl.textContent = "✓ +" + qty;
+    // Nach der Animation wird sowieso renderBackshop() alles neu aufbauen
+  }
   const market = document.getElementById("backshopMarket").value;
   const today = berlinNow();
   const r = await db.from("backshop_baked").insert({market, date: today.dateISO, article_no: articleNo, qty});
   if(r.error){ alert("Fehler beim Speichern: " + r.error.message); return; }
   await fetchBackshopBakedToday();
+  // Kurz warten, damit die Animation sichtbar ist, dann neu rendern
+  await new Promise(res => setTimeout(res, 700));
   renderBackshop();
 }
 async function undoLastBackshopBake(articleNo){
@@ -3586,7 +3596,7 @@ function renderBackshop(){
       mobile += `<div class="bs-bake-section">
         <div class="bs-bake-title"><span>🔥 Nachbacken vermerken</span><span class="bs-bake-counter">Heute: ${baked} St.</span></div>
         <div class="bs-bake-buttons">
-          ${BACKSHOP_BAKE_OPTIONS.map(q => `<button class="bs-bake-btn" onclick="recordBackshopBake('${artNoEsc}', ${q})">+${q}</button>`).join("")}
+          ${BACKSHOP_BAKE_OPTIONS.map(q => `<button class="bs-bake-btn" onclick="recordBackshopBake('${artNoEsc}', ${q}, this)">+${q}</button>`).join("")}
         </div>
         ${baked > 0 ? `<div style="display:flex;gap:12px;margin-top:6px;justify-content:flex-end"><button class="bs-bake-undo" onclick="undoLastBackshopBake('${artNoEsc}')">↶ Letzte rückgängig</button><button class="bs-bake-undo" style="color:var(--red)" onclick="resetBackshopBakeArticle('${artNoEsc}','${artNameEsc}')">🔄 Alles für diesen Artikel zurücksetzen</button></div>` : ""}
       </div>`;
