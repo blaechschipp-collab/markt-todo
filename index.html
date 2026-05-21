@@ -396,7 +396,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.18-16"; // Syntax-Fix: fehlender Backtick im Tomorrow-Card-Template
+const APP_VERSION = "v2026.05.18-17"; // Modus-abhängige Felder in Artikel-Karten
 const APP_VERSION_DATE = "18.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -3473,7 +3473,11 @@ function renderBackshop(){
   if(visibleArticles.length === 0){
     table += `<p>${searchRaw ? `Keine Treffer für „${searchRaw}".` : "Keine Artikel mit erwartetem Restverkauf."}</p></div>`;
   } else {
-    table += `<div class="table-wrap"><table class="bs-table"><thead><tr><th>Artikel</th><th>Nächste ${BACKSHOP_HORIZON_HOURS}h</th><th>Heute noch</th><th>Morgen früh</th>`;
+    if(showTomorrowCard){
+      table += `<div class="table-wrap"><table class="bs-table"><thead><tr><th>Artikel</th><th>🌅 Morgen früh</th>`;
+    } else {
+      table += `<div class="table-wrap"><table class="bs-table"><thead><tr><th>Artikel</th><th>Nächste ${BACKSHOP_HORIZON_HOURS}h</th><th>Heute noch</th>`;
+    }
     for(let h = fromHour; h <= maxHour; h++){
       table += `<th>${String(h).padStart(2,"0")}</th>`;
     }
@@ -3481,9 +3485,12 @@ function renderBackshop(){
     visibleArticles.forEach((a, idx) => {
       const isTop10 = highlightTop10 && idx < 10;
       table += `<tr class="${isTop10 ? "bs-top10" : ""}"><td>${a.article_name || a.article_no}<br><span class="small">Art. ${a.article_no}${a.ean ? " · EAN " + a.ean : ""}</span></td>`;
-      table += `<td class="bs-next3"><strong>${a.next3 < 1 ? a.next3.toFixed(1) : Math.round(a.next3)}</strong></td>`;
-      table += `<td><strong>${a.todayLeft < 1 ? a.todayLeft.toFixed(1) : Math.round(a.todayLeft)}</strong></td>`;
-      table += `<td><strong>${a.tomMorning < 1 ? a.tomMorning.toFixed(1) : Math.round(a.tomMorning)}</strong></td>`;
+      if(showTomorrowCard){
+        table += `<td><strong>${a.tomMorning < 1 ? a.tomMorning.toFixed(1) : Math.round(a.tomMorning)}</strong></td>`;
+      } else {
+        table += `<td class="bs-next3"><strong>${a.next3 < 1 ? a.next3.toFixed(1) : Math.round(a.next3)}</strong></td>`;
+        table += `<td><strong>${a.todayLeft < 1 ? a.todayLeft.toFixed(1) : Math.round(a.todayLeft)}</strong></td>`;
+      }
       for(let h = fromHour; h <= maxHour; h++){
         const v = a.forecast[h] || 0;
         let cls = "";
@@ -3564,9 +3571,7 @@ function renderBackshop(){
         <div class="name">${a.article_name || a.article_no}</div>
         <div class="meta">Art. ${a.article_no}${a.ean ? " · EAN " + a.ean : ""}</div>
         <div class="totals">
-          <div><div class="lbl">Nächste ${BACKSHOP_HORIZON_HOURS}h</div><div class="val">${a.next3 < 1 ? a.next3.toFixed(1) : Math.round(a.next3)}</div></div>
-          <div><div class="lbl">Heute noch</div><div class="val">${a.todayLeft < 1 ? a.todayLeft.toFixed(1) : Math.round(a.todayLeft)}</div></div>
-          <div><div class="lbl">Morgen früh</div><div class="val">${a.tomMorning < 1 ? a.tomMorning.toFixed(1) : Math.round(a.tomMorning)}</div></div>
+          ${showTomorrowCard ? `<div><div class="lbl">🌅 Morgen früh</div><div class="val">${a.tomMorning < 1 ? a.tomMorning.toFixed(1) : Math.round(a.tomMorning)}</div></div>` : `<div><div class="lbl">Nächste ${BACKSHOP_HORIZON_HOURS}h</div><div class="val">${a.next3 < 1 ? a.next3.toFixed(1) : Math.round(a.next3)}</div></div><div><div class="lbl">Heute noch</div><div class="val">${a.todayLeft < 1 ? a.todayLeft.toFixed(1) : Math.round(a.todayLeft)}</div></div>`}
         </div>
         <div class="hours">`;
       for(let h = currentHour; h <= maxHour; h++){
