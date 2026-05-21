@@ -394,7 +394,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.18-11"; // Move-Buttons mit sofort sichtbarer DOM-Animation
+const APP_VERSION = "v2026.05.18-12"; // 4 Move-Buttons (Anfang, hoch, runter, Ende)
 const APP_VERSION_DATE = "18.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -1699,10 +1699,17 @@ async function loadAdminTasks(){
     if(showMoveBtns){
       const areaList = window._adminGroupsByArea[g.area] || [];
       const idxInArea = areaList.indexOf(g);
-      const upDisabled = (idxInArea <= 0) ? "disabled" : "";
-      const downDisabled = (idxInArea >= areaList.length - 1) ? "disabled" : "";
+      const atTop = (idxInArea <= 0);
+      const atBottom = (idxInArea >= areaList.length - 1);
+      const upDisabled = atTop ? "disabled" : "";
+      const downDisabled = atBottom ? "disabled" : "";
       const areaKeyEsc = String(g.area).replace(/'/g, "\\'");
-      moveCell = `<td><div class="task-move-cell"><button class="task-move-btn" ${upDisabled} title="Nach oben" onclick="moveTaskByIndex('${areaKeyEsc}', ${idxInArea}, 'up')">⬆</button><button class="task-move-btn" ${downDisabled} title="Nach unten" onclick="moveTaskByIndex('${areaKeyEsc}', ${idxInArea}, 'down')">⬇</button></div></td>`;
+      moveCell = `<td><div class="task-move-cell">`
+        + `<button class="task-move-btn" ${upDisabled} title="Ganz nach oben" onclick="moveTaskByIndex('${areaKeyEsc}', ${idxInArea}, 'first')">⏫</button>`
+        + `<button class="task-move-btn" ${upDisabled} title="Eine Position nach oben" onclick="moveTaskByIndex('${areaKeyEsc}', ${idxInArea}, 'up')">⬆</button>`
+        + `<button class="task-move-btn" ${downDisabled} title="Eine Position nach unten" onclick="moveTaskByIndex('${areaKeyEsc}', ${idxInArea}, 'down')">⬇</button>`
+        + `<button class="task-move-btn" ${downDisabled} title="Ganz nach unten" onclick="moveTaskByIndex('${areaKeyEsc}', ${idxInArea}, 'last')">⏬</button>`
+        + `</div></td>`;
     }
     html+=`<tr>
       ${moveCell}
@@ -1722,78 +1729,76 @@ async function loadAdminTasks(){
   c.innerHTML=html;
 }
 
-// Verschieben einer Aufgaben-Gruppe — sofort sichtbar (DOM-Swap + Highlight) + DB-Update parallel
+// Verschieben einer Aufgaben-Gruppe — sofort sichtbar (DOM-Move + Highlight) + DB-Update parallel
+// direction: "up" | "down" | "first" | "last"
 async function moveTaskByIndex(area, idxInArea, direction){
   if(!adminUnlocked) return alert("Admin-PIN erforderlich.");
   const list = (window._adminGroupsByArea || {})[area];
   if(!list || idxInArea < 0 || idxInArea >= list.length) return;
-  const swapIdx = direction === "up" ? idxInArea - 1 : idxInArea + 1;
-  if(swapIdx < 0 || swapIdx >= list.length) return;
   const current = list[idxInArea];
-  const neighbor = list[swapIdx];
 
-  // === 1) Sofort im DOM tauschen (optisch) ===
+  // Ziel-Index berechnen
+  let targetIdx;
+  if(direction === "first")     targetIdx = 0;
+  else if(direction === "last") targetIdx = list.length - 1;
+  else if(direction === "up")   targetIdx = idxInArea - 1;
+  else if(direction === "down") targetIdx = idxInArea + 1;
+  else return;
+  if(targetIdx < 0 || targetIdx >= list.length || targetIdx === idxInArea) return;
+
+  // === 1) In-memory Liste neu anordnen ===
+  list.splice(idxInArea, 1);
+  list.splice(targetIdx, 0, current);
+
+  // === 2) Sofort im DOM die Zeile verschieben ===
   const container = document.getElementById("adminTasks");
-  const tbody = container.querySelector("tbody");
+  const tbody = container ? container.querySelector("tbody") : null;
+  let movedTr = null;
   if(tbody){
     const rowsDom = Array.from(tbody.querySelectorAll("tr"));
-    // Den globalen Index im rows-Array finden, ueber den Anpassen-Button (eindeutige ID)
     const findRow = (firstId) => rowsDom.find(tr => tr.innerHTML.includes(`editTask('${firstId}')`));
-    const trA = findRow(current.ids[0]);
-    const trB = findRow(neighbor.ids[0]);
-    if(trA && trB){
-      // Reihenfolge im DOM tauschen
-      if(direction === "up"){
-        tbody.insertBefore(trA, trB);
+    movedTr = findRow(current.ids[0]);
+    if(movedTr){
+      if(targetIdx === 0){
+        // An den Anfang: vor dem ersten Element des Bereichs einfuegen
+        const firstAreaRow = findRow(list[1] && list[1].ids[0]); // jetzt ist current auf 0, list[1] ist alter erster
+        // Wir nutzen sicherheitshalber alle DOM-Zeilen des Bereichs:
+        const allAreaTrs = list.map(g => findRow(g.ids[0])).filter(Boolean);
+        if(allAreaTrs.length > 1) tbody.insertBefore(movedTr, allAreaTrs[1]);
+      } else if(targetIdx === list.length - 1){
+        // Ans Ende: nach dem letzten Element des Bereichs einfuegen
+        const allAreaTrs = list.map(g => findRow(g.ids[0])).filter(Boolean);
+        const lastAreaTr = allAreaTrs[allAreaTrs.length - 2]; // current ist jetzt auf letzter Position, also vorletztes nehmen
+        if(lastAreaTr && lastAreaTr.nextSibling) tbody.insertBefore(movedTr, lastAreaTr.nextSibling);
+        else if(lastAreaTr) tbody.appendChild(movedTr);
       } else {
-        tbody.insertBefore(trB, trA);
+        // Direkt vor das Element, das jetzt auf targetIdx+1 ist
+        const refGroup = list[targetIdx + 1];
+        const refTr = refGroup ? findRow(refGroup.ids[0]) : null;
+        if(refTr) tbody.insertBefore(movedTr, refTr);
       }
       // Highlight-Effekt
-      [trA, trB].forEach(tr => {
-        tr.style.transition = "background-color 0.6s ease";
-        tr.style.backgroundColor = "#fef9c3";
-        setTimeout(() => { tr.style.backgroundColor = ""; }, 700);
-      });
+      movedTr.style.transition = "background-color 0.6s ease";
+      movedTr.style.backgroundColor = "#fef9c3";
+      setTimeout(() => { movedTr.style.backgroundColor = ""; }, 800);
     }
   }
 
-  // Auch im in-memory Layout tauschen, damit weitere Klicks korrekt sind
-  list[idxInArea] = neighbor;
-  list[swapIdx] = current;
-
-  // === 2) Im Hintergrund die sort_order in der DB tauschen ===
-  // Sicherstellen, dass beide eine sort_order haben — sonst initialisieren
-  const needsInit = list.some(g => g.sortOrder === null || g.sortOrder === undefined);
+  // === 3) Im Hintergrund die sort_order in der DB neu vergeben (komplette Bereichs-Liste) ===
   try{
-    if(needsInit){
-      for(let i = 0; i < list.length; i++){
-        const newOrder = (i + 1) * 10;
-        for(const id of list[i].ids){
-          const r = await db.from("tasks").update({sort_order: newOrder}).eq("id", id);
-          if(r.error) throw new Error(r.error.message);
-        }
-        list[i].sortOrder = newOrder;
-      }
-    } else {
-      const oCurrent = current.sortOrder;
-      const oNeighbor = neighbor.sortOrder;
-      for(const id of current.ids){
-        const r = await db.from("tasks").update({sort_order: oNeighbor}).eq("id", id);
+    for(let i = 0; i < list.length; i++){
+      const newOrder = (i + 1) * 10;
+      if(list[i].sortOrder === newOrder) continue; // schon ok, nicht neu schreiben
+      for(const id of list[i].ids){
+        const r = await db.from("tasks").update({sort_order: newOrder}).eq("id", id);
         if(r.error) throw new Error(r.error.message);
       }
-      for(const id of neighbor.ids){
-        const r = await db.from("tasks").update({sort_order: oCurrent}).eq("id", id);
-        if(r.error) throw new Error(r.error.message);
-      }
-      // Lokal aktualisieren
-      current.sortOrder = oNeighbor;
-      neighbor.sortOrder = oCurrent;
+      list[i].sortOrder = newOrder;
     }
-    // Nach Erfolg: nur die Buttons + #-Nummern aktualisieren (kein voller Reload mehr)
+    // Buttons + #-Nummern aktualisieren
     refreshMoveButtons(area);
   }catch(e){
-    alert("Fehler beim Speichern: " + e.message + "\n\nDie Reihenfolge wird zurückgesetzt.");
-    // Bei Fehler: kompletter Reload, um den DB-Stand wiederzugeben
+    alert("Fehler beim Speichern: " + e.message + "\n\nDie Reihenfolge wird neu geladen.");
     await loadAdminTasks();
   }
 }
@@ -1809,23 +1814,20 @@ function refreshMoveButtons(area){
   list.forEach((g, idx) => {
     const tr = Array.from(tbody.querySelectorAll("tr")).find(t => t.innerHTML.includes(`editTask('${g.ids[0]}')`));
     if(!tr) return;
-    // Move-Buttons: enabled/disabled nach Position
+    // Move-Buttons: enabled/disabled + onclick-Index aktualisieren (4 Buttons: ⏫ ⬆ ⬇ ⏬)
     const btns = tr.querySelectorAll(".task-move-btn");
-    if(btns.length >= 2){
-      btns[0].disabled = (idx <= 0);
-      btns[1].disabled = (idx >= list.length - 1);
-      // onclick mit neuem Index aktualisieren
-      const areaEsc = String(g.area).replace(/'/g, "\\'");
-      btns[0].setAttribute("onclick", `moveTaskByIndex('${areaEsc}', ${idx}, 'up')`);
-      btns[1].setAttribute("onclick", `moveTaskByIndex('${areaEsc}', ${idx}, 'down')`);
-    }
-    // #-Nummer aktualisieren
-    const titleCell = tr.children[showMoveBtnsIndex(tr) + 2]; // Markt|Bereich|Titel — Titel ist 3. Spalte ohne Move-Cell, 4. mit
+    const atTop = (idx <= 0);
+    const atBottom = (idx >= list.length - 1);
+    const areaEsc = String(g.area).replace(/'/g, "\\'");
+    if(btns[0]){ btns[0].disabled = atTop;    btns[0].setAttribute("onclick", `moveTaskByIndex('${areaEsc}', ${idx}, 'first')`); }
+    if(btns[1]){ btns[1].disabled = atTop;    btns[1].setAttribute("onclick", `moveTaskByIndex('${areaEsc}', ${idx}, 'up')`); }
+    if(btns[2]){ btns[2].disabled = atBottom; btns[2].setAttribute("onclick", `moveTaskByIndex('${areaEsc}', ${idx}, 'down')`); }
+    if(btns[3]){ btns[3].disabled = atBottom; btns[3].setAttribute("onclick", `moveTaskByIndex('${areaEsc}', ${idx}, 'last')`); }
+    // #-Nummer im Titel aktualisieren
+    const titleCell = tr.children[showMoveBtnsIndex(tr) + 2];
     if(titleCell && g.sortOrder !== null){
       const span = titleCell.querySelector("span.small");
-      if(span){
-        span.textContent = "[#" + g.sortOrder + "]";
-      }
+      if(span) span.textContent = "[#" + g.sortOrder + "]";
     }
   });
 }
