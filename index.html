@@ -168,8 +168,9 @@
   </style>
 </head>
 <body>
-<!-- App-Passwort-Schutz: Overlay erscheint, bis korrektes Passwort eingegeben wurde -->
-<div id="appGate" style="position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(180deg,#00315f,#004f9e);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;font-family:Arial,Helvetica,sans-serif">
+<!-- App-Passwort-Schutz: aktuell deaktiviert, daher default display:none.
+     Falls wir ihn wieder aktivieren wollen: initAppGate setzt display:flex. -->
+<div id="appGate" style="position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(180deg,#00315f,#004f9e);z-index:9999;display:none;align-items:center;justify-content:center;padding:20px;font-family:Arial,Helvetica,sans-serif">
   <div style="background:white;border-radius:14px;padding:28px;max-width:380px;width:100%;text-align:center;box-shadow:0 12px 40px rgba(0,0,0,.4)">
     <div style="font-size:42px;margin-bottom:6px">🔐</div>
     <h2 style="margin:0 0 6px;color:#00315f">EDEKA Paul App</h2>
@@ -395,7 +396,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.18-14"; // Backshop: getrennte Tabs Heute / Für morgen
+const APP_VERSION = "v2026.05.18-15"; // App-Gate default unsichtbar (kein Aufflashen mehr)
 const APP_VERSION_DATE = "18.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
