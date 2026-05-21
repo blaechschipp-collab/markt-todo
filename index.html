@@ -394,7 +394,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.18-10"; // Move-Buttons via Index statt JSON-Quoting
+const APP_VERSION = "v2026.05.18-11"; // Move-Buttons mit sofort sichtbarer DOM-Animation
 const APP_VERSION_DATE = "18.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -1722,7 +1722,7 @@ async function loadAdminTasks(){
   c.innerHTML=html;
 }
 
-// Verschieben einer Aufgaben-Gruppe ueber Index — robuster als JSON-String-Uebergabe
+// Verschieben einer Aufgaben-Gruppe — sofort sichtbar (DOM-Swap + Highlight) + DB-Update parallel
 async function moveTaskByIndex(area, idxInArea, direction){
   if(!adminUnlocked) return alert("Admin-PIN erforderlich.");
   const list = (window._adminGroupsByArea || {})[area];
@@ -1731,30 +1731,107 @@ async function moveTaskByIndex(area, idxInArea, direction){
   if(swapIdx < 0 || swapIdx >= list.length) return;
   const current = list[idxInArea];
   const neighbor = list[swapIdx];
-  // Sicherstellen, dass beide eine sort_order haben — sonst initialisieren
-  const needsInit = list.some(g => g.sortOrder === null || g.sortOrder === undefined);
-  if(needsInit){
-    for(let i = 0; i < list.length; i++){
-      const newOrder = (i + 1) * 10;
-      for(const id of list[i].ids){
-        const r = await db.from("tasks").update({sort_order: newOrder}).eq("id", id);
-        if(r.error){ alert("Fehler beim Initialisieren: " + r.error.message); return; }
+
+  // === 1) Sofort im DOM tauschen (optisch) ===
+  const container = document.getElementById("adminTasks");
+  const tbody = container.querySelector("tbody");
+  if(tbody){
+    const rowsDom = Array.from(tbody.querySelectorAll("tr"));
+    // Den globalen Index im rows-Array finden, ueber den Anpassen-Button (eindeutige ID)
+    const findRow = (firstId) => rowsDom.find(tr => tr.innerHTML.includes(`editTask('${firstId}')`));
+    const trA = findRow(current.ids[0]);
+    const trB = findRow(neighbor.ids[0]);
+    if(trA && trB){
+      // Reihenfolge im DOM tauschen
+      if(direction === "up"){
+        tbody.insertBefore(trA, trB);
+      } else {
+        tbody.insertBefore(trB, trA);
       }
-      list[i].sortOrder = newOrder;
+      // Highlight-Effekt
+      [trA, trB].forEach(tr => {
+        tr.style.transition = "background-color 0.6s ease";
+        tr.style.backgroundColor = "#fef9c3";
+        setTimeout(() => { tr.style.backgroundColor = ""; }, 700);
+      });
     }
   }
-  // Swap der sort_order zwischen current und neighbor
-  const oCurrent = current.sortOrder;
-  const oNeighbor = neighbor.sortOrder;
-  for(const id of current.ids){
-    const r = await db.from("tasks").update({sort_order: oNeighbor}).eq("id", id);
-    if(r.error){ alert("Fehler beim Verschieben: " + r.error.message); return; }
+
+  // Auch im in-memory Layout tauschen, damit weitere Klicks korrekt sind
+  list[idxInArea] = neighbor;
+  list[swapIdx] = current;
+
+  // === 2) Im Hintergrund die sort_order in der DB tauschen ===
+  // Sicherstellen, dass beide eine sort_order haben — sonst initialisieren
+  const needsInit = list.some(g => g.sortOrder === null || g.sortOrder === undefined);
+  try{
+    if(needsInit){
+      for(let i = 0; i < list.length; i++){
+        const newOrder = (i + 1) * 10;
+        for(const id of list[i].ids){
+          const r = await db.from("tasks").update({sort_order: newOrder}).eq("id", id);
+          if(r.error) throw new Error(r.error.message);
+        }
+        list[i].sortOrder = newOrder;
+      }
+    } else {
+      const oCurrent = current.sortOrder;
+      const oNeighbor = neighbor.sortOrder;
+      for(const id of current.ids){
+        const r = await db.from("tasks").update({sort_order: oNeighbor}).eq("id", id);
+        if(r.error) throw new Error(r.error.message);
+      }
+      for(const id of neighbor.ids){
+        const r = await db.from("tasks").update({sort_order: oCurrent}).eq("id", id);
+        if(r.error) throw new Error(r.error.message);
+      }
+      // Lokal aktualisieren
+      current.sortOrder = oNeighbor;
+      neighbor.sortOrder = oCurrent;
+    }
+    // Nach Erfolg: nur die Buttons + #-Nummern aktualisieren (kein voller Reload mehr)
+    refreshMoveButtons(area);
+  }catch(e){
+    alert("Fehler beim Speichern: " + e.message + "\n\nDie Reihenfolge wird zurückgesetzt.");
+    // Bei Fehler: kompletter Reload, um den DB-Stand wiederzugeben
+    await loadAdminTasks();
   }
-  for(const id of neighbor.ids){
-    const r = await db.from("tasks").update({sort_order: oCurrent}).eq("id", id);
-    if(r.error){ alert("Fehler beim Verschieben: " + r.error.message); return; }
-  }
-  await loadAdminTasks();
+}
+
+// Aktualisiert nur die Move-Buttons (disabled/enabled) und die #-Nummern in der bestehenden Tabelle
+function refreshMoveButtons(area){
+  const container = document.getElementById("adminTasks");
+  if(!container) return;
+  const tbody = container.querySelector("tbody");
+  if(!tbody) return;
+  const list = (window._adminGroupsByArea || {})[area];
+  if(!list) return;
+  list.forEach((g, idx) => {
+    const tr = Array.from(tbody.querySelectorAll("tr")).find(t => t.innerHTML.includes(`editTask('${g.ids[0]}')`));
+    if(!tr) return;
+    // Move-Buttons: enabled/disabled nach Position
+    const btns = tr.querySelectorAll(".task-move-btn");
+    if(btns.length >= 2){
+      btns[0].disabled = (idx <= 0);
+      btns[1].disabled = (idx >= list.length - 1);
+      // onclick mit neuem Index aktualisieren
+      const areaEsc = String(g.area).replace(/'/g, "\\'");
+      btns[0].setAttribute("onclick", `moveTaskByIndex('${areaEsc}', ${idx}, 'up')`);
+      btns[1].setAttribute("onclick", `moveTaskByIndex('${areaEsc}', ${idx}, 'down')`);
+    }
+    // #-Nummer aktualisieren
+    const titleCell = tr.children[showMoveBtnsIndex(tr) + 2]; // Markt|Bereich|Titel — Titel ist 3. Spalte ohne Move-Cell, 4. mit
+    if(titleCell && g.sortOrder !== null){
+      const span = titleCell.querySelector("span.small");
+      if(span){
+        span.textContent = "[#" + g.sortOrder + "]";
+      }
+    }
+  });
+}
+function showMoveBtnsIndex(tr){
+  // Hilfsfunktion: 0 wenn keine Move-Cell, 1 wenn vorhanden (Move-Cell ist erste Spalte bei manueller Sortierung)
+  return tr.querySelector(".task-move-cell") ? 1 : 0;
 }
 async function deleteTaskGroup(ids){
   if(!adminUnlocked)return alert("Admin-PIN erforderlich.");
