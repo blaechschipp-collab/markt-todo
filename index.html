@@ -396,7 +396,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.18-15"; // App-Gate default unsichtbar (kein Aufflashen mehr)
+const APP_VERSION = "v2026.05.18-16"; // Syntax-Fix: fehlender Backtick im Tomorrow-Card-Template
 const APP_VERSION_DATE = "18.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -3458,7 +3458,7 @@ function renderBackshop(){
       <div class="bs-val">~${Math.round(totalTomMorning)}</div>
       <div class="bs-sub">${tomorrowWeekday} ${String(tomMorningFrom).padStart(2,"0")}:00 bis ${String(tomMorningTo).padStart(2,"0")}:59</div>
       <div class="bs-hint">Diese Mengen vor Ladenöffnung bereitstellen</div>
-    </div>
+    </div>`}
   </div>
   <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
     <div class="small">🔥 <strong>${totalBakedToday}</strong> Stück bereits heute nachgebacken (alle Artikel zusammen)</div>
