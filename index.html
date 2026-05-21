@@ -381,7 +381,7 @@
       <div class="control-grid" style="margin-top:14px">
         <div><label>Bereich filtern</label><select id="adminTableAreaFilter" onchange="loadAdminTasks()"><option value="">Alle Bereiche</option></select></div>
         <div><label>Aufgabe suchen</label><input id="adminTableSearch" placeholder="Suchbegriff" oninput="loadAdminTasks()"></div>
-        <div><label>Sortierung</label><select id="adminTableSort" onchange="loadAdminTasks()"><option value="area">Bereich / Aufgabe</option><option value="priority">Wichtigkeit</option><option value="type">Art</option></select></div>
+        <div><label>Sortierung</label><select id="adminTableSort" onchange="loadAdminTasks()"><option value="manual">Manuelle Reihenfolge</option><option value="area">Bereich / Aufgabe</option><option value="priority">Wichtigkeit</option><option value="type">Art</option></select></div>
         <div><label>&nbsp;</label><button class="btn-yellow" onclick="loadAdminTasks()">Adminliste aktualisieren</button></div>
       </div>
       <div id="adminTasks" style="margin-top:14px"></div></div>
@@ -390,7 +390,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.18-7"; // PDF-Viewer-Modal + Logo-Reload
+const APP_VERSION = "v2026.05.18-8"; // Manuelle Reihenfolge für ToDos
 const APP_VERSION_DATE = "18.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -591,7 +591,19 @@ function nextWorkingDayISO(dateISO){
   do { d.setDate(d.getDate() + 1); } while(!isWorkingDay(formatDate(d)));
   return formatDate(d);
 }
-function priorityClass(p){if(!p)return"";if(p==="info")return"info";if(p.toLowerCase()==="hoch")return"high";if(p.toLowerCase()==="mittel")return"medium";return"low"} function priorityPill(p){if(!p)return"";const c=p==="info"?"info-p":p.toLowerCase()+"-p";return`<span class="pill ${c}">${p}</span>`} function statusPill(done){return done?`<span class="pill done-p">erledigt</span>`:`<span class="pill open-p">offen</span>`} function prioritySort(a,b){const o={hoch:1,mittel:2,niedrig:3,info:4};return(o[a.priority?.toLowerCase()]||99)-(o[b.priority?.toLowerCase()]||99)} function daySort(a,b){const o={Montag:1,Dienstag:2,Mittwoch:3,Donnerstag:4,Freitag:5,Samstag:6};return(o[a.day]||99)-(o[b.day]||99)}
+function priorityClass(p){if(!p)return"";if(p==="info")return"info";if(p.toLowerCase()==="hoch")return"high";if(p.toLowerCase()==="mittel")return"medium";return"low"} function priorityPill(p){if(!p)return"";const c=p==="info"?"info-p":p.toLowerCase()+"-p";return`<span class="pill ${c}">${p}</span>`} function statusPill(done){return done?`<span class="pill done-p">erledigt</span>`:`<span class="pill open-p">offen</span>`}
+// Sortierreihenfolge: zuerst manuell gepflegte sort_order (kleiner = oben), dann Priorität, dann Titel
+function prioritySort(a,b){
+  const so = (x) => (x && x.sort_order !== null && x.sort_order !== undefined && !isNaN(x.sort_order)) ? Number(x.sort_order) : Number.MAX_SAFE_INTEGER;
+  const sa = so(a), sb = so(b);
+  if(sa !== sb) return sa - sb;
+  const o={hoch:1,mittel:2,niedrig:3,info:4};
+  const pa = o[a.priority?.toLowerCase()] || 99;
+  const pb = o[b.priority?.toLowerCase()] || 99;
+  if(pa !== pb) return pa - pb;
+  return (a.title || "").localeCompare(b.title || "", "de");
+}
+function daySort(a,b){const o={Montag:1,Dienstag:2,Mittwoch:3,Donnerstag:4,Freitag:5,Samstag:6};return(o[a.day]||99)-(o[b.day]||99)}
 function selectAllAdminDays(){document.querySelectorAll(".adminDay").forEach(cb=>cb.checked=true)}
 function populateAllowedDays(){
   const select=document.getElementById("day");
@@ -1621,10 +1633,18 @@ async function loadAdminTasks(){
         ids:[],
         days:[],
         months:[],
-        dates:[]
+        dates:[],
+        sortOrder: null
       };
     }
     groups[key].ids.push(t.id);
+    // Minimum sort_order der Gruppe nehmen
+    if(t.sort_order !== null && t.sort_order !== undefined && !isNaN(t.sort_order)){
+      const so = Number(t.sort_order);
+      if(groups[key].sortOrder === null || so < groups[key].sortOrder){
+        groups[key].sortOrder = so;
+      }
+    }
     if(t.area==="Hausmeister" && t.month){
       groups[key].months.push(t.month);
     }else if(t.task_type==="single"||t.task_type==="handover"){
@@ -1635,6 +1655,15 @@ async function loadAdminTasks(){
     }
   });
   const rows=Object.values(groups).sort((a,b)=>{
+    if(sortMode==="manual"){
+      // Erst nach Bereich (Gruppe), dann nach manuellem sort_order, dann Titel
+      const ac = a.area.localeCompare(b.area,"de");
+      if(ac !== 0) return ac;
+      const sa = (a.sortOrder === null) ? Number.MAX_SAFE_INTEGER : a.sortOrder;
+      const sb = (b.sortOrder === null) ? Number.MAX_SAFE_INTEGER : b.sortOrder;
+      if(sa !== sb) return sa - sb;
+      return a.title.localeCompare(b.title,"de");
+    }
     if(sortMode==="priority"){
       const order={hoch:1,mittel:2,niedrig:3,info:4};
       return (order[a.priority?.toLowerCase()]||99)-(order[b.priority?.toLowerCase()]||99)||a.area.localeCompare(b.area,"de")||a.title.localeCompare(b.title,"de");
@@ -1644,8 +1673,9 @@ async function loadAdminTasks(){
     }
     return a.area.localeCompare(b.area,"de")||a.title.localeCompare(b.title,"de")||a.type.localeCompare(b.type,"de");
   });
-  let html=`<div class="table-wrap"><table><thead><tr><th>Markt</th><th>Bereich</th><th>Aufgabe / Info</th><th>Art</th><th>Tage / Zeitraum</th><th>Wichtigkeit</th><th>Aktion</th></tr></thead><tbody>`;
-  rows.forEach(g=>{
+  const showMoveBtns = (sortMode === "manual");
+  let html=`<div class="table-wrap"><table><thead><tr>${showMoveBtns ? "<th>↕</th>" : ""}<th>Markt</th><th>Bereich</th><th>Aufgabe / Info</th><th>Art</th><th>Tage / Zeitraum</th><th>Wichtigkeit</th><th>Aktion</th></tr></thead><tbody>`;
+  rows.forEach((g, idx)=>{
     const daysOrder={Montag:1,Dienstag:2,Mittwoch:3,Donnerstag:4,Freitag:5,Samstag:6};
     const days=[...new Set(g.days)].sort((a,b)=>(daysOrder[a]||99)-(daysOrder[b]||99));
     const months=[...new Set(g.months)].sort();
@@ -1654,10 +1684,21 @@ async function loadAdminTasks(){
     if(days.length) period=days.join(", ");
     else if(months.length) period=months.join(", ");
     else if(dates.length) period=dates.join(", ");
+    // Move-Buttons: nur fuer manuelle Sortierung, und nur innerhalb des gleichen Bereichs verschieben
+    let moveCell = "";
+    if(showMoveBtns){
+      const prevSameArea = (idx > 0 && rows[idx-1].area === g.area);
+      const nextSameArea = (idx < rows.length - 1 && rows[idx+1].area === g.area);
+      const idsJson = JSON.stringify(g.ids).replace(/"/g, "&quot;");
+      const upDisabled = !prevSameArea ? "disabled" : "";
+      const downDisabled = !nextSameArea ? "disabled" : "";
+      moveCell = `<td style="white-space:nowrap"><button class="btn-yellow" ${upDisabled} onclick="moveTaskGroup(&quot;${idsJson}&quot;, 'up')" style="padding:4px 8px;font-size:14px">⬆️</button> <button class="btn-yellow" ${downDisabled} onclick="moveTaskGroup(&quot;${idsJson}&quot;, 'down')" style="padding:4px 8px;font-size:14px">⬇️</button></td>`;
+    }
     html+=`<tr>
+      ${moveCell}
       <td>${g.market}</td>
       <td>${g.area}</td>
-      <td>${g.title}</td>
+      <td>${g.title}${g.sortOrder !== null && showMoveBtns ? ` <span class="small" style="color:#94a3b8">[#${g.sortOrder}]</span>` : ""}</td>
       <td>${g.type}</td>
       <td>${period}</td>
       <td>${g.priority}</td>
@@ -1669,6 +1710,56 @@ async function loadAdminTasks(){
   });
   html+=`</tbody></table></div>`;
   c.innerHTML=html;
+  // Gruppen fuer moveTaskGroup speichern (gleicher Bereich)
+  window._adminGroupsByArea = {};
+  rows.forEach(g => {
+    if(!window._adminGroupsByArea[g.area]) window._adminGroupsByArea[g.area] = [];
+    window._adminGroupsByArea[g.area].push(g);
+  });
+}
+
+// Verschieben einer Aufgaben-Gruppe in der manuellen Reihenfolge
+async function moveTaskGroup(idsJsonStr, direction){
+  if(!adminUnlocked) return alert("Admin-PIN erforderlich.");
+  let ids;
+  try{ ids = JSON.parse(idsJsonStr.replace(/&quot;/g, '"')); }catch(e){ return; }
+  if(!ids || !ids.length) return;
+  // Finde die Gruppe + Nachbarn (im gleichen Bereich) aus dem zwischengespeicherten Layout
+  const allAreas = window._adminGroupsByArea || {};
+  let foundArea = null, foundIdx = -1;
+  Object.entries(allAreas).forEach(([area, list]) => {
+    list.forEach((g, i) => {
+      if(g.ids[0] === ids[0]){ foundArea = area; foundIdx = i; }
+    });
+  });
+  if(foundArea === null) return;
+  const list = allAreas[foundArea];
+  const swapIdx = direction === "up" ? foundIdx - 1 : foundIdx + 1;
+  if(swapIdx < 0 || swapIdx >= list.length) return;
+  const current = list[foundIdx];
+  const neighbor = list[swapIdx];
+  // Sicherstellen, dass beide einen sort_order haben — sonst initialisieren wir die Bereichs-Reihenfolge neu
+  const needsInit = list.some(g => g.sortOrder === null || g.sortOrder === undefined);
+  if(needsInit){
+    // Allen Gruppen im Bereich frische sort_order in 10er-Schritten geben
+    for(let i = 0; i < list.length; i++){
+      const newOrder = (i + 1) * 10;
+      for(const id of list[i].ids){
+        await db.from("tasks").update({sort_order: newOrder}).eq("id", id);
+      }
+      list[i].sortOrder = newOrder;
+    }
+  }
+  // Swap der sort_order zwischen current und neighbor
+  const oCurrent = current.sortOrder;
+  const oNeighbor = neighbor.sortOrder;
+  for(const id of current.ids){
+    await db.from("tasks").update({sort_order: oNeighbor}).eq("id", id);
+  }
+  for(const id of neighbor.ids){
+    await db.from("tasks").update({sort_order: oCurrent}).eq("id", id);
+  }
+  loadAdminTasks();
 }
 async function deleteTaskGroup(ids){
   if(!adminUnlocked)return alert("Admin-PIN erforderlich.");
