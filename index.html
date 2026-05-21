@@ -394,7 +394,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.18-12"; // 4 Move-Buttons (Anfang, hoch, runter, Ende)
+const APP_VERSION = "v2026.05.18-13"; // Robuste DOM-Reihenfolge beim Verschieben
 const APP_VERSION_DATE = "18.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -1746,38 +1746,42 @@ async function moveTaskByIndex(area, idxInArea, direction){
   else return;
   if(targetIdx < 0 || targetIdx >= list.length || targetIdx === idxInArea) return;
 
-  // === 1) In-memory Liste neu anordnen ===
+  // === 1) Mapping group → tr VOR allem aufbauen (sonst stimmen die Indizes nach DOM-Änderungen nicht mehr) ===
+  const tbody = document.querySelector("#adminTasks tbody");
+  let movedTr = null;
+  const trByFirstId = {};
+  if(tbody){
+    Array.from(tbody.querySelectorAll("tr")).forEach(tr => {
+      const m = tr.innerHTML.match(/editTask\('([^']+)'\)/);
+      if(m) trByFirstId[m[1]] = tr;
+    });
+  }
+  // Alle TRs dieses Bereichs in aktueller (alter) Reihenfolge
+  const allAreaTrs = list.map(g => trByFirstId[g.ids[0]]).filter(Boolean);
+
+  // === 2) In-memory Liste neu anordnen ===
   list.splice(idxInArea, 1);
   list.splice(targetIdx, 0, current);
 
-  // === 2) Sofort im DOM die Zeile verschieben ===
-  const container = document.getElementById("adminTasks");
-  const tbody = container ? container.querySelector("tbody") : null;
-  let movedTr = null;
-  if(tbody){
-    const rowsDom = Array.from(tbody.querySelectorAll("tr"));
-    const findRow = (firstId) => rowsDom.find(tr => tr.innerHTML.includes(`editTask('${firstId}')`));
-    movedTr = findRow(current.ids[0]);
-    if(movedTr){
-      if(targetIdx === 0){
-        // An den Anfang: vor dem ersten Element des Bereichs einfuegen
-        const firstAreaRow = findRow(list[1] && list[1].ids[0]); // jetzt ist current auf 0, list[1] ist alter erster
-        // Wir nutzen sicherheitshalber alle DOM-Zeilen des Bereichs:
-        const allAreaTrs = list.map(g => findRow(g.ids[0])).filter(Boolean);
-        if(allAreaTrs.length > 1) tbody.insertBefore(movedTr, allAreaTrs[1]);
-      } else if(targetIdx === list.length - 1){
-        // Ans Ende: nach dem letzten Element des Bereichs einfuegen
-        const allAreaTrs = list.map(g => findRow(g.ids[0])).filter(Boolean);
-        const lastAreaTr = allAreaTrs[allAreaTrs.length - 2]; // current ist jetzt auf letzter Position, also vorletztes nehmen
-        if(lastAreaTr && lastAreaTr.nextSibling) tbody.insertBefore(movedTr, lastAreaTr.nextSibling);
-        else if(lastAreaTr) tbody.appendChild(movedTr);
+  // === 3) DOM: alle Bereichs-Zeilen rauswerfen und in neuer Reihenfolge wieder einfügen ===
+  if(tbody && allAreaTrs.length){
+    // Anker: das Element NACH der letzten Bereichszeile (kann null sein, wenn Bereich ans Ende geht)
+    const anchorAfter = allAreaTrs[allAreaTrs.length - 1].nextSibling;
+    // Alle Bereichszeilen rauswerfen
+    allAreaTrs.forEach(tr => tr.parentNode && tr.parentNode.removeChild(tr));
+    // In neuer Reihenfolge wieder einfügen
+    list.forEach(g => {
+      const tr = trByFirstId[g.ids[0]];
+      if(!tr) return;
+      if(anchorAfter && anchorAfter.parentNode === tbody){
+        tbody.insertBefore(tr, anchorAfter);
       } else {
-        // Direkt vor das Element, das jetzt auf targetIdx+1 ist
-        const refGroup = list[targetIdx + 1];
-        const refTr = refGroup ? findRow(refGroup.ids[0]) : null;
-        if(refTr) tbody.insertBefore(movedTr, refTr);
+        tbody.appendChild(tr);
       }
-      // Highlight-Effekt
+    });
+    // Highlight nur die verschobene Zeile
+    movedTr = trByFirstId[current.ids[0]];
+    if(movedTr){
       movedTr.style.transition = "background-color 0.6s ease";
       movedTr.style.backgroundColor = "#fef9c3";
       setTimeout(() => { movedTr.style.backgroundColor = ""; }, 800);
