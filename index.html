@@ -401,7 +401,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.18-20"; // Nachback-Buttons bleiben grün + ×N-Badge
+const APP_VERSION = "v2026.05.18-21"; // Prognose robuster: anteilige Stunde + Spitzen-Schutz
 const APP_VERSION_DATE = "18.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -3333,8 +3333,11 @@ function renderBackshop(){
   const market = document.getElementById("backshopMarket").value;
   const weekday = document.getElementById("backshopWeekday").value;
   const timeStr = document.getElementById("backshopTime").value || "00:00";
-  const [hh] = timeStr.split(":").map(n => parseInt(n, 10));
+  const [hh, mm] = timeStr.split(":").map(n => parseInt(n, 10));
   const currentHour = Number.isFinite(hh) ? hh : 0;
+  const currentMinute = Number.isFinite(mm) ? mm : 0;
+  // Anteil der aktuellen Stunde, der NOCH ausstehender Verkauf ist (1.0 = ganze Stunde, 0.5 = halbe noch übrig)
+  const currentHourRemainingFraction = (60 - currentMinute) / 60;
   const headerLine = document.getElementById("backshopHeaderLine");
   const summary = document.getElementById("backshopSummary");
   const content = document.getElementById("backshopContent");
@@ -3342,7 +3345,7 @@ function renderBackshop(){
   const today = berlinNow();
   const iso = isoWeekOf(today.dateISO);
   const currentRefWeek = iso.week + (iso.year - today.year) * 53; // simpler Offset, reicht fuer Gewichtung
-  headerLine.innerHTML = `Markt: <strong>${market}</strong> · ${weekday}, ${String(currentHour).padStart(2,"0")}:${timeStr.split(":")[1]||"00"} · Referenz-KW ${iso.week}/${iso.year} (Halbwertszeit ${BACKSHOP_HALFLIFE_WEEKS} Wochen)`;
+  headerLine.innerHTML = `Markt: <strong>${market}</strong> · ${weekday}, ${String(currentHour).padStart(2,"0")}:${timeStr.split(":")[1]||"00"} · Referenz-KW ${iso.week}/${iso.year} (Halbwertszeit ${BACKSHOP_HALFLIFE_WEEKS} Wochen, Spitzen ausgeklammert · aktuelle Stunde anteilig nach Restminuten)`;
   const rows = (backshopState.rows || []).filter(r => r.weekday === weekday);
   if(!rows.length){
     summary.innerHTML = `<p>Für ${market} / ${weekday} liegen noch keine Daten in der Datenbank. Bitte die Frequenz-Excel im Admin-Bereich hochladen.</p>`;
@@ -3369,17 +3372,29 @@ function renderBackshop(){
     const offset = (currentRefWeek) - (week + (year - today.year) * 53);
     return Math.pow(0.5, offset / BACKSHOP_HALFLIFE_WEEKS);
   }
+  // Robuster Mittelwert: schneidet die höchsten Werte ab, damit einmalige Verkaufsspitzen
+  // (Wetter, Aktionen, Events) den Backshop-Bedarf nicht überschätzen.
+  // - bei <4 Datenpunkten: einfacher gewichteter Mittelwert (alle nehmen)
+  // - bei 4–9 Punkten: höchsten Wert weglassen
+  // - ab 10 Punkten: oberste 20% weglassen
+  function robustWeightedMean(pts){
+    if(!pts.length) return 0;
+    if(pts.length < 4){
+      let ws = 0, wsum = 0;
+      pts.forEach(p => { const w = weightFor(p.year, p.week); ws += w * p.menge; wsum += w; });
+      return wsum > 0 ? ws / wsum : 0;
+    }
+    const trimCount = pts.length >= 10 ? Math.floor(pts.length * 0.2) : 1;
+    const sortedByMenge = [...pts].sort((a, b) => a.menge - b.menge);
+    const trimmed = sortedByMenge.slice(0, sortedByMenge.length - trimCount);
+    let ws = 0, wsum = 0;
+    trimmed.forEach(p => { const w = weightFor(p.year, p.week); ws += w * p.menge; wsum += w; });
+    return wsum > 0 ? ws / wsum : 0;
+  }
   const articles = Object.values(byArticle).map(a => {
     const forecast = {};
     for(let h = minHour; h <= maxHour; h++){
-      const pts = a.byHour[h] || [];
-      let ws = 0, wsum = 0;
-      pts.forEach(p => {
-        const w = weightFor(p.year, p.week);
-        ws += w * p.menge;
-        wsum += w;
-      });
-      forecast[h] = wsum > 0 ? ws / wsum : 0;
+      forecast[h] = robustWeightedMean(a.byHour[h] || []);
     }
     return {...a, forecast};
   });
@@ -3405,23 +3420,19 @@ function renderBackshop(){
   articles.forEach(a => {
     let todayLeft = 0, next3 = 0;
     for(let h = currentHour; h <= maxHour; h++){
-      todayLeft += a.forecast[h] || 0;
-      if(h < currentHour + BACKSHOP_HORIZON_HOURS) next3 += a.forecast[h] || 0;
+      let v = a.forecast[h] || 0;
+      // Aktuelle Stunde: nur den Anteil rechnen, der noch ausstehender Verkauf ist
+      if(h === currentHour) v = v * currentHourRemainingFraction;
+      todayLeft += v;
+      if(h < currentHour + BACKSHOP_HORIZON_HOURS) next3 += v;
     }
     a.todayLeft = todayLeft;
     a.next3 = next3;
-    // Morgen-Morgen-Forecast
+    // Morgen-Morgen-Forecast (gleiche robuste Methode wie heute)
     let tomMorning = 0;
     const tomHours = tomByArticle[a.article_no] || {};
     for(let h = tomMorningFrom; h <= tomMorningTo; h++){
-      const pts = tomHours[h] || [];
-      let ws = 0, wsum = 0;
-      pts.forEach(p => {
-        const w = weightFor(p.year, p.week);
-        ws += w * p.menge;
-        wsum += w;
-      });
-      tomMorning += wsum > 0 ? ws / wsum : 0;
+      tomMorning += robustWeightedMean(tomHours[h] || []);
     }
     a.tomMorning = tomMorning;
   });
