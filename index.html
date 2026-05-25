@@ -401,7 +401,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.25-2"; // Forward-Fill für BO-Header (robuster gegen .xlsm-Merges)
+const APP_VERSION = "v2026.05.25-3"; // BO-Markt-Namen mit Trailing-Digits normalisieren (.xlsm-Fix)
 const APP_VERSION_DATE = "25.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -577,6 +577,13 @@ async function checkAppGate(){
 // Sofort beim Laden Gate prüfen. View-Modus wird ganz unten nach voller Init aktiviert.
 initAppGate(); const DAY_NAMES=["Montag","Dienstag","Mittwoch","Donnerstag","Freitag","Samstag"];
 const KNOWN_EDEKA_MARKETS=["Billigheim-Ingenheim","Steinfeld","Freckenfeld","Gossersweiler-Stein"];
+// EDEKA-BO hängt in manchen .xlsm-Exports fortlaufende Zahlen an Markt-Namen
+// (z.B. "Steinfeld6", "Billigheim-Ingenheim3"), damit Spalten-Header in Excel
+// eindeutig bleiben. Wir schneiden diese Trailing-Digits ab, bevor wir den
+// Namen gegen KNOWN_EDEKA_MARKETS prüfen oder in die DB schreiben.
+function normalizeMarketName(name){
+  return String(name == null ? "" : name).trim().replace(/\d+$/, "");
+}
 function todayISO(){return formatDate(new Date())} function formatDate(date){const y=date.getFullYear(),m=String(date.getMonth()+1).padStart(2,"0"),d=String(date.getDate()).padStart(2,"0");return `${y}-${m}-${d}`} function formatDateDE(s){if(!s)return"";const[y,m,d]=s.split("-");return`${d}.${m}.${y}`} function formatDateTimeDE(v){if(!v)return"";return new Date(v).toLocaleString("de-DE",{timeZone:"Europe/Berlin",day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"})} function berlinNowForDB(){const parts=new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Berlin",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",second:"2-digit",hour12:false}).formatToParts(new Date()).reduce((a,p)=>(a[p.type]=p.value,a),{});return`${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}:${parts.second}`} function berlinDateISO(v){return new Intl.DateTimeFormat("sv-SE",{timeZone:"Europe/Berlin",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(v))} function isLateLog(log){return Boolean(log&&log.done_at&&log.done_date&&berlinDateISO(log.done_at)>log.done_date)} function addDays(date,days){const d=new Date(date);d.setDate(d.getDate()+days);return d} function getMonday(date){const d=new Date(date),day=d.getDay(),diff=day===0?-6:1-day;d.setDate(d.getDate()+diff);d.setHours(0,0,0,0);return d} function dateForDayName(day){const select=document.getElementById("day");const selected=select?.options[select.selectedIndex];if(selected?.dataset?.date)return selected.dataset.date;return formatDate(addDays(getMonday(new Date()),DAY_NAMES.indexOf(day)))} function dayNameFromISO(s){const idx=new Date(s+"T00:00:00").getDay();return idx===0?"Sonntag":DAY_NAMES[idx-1]} function monthFromISO(s){return s.slice(0,7)} function tomorrowISO(){const today=new Date();const dow=today.getDay();if(dow===6)return formatDate(addDays(today,2));return formatDate(addDays(today,1))} function tomorrowDayName(){return dayNameFromISO(tomorrowISO())}
 // Gesetzliche Feiertage Rheinland-Pfalz (für die nächsten Jahre)
 const RLP_HOLIDAYS = new Set([
@@ -1969,7 +1976,7 @@ function detectEdekaBoFormat(matrix){
   const wochePos = findCellInMatrix(matrix, "Woche", 12);
   if(!wochePos || wochePos.col !== marktPos.col) return null;
   const marketRow = matrix[marktPos.row] || [];
-  const hasKnownMarket = marketRow.some(cell => KNOWN_EDEKA_MARKETS.includes(String(cell||"").trim()));
+  const hasKnownMarket = marketRow.some(cell => KNOWN_EDEKA_MARKETS.includes(normalizeMarketName(cell)));
   if(!hasKnownMarket) return null;
   const dataStartCol = marktPos.col + 1;
   // KPI-Zeile fuer Abschriften: enthaelt "Artikel" und "GTIN" — ein Stueck unter Markt/Woche
@@ -2111,7 +2118,7 @@ function parseEdekaBoSheet(matrix, format, year){
     for(let c = format.dataStartCol; c < maxC; c++){
       const marketRaw = markets[c];
       if(marketRaw === null || marketRaw === undefined) continue;
-      const market = String(marketRaw).trim();
+      const market = normalizeMarketName(marketRaw);
       if(!KNOWN_EDEKA_MARKETS.includes(market)) continue;
       const weekRaw = weeks[c];
       if(weekRaw === null || weekRaw === undefined) continue;
@@ -3095,7 +3102,7 @@ function parseBackshopMatrix(matrix, fallbackYear){
     const artikel = row[2];
     const name = row[3];
     if(!market || !stunde || !artikel) continue;
-    const marketStr = String(market).trim();
+    const marketStr = normalizeMarketName(market);
     const stundeStr = String(stunde).trim();
     const artikelStr = String(artikel).trim();
     if(marketStr === "Gesamtergebnis") continue;
