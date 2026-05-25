@@ -401,7 +401,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.25-1"; // .xlsm-Dateien + Titel-Vorlauf in Frequenz-Datei
+const APP_VERSION = "v2026.05.25-2"; // Forward-Fill für BO-Header (robuster gegen .xlsm-Merges)
 const APP_VERSION_DATE = "25.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -2043,8 +2043,29 @@ function detectYearFromWorkbook(workbook){
   }
   return new Date().getFullYear();
 }
+// Forward-Fill für eine Header-Zeile: leere Zellen rechts vom letzten gefüllten Wert
+// mit dem letzten Wert auffüllen. Dient als Fallback, falls SheetJS-Merges nicht greifen.
+// `markersThatReset`: Werte, bei denen ein neuer Block beginnt (z.B. neuer Markt-Name) — die werden nicht überschrieben.
+function forwardFillHeaderRow(row, startCol, resetIfTextMatches){
+  if(!row || !row.length) return;
+  let last = null;
+  for(let c = startCol; c < row.length; c++){
+    const v = row[c];
+    const vStr = (v !== null && v !== undefined) ? String(v).trim() : "";
+    if(vStr !== ""){
+      // Wenn dieser Wert ein "Reset" ist (Beispiel: neuer Markt-Name), übernehmen wir ihn als neues last
+      last = v;
+    } else if(last !== null){
+      row[c] = last;
+    }
+  }
+}
 function parseEdekaBoSheet(matrix, format, year){
   const out = [];
+  // marketRow & weekRow per Forward-Fill robust machen (für den Fall, dass Merges
+  // nicht durch expandMergedCells gefangen wurden, z.B. bei manchen .xlsm-Files)
+  if(matrix[format.marketRow]) forwardFillHeaderRow(matrix[format.marketRow], format.dataStartCol);
+  if(matrix[format.weekRow])   forwardFillHeaderRow(matrix[format.weekRow], format.dataStartCol);
   const markets = matrix[format.marketRow] || [];
   const weeks = matrix[format.weekRow] || [];
   const kpis = format.type === "abschriften" ? (matrix[format.kpiRow] || []) : null;
