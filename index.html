@@ -350,7 +350,7 @@
         <div><label>Fallback Datum</label><input id="metricsUploadDate" type="date"></div>
       </div>
       <div class="small" style="margin-top:8px">Hinweis: Ein Upload fügt Werte hinzu und löscht nichts. Zum Reset bitte den roten Knopf unten verwenden.</div>
-      <input id="metricsExcelFile" type="file" accept=".xlsx,.xls" multiple style="margin-top:10px" />
+      <input id="metricsExcelFile" type="file" accept=".xlsx,.xls,.xlsm" multiple style="margin-top:10px" />
       <div class="small" style="margin-top:6px;color:#475569">💡 Du kannst mehrere Excel-Dateien gleichzeitig auswählen. Überlappende Wochen werden automatisch durch die neuen Werte ersetzt — ältere Wochen, die nicht in den hochgeladenen Dateien stehen, bleiben unverändert in der Datenbank.</div>
       <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn-green" onclick="uploadMetricsExcel()" style="width:auto">Excel hochladen</button>
@@ -371,7 +371,7 @@
     <div class="box admin admin-uploads">
       <h2>🥐 Backshop – Frequenz-Excel hochladen</h2>
       <div class="small">Wöchentliche EDEKA-BO „Frequenzbericht (historisch)" Excel. Mehrere Dateien gleichzeitig möglich. Identische (Markt + Artikel + KW + Wochentag + Stunde)-Kombinationen werden überschrieben; neue Wochen werden ergänzt; alte Wochen bleiben erhalten.</div>
-      <input id="backshopExcelFile" type="file" accept=".xlsx,.xls" multiple style="margin-top:10px" />
+      <input id="backshopExcelFile" type="file" accept=".xlsx,.xls,.xlsm" multiple style="margin-top:10px" />
       <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn-green" style="width:auto" onclick="uploadBackshopExcel()">Excel einlesen &amp; speichern</button>
         <button class="btn-red" style="width:auto" onclick="clearAllBackshop()">Alle Backshop-Daten löschen (Reset)</button>
@@ -401,8 +401,8 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.18-23"; // Doppelte Bestätigung beim Abhaken entfernt
-const APP_VERSION_DATE = "18.05.2026";
+const APP_VERSION = "v2026.05.25-1"; // .xlsm-Dateien + Titel-Vorlauf in Frequenz-Datei
+const APP_VERSION_DATE = "25.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
 function reloadApp(){
@@ -2970,13 +2970,16 @@ async function uploadBackshopExcel(){
     try{
       const buf = await file.arrayBuffer();
       const wb = XLSX.read(buf, {type:"array"});
-      // Sheet "Kreuztabelle" suchen
-      const sheetName = wb.SheetNames.find(n => /kreuztabelle/i.test(n) && !/metadaten/i.test(n)) || wb.SheetNames[0];
+      // Sheet finden: bevorzugt "Kreuztabelle" oder "Tabelle". Filter/Metadaten überspringen.
+      const sheetName = wb.SheetNames.find(n => /kreuztabelle/i.test(n) && !/metadaten/i.test(n))
+        || wb.SheetNames.find(n => /^tabelle$/i.test(n))
+        || wb.SheetNames.find(n => !/^(filter|metadaten)$/i.test(n))
+        || wb.SheetNames[0];
       const ws = wb.Sheets[sheetName];
-      const matrix = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true});
-      // Jahr aus Metadaten-Sheet
+      const matrix = expandMergedCells(ws, XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:true}));
+      // Jahr aus Metadaten- oder Filter-Sheet
       let year = (new Date()).getFullYear();
-      const metaSheet = wb.SheetNames.find(n => /metadaten/i.test(n));
+      const metaSheet = wb.SheetNames.find(n => /metadaten/i.test(n) || /^filter$/i.test(n));
       if(metaSheet){
         const mArr = XLSX.utils.sheet_to_json(wb.Sheets[metaSheet], {header:1, defval:null, raw:false});
         outer:
@@ -3018,17 +3021,41 @@ async function uploadBackshopExcel(){
 }
 
 function parseBackshopMatrix(matrix, fallbackYear){
-  // Erwartete Header:
-  //   row 1 (idx 1, Excel-Zeile 2): "Woche" + KW-Zahlen
-  //   row 2 (idx 2, Excel-Zeile 3): "Markt" "Stunde" "Artikel" None "GTIN | Wochentag" None Wochentage...
-  //   ab row 3 (idx 3): Daten
+  // Erwartete Struktur (alt + neu):
+  //   weeksRow: enthaelt "Woche" + KW-Zahlen
+  //   daysRow:  enthaelt "Markt" "Stunde" "Artikel" ... Wochentage
+  //   Daten danach
+  // Alte Files: weeksRow = row 1 (Index 1), daysRow = row 2
+  // Neue .xlsm-Files: 3 Leerzeilen + Titel am Anfang -> Header verschoben
+  // Daher dynamisch suchen.
   const out = [];
   if(matrix.length < 4) return out;
-  const weeksRow = matrix[1] || [];
-  const daysRow = matrix[2] || [];
+  // Finde die "Markt"-Zeile (in den ersten 12 Zeilen, am Anfang der Zeile)
+  let daysRowIdx = -1;
+  for(let r = 0; r < Math.min(matrix.length, 12); r++){
+    const row = matrix[r] || [];
+    // "Markt" sollte in den ersten 2 Spalten stehen
+    for(let c = 0; c < Math.min(row.length, 3); c++){
+      if(String(row[c] || "").trim() === "Markt"){ daysRowIdx = r; break; }
+    }
+    if(daysRowIdx !== -1) break;
+  }
+  if(daysRowIdx === -1) return out;
+  const daysRow = matrix[daysRowIdx] || [];
+  const weeksRow = matrix[daysRowIdx - 1] || [];
+  // Spalten-Anzeige: erste Daten-Spalte bestimmen.
+  // Im neuen Format: Markt(0) Stunde(1) Artikel(2) Artikel(3) GTIN(4) Wochentag(5)
+  // → Wochentag steht in daysRow ab Spalte 6 (Index 5 ist "Wochentag" als label, 6+ sind tatsächliche Wochentage)
+  // Im alten Format ähnlich (ab Spalte 5)
+  // Finde die erste Spalte, die einen Wochentag enthält
+  let firstDataCol = -1;
+  for(let c = 0; c < daysRow.length; c++){
+    if(WEEKDAYS_DE.includes(String(daysRow[c] || "").trim())){ firstDataCol = c; break; }
+  }
+  if(firstDataCol === -1) firstDataCol = 5; // Fallback
   // Spalten-Meta sammeln: c -> {week, weekday}
   const colMeta = {};
-  for(let c = 5; c < weeksRow.length; c++){
+  for(let c = firstDataCol; c < daysRow.length; c++){
     const w = weeksRow[c];
     const d = daysRow[c];
     if(w === null || w === undefined || d === null || d === undefined) continue;
@@ -3038,8 +3065,9 @@ function parseBackshopMatrix(matrix, fallbackYear){
     if(!WEEKDAYS_DE.includes(ds)) continue;
     colMeta[c] = {week: parseInt(ws, 10), weekday: ds};
   }
-  // Datenzeilen
-  for(let r = 3; r < matrix.length; r++){
+  // Datenzeilen (ab Zeile nach Header)
+  const dataStartRow = daysRowIdx + 1;
+  for(let r = dataStartRow; r < matrix.length; r++){
     const row = matrix[r] || [];
     const market = row[0];
     const stunde = row[1];
