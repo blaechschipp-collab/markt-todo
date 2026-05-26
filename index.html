@@ -320,10 +320,16 @@
       <div class="small">Artikel durchsuchen oder scannen. Der Daumen kommt direkt aus dem Ordersatz. Mit eigener Notiz kannst du eine Bewertung speichern.</div>
       <div class="control-grid" style="margin-top:14px">
         <div><label>Suche (Bezeichnung)</label><input id="sortimentSearch" placeholder="z.B. Brötchen, Cola, Joghurt..." autocomplete="off" oninput="onSortimentSearchInput()"></div>
-        <div><label>EAN / Artikel-Nr. scannen</label><input id="sortimentEan" placeholder="Scannen oder eingeben" autocomplete="off" inputmode="numeric" onkeydown="if(event.key==='Enter'){event.preventDefault();onSortimentScan();}"></div>
-        <div><label>Bereich</label><select id="sortimentFilterTop" onchange="renderSortimentBrowser()"><option value="">Alle Bereiche</option></select></div>
+        <div><label>Artikel-Nr.</label><div style="display:flex;gap:6px"><input id="sortimentEan" placeholder="Eingeben oder scannen" autocomplete="off" inputmode="numeric" onkeydown="if(event.key==='Enter'){event.preventDefault();onSortimentScan();}" style="flex:1"><button id="sortimentScanBtn" class="btn-blue" style="width:auto;padding:0 14px;display:none" onclick="openSortimentCameraScanner()" title="Kamera-Scanner">📷</button></div></div>
+        <div><label>Bereich</label><select id="sortimentFilterTop" onchange="onSortimentFilterChange()"><option value="">Alle Bereiche</option></select></div>
+        <div><label>Warengruppe</label><input id="sortimentFilterWgNr" placeholder="z.B. 440101" inputmode="numeric" oninput="onSortimentSearchInput()"></div>
         <div><label>Daumen</label><select id="sortimentFilterDaumenView" onchange="renderSortimentBrowser()"><option value="">Alle</option><option value="up">👍 nur Gewinner</option><option value="neutral">😐 nur Neutrale</option><option value="down">👎 nur Verlierer</option><option value="none">— ohne Bewertung</option></select></div>
-        <div><label>&nbsp;</label><button class="btn-yellow" onclick="renderSortimentBrowser()" style="width:auto">Aktualisieren</button></div>
+        <div><label>Sortierung</label><select id="sortimentSortBy" onchange="renderSortimentBrowser()"><option value="name">Alphabet</option><option value="sk">SKZ aufsteigend</option><option value="top">Bereich (alphabetisch)</option><option value="wg">Warengruppe (Nr.)</option></select></div>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <span class="small" style="color:#64748b">Aktive Filter:</span>
+        <div id="sortimentActiveFilters" class="small" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+        <button class="btn-dark" style="width:auto;padding:4px 10px;font-size:12px" onclick="clearSortimentFilters()">Filter zurücksetzen</button>
       </div>
       <div id="sortimentBrowserBox" style="margin-top:14px"></div>
     </div>
@@ -425,9 +431,20 @@
     </div>
     </div><!-- /adminContent -->
   </section>
-</main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
+</main>
+<div id="sortimentScannerModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:9999;align-items:center;justify-content:center;flex-direction:column;padding:20px;box-sizing:border-box">
+  <div style="background:#0c1f3c;color:#fff;padding:14px 20px;border-radius:10px;max-width:560px;width:100%;text-align:center">
+    <h3 style="margin:0 0 10px">📷 Artikel-Nr. scannen</h3>
+    <video id="sortimentScannerVideo" autoplay playsinline muted style="width:100%;max-height:60vh;background:#000;border-radius:8px"></video>
+    <div id="sortimentScannerHint" class="small" style="color:#cbd5e1;margin-top:8px">Halte die Kamera auf den Code …</div>
+    <div style="margin-top:12px;display:flex;gap:10px;justify-content:center">
+      <button class="btn-red" onclick="closeSortimentCameraScanner()" style="width:auto">Schließen</button>
+    </div>
+  </div>
+</div>
+<div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.26-4"; // Sortiment-Browser: nur Anzeige + Code128-Barcode, keine Bewertungen mehr
+const APP_VERSION = "v2026.05.26-5"; // Sortiment: Sortierung, klickbare Bereiche/WG, Kamera-Scanner
 const APP_VERSION_DATE = "26.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -4681,17 +4698,70 @@ const SORTIMENT_BROWSER_PAGE_SIZE = 60;
 let sortimentState = {
   searchTerm: "",
   filterTop: "",
+  filterWgNr: "",
   filterDaumenView: "",
+  sortBy: "name",
   items: [],          // aktuelle Trefferliste (article_master)
   topGroups: [],      // alle bekannten Top-Bereiche
-  searchTimer: null
+  searchTimer: null,
+  scannerStream: null,
+  scannerActive: false
 };
 
 function initSortimentTab(){
+  // Kamera-Scanner-Button nur zeigen, wenn BarcodeDetector unterstützt wird
+  const scanBtn = document.getElementById("sortimentScanBtn");
+  if(scanBtn){
+    const supported = ("BarcodeDetector" in window) && (navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+    scanBtn.style.display = supported ? "inline-block" : "none";
+  }
   populateSortimentFilters().then(()=>{
     renderSortimentBrowser();
   });
   setTimeout(()=>{ const s = document.getElementById("sortimentSearch"); if(s) s.focus(); }, 80);
+}
+
+function onSortimentFilterChange(){
+  // WG-Filter zurücksetzen wenn Bereich geändert wird, damit die Listen konsistent bleiben
+  renderSortimentBrowser();
+}
+
+function clearSortimentFilters(){
+  document.getElementById("sortimentSearch").value = "";
+  document.getElementById("sortimentFilterTop").value = "";
+  document.getElementById("sortimentFilterWgNr").value = "";
+  document.getElementById("sortimentFilterDaumenView").value = "";
+  document.getElementById("sortimentSortBy").value = "name";
+  renderSortimentBrowser();
+}
+
+function setSortimentTopFilter(top){
+  document.getElementById("sortimentFilterTop").value = top || "";
+  document.getElementById("sortimentFilterWgNr").value = "";
+  renderSortimentBrowser();
+}
+
+function setSortimentWgFilter(wg){
+  document.getElementById("sortimentFilterWgNr").value = wg || "";
+  renderSortimentBrowser();
+}
+
+function renderSortimentActiveFilters(){
+  const box = document.getElementById("sortimentActiveFilters");
+  if(!box) return;
+  const chips = [];
+  const term = (document.getElementById("sortimentSearch").value || "").trim();
+  const top = document.getElementById("sortimentFilterTop").value || "";
+  const wg = (document.getElementById("sortimentFilterWgNr").value || "").trim();
+  const dau = document.getElementById("sortimentFilterDaumenView").value || "";
+  if(term) chips.push(`<span style="background:#e0f2fe;padding:3px 8px;border-radius:999px">🔎 „${escapeHtml(term)}"</span>`);
+  if(top) chips.push(`<span style="background:#dcfce7;padding:3px 8px;border-radius:999px">📂 ${escapeHtml(top)}</span>`);
+  if(wg) chips.push(`<span style="background:#fef3c7;padding:3px 8px;border-radius:999px">🏷️ WG ${escapeHtml(wg)}</span>`);
+  if(dau){
+    const dauLabels = {up:"👍",neutral:"😐",down:"👎",none:"— ohne"};
+    chips.push(`<span style="background:#f3e8ff;padding:3px 8px;border-radius:999px">${dauLabels[dau]||dau}</span>`);
+  }
+  box.innerHTML = chips.length ? chips.join("") : `<span style="color:#94a3b8">keine</span>`;
 }
 
 async function populateSortimentFilters(){
@@ -4718,20 +4788,24 @@ async function onSortimentScan(){
   const raw = (document.getElementById("sortimentEan").value || "").trim().replace(/\s+/g, "");
   if(!raw){ return; }
   document.getElementById("sortimentEan").value = "";
-  // Direkt Treffer suchen: erst EAN, dann ArtNr
-  let r = await db.from("article_master").select("*").or(`ean.eq.${raw},artikel_nr.eq.${raw}`).limit(5);
-  if(r.error){ alert("Fehler: " + r.error.message); return; }
-  let items = r.data || [];
+  // Artikel-Nr. ist der primäre Lookup-Key. Da der Ordersatz keine EANs hat,
+  // probieren wir zuerst artikel_nr, dann die synthetic-EAN (AN:<artnr>),
+  // und als letzten Fallback noch eine echte EAN (für etwaige Sonderfälle).
+  let items = [];
+  let r = await db.from("article_master").select("*").eq("artikel_nr", raw).limit(5);
+  if(!r.error && r.data) items = r.data;
   if(!items.length){
-    // synthetic-EAN fallback ("AN:<artnr>")
     const r2 = await db.from("article_master").select("*").eq("ean", `AN:${raw}`).limit(1);
-    if(!r2.error && r2.data){ items = r2.data; }
+    if(!r2.error && r2.data) items = r2.data;
   }
   if(!items.length){
-    document.getElementById("sortimentBrowserBox").innerHTML = `<div class="box" style="background:#fff3cd;padding:12px">Kein Artikel zu „${escapeHtml(raw)}" gefunden. Stammdaten geladen?</div>`;
+    const r3 = await db.from("article_master").select("*").eq("ean", raw).limit(5);
+    if(!r3.error && r3.data) items = r3.data;
+  }
+  if(!items.length){
+    document.getElementById("sortimentBrowserBox").innerHTML = `<div class="box" style="background:#fff3cd;padding:12px">Kein Artikel zu Art.-Nr. „${escapeHtml(raw)}" gefunden. Stammdaten geladen?</div>`;
     return;
   }
-  // Trefferliste mit den passenden Items rendern
   sortimentState.items = items;
   renderSortimentBrowserList();
 }
@@ -4739,18 +4813,30 @@ async function onSortimentScan(){
 async function renderSortimentBrowser(){
   const term = (document.getElementById("sortimentSearch").value || "").trim();
   const top = document.getElementById("sortimentFilterTop").value || "";
+  const wg = (document.getElementById("sortimentFilterWgNr").value || "").trim();
   const dau = document.getElementById("sortimentFilterDaumenView").value || "";
+  const sortBy = document.getElementById("sortimentSortBy").value || "name";
   sortimentState.searchTerm = term;
   sortimentState.filterTop = top;
+  sortimentState.filterWgNr = wg;
   sortimentState.filterDaumenView = dau;
+  sortimentState.sortBy = sortBy;
+  renderSortimentActiveFilters();
   const box = document.getElementById("sortimentBrowserBox");
   box.innerHTML = `<div class="small" style="color:#64748b">Lade …</div>`;
   let q = db.from("article_master").select("*");
   if(top) q = q.eq("warengruppe_top", top);
+  if(wg) q = q.eq("warengruppe_nr", wg);
   if(term) q = q.ilike("name", `%${term}%`);
   if(dau === "up" || dau === "neutral" || dau === "down") q = q.eq("ordersatz_daumen", dau);
   if(dau === "none") q = q.is("ordersatz_daumen", null);
-  q = q.order("name", {ascending: true}).limit(SORTIMENT_BROWSER_PAGE_SIZE);
+  // DB-Sortierung: bei "name" direkt in der DB sortieren, sonst alle Treffer
+  // bis zur Page-Size laden und im Browser sortieren (effizienter bei kleinen Pages).
+  if(sortBy === "name") q = q.order("name", {ascending: true});
+  else if(sortBy === "top") q = q.order("warengruppe_top", {ascending: true, nullsFirst: false}).order("name", {ascending: true});
+  else if(sortBy === "wg") q = q.order("warengruppe_nr", {ascending: true, nullsFirst: false}).order("name", {ascending: true});
+  else if(sortBy === "sk") q = q.order("sk", {ascending: true, nullsFirst: false}).order("name", {ascending: true});
+  q = q.limit(SORTIMENT_BROWSER_PAGE_SIZE);
   const r = await q;
   if(r.error){ box.innerHTML = `<div style="color:#c62828">Fehler: ${escapeHtml(r.error.message)}</div>`; return; }
   sortimentState.items = r.data || [];
@@ -4776,9 +4862,9 @@ function renderSortimentBrowserList(){
     if(a.artikel_nr) meta.push(`Art.-Nr.: <strong>${escapeHtml(a.artikel_nr)}</strong>`);
     if(a.ean && !String(a.ean).startsWith("AN:")) meta.push(`EAN: <strong>${escapeHtml(a.ean)}</strong>`);
     if(a.inhalt) meta.push(`Inhalt: <strong>${escapeHtml(a.inhalt)}</strong>`);
-    if(a.warengruppe_nr) meta.push(`WG: <strong>${escapeHtml(a.warengruppe_nr)}</strong>`);
+    if(a.warengruppe_nr) meta.push(`WG: <a href="#" style="color:#1d4ed8;font-weight:bold;text-decoration:underline" onclick="event.preventDefault();setSortimentWgFilter('${escapeJsAttr(a.warengruppe_nr)}')">${escapeHtml(a.warengruppe_nr)}</a>`);
     if(a.sk) meta.push(`SK: <strong>${escapeHtml(a.sk)}</strong>`);
-    if(a.warengruppe_top) meta.push(`Bereich: <strong>${escapeHtml(a.warengruppe_top)}</strong>`);
+    if(a.warengruppe_top) meta.push(`Bereich: <a href="#" style="color:#1d4ed8;font-weight:bold;text-decoration:underline" onclick="event.preventDefault();setSortimentTopFilter('${escapeJsAttr(a.warengruppe_top)}')">${escapeHtml(a.warengruppe_top)}</a>`);
     // Barcode-Wert: EAN bevorzugt (wenn echt, also nicht AN:-Prefix), sonst Artikelnummer
     const hasRealEan = a.ean && !String(a.ean).startsWith("AN:") && /^\d{8,14}$/.test(a.ean);
     const barcodeValue = hasRealEan ? a.ean : (a.artikel_nr || "");
@@ -5050,8 +5136,72 @@ async function clearArticleMaster(){
   refreshArticleMasterStats();
 }
 
+/* ---------- Kamera-Scanner für Artikel-Nr. (BarcodeDetector) ---------- */
+async function openSortimentCameraScanner(){
+  if(!("BarcodeDetector" in window)){
+    alert("Dieser Browser unterstützt keinen Kamera-Scanner. Bitte Artikel-Nr. eintippen.");
+    return;
+  }
+  if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)){
+    alert("Kein Kamera-Zugriff verfügbar.");
+    return;
+  }
+  const modal = document.getElementById("sortimentScannerModal");
+  const video = document.getElementById("sortimentScannerVideo");
+  const hint = document.getElementById("sortimentScannerHint");
+  modal.style.display = "flex";
+  hint.innerHTML = "Kamera startet …";
+  try{
+    const supported = await BarcodeDetector.getSupportedFormats();
+    // CODE128, EAN, UPC, ITF — alles was sinnvoll ist
+    const formats = supported.filter(f => ["code_128","ean_13","ean_8","upc_a","upc_e","itf","code_39","code_93"].includes(f));
+    const detector = new BarcodeDetector({formats: formats.length ? formats : ["code_128"]});
+    const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}, audio:false});
+    sortimentState.scannerStream = stream;
+    sortimentState.scannerActive = true;
+    video.srcObject = stream;
+    await video.play();
+    hint.innerHTML = "Halte die Kamera auf den Code …";
+    scanSortimentLoop(video, detector);
+  } catch(e){
+    hint.innerHTML = `<span style="color:#fca5a5">Fehler: ${escapeHtml(e && e.message ? e.message : String(e))}</span>`;
+  }
+}
+
+async function scanSortimentLoop(video, detector){
+  if(!sortimentState.scannerActive) return;
+  try{
+    const codes = await detector.detect(video);
+    if(codes && codes.length){
+      const raw = String(codes[0].rawValue || "").trim().replace(/\s+/g, "");
+      if(raw && /^\d{6,14}$/.test(raw)){
+        closeSortimentCameraScanner();
+        document.getElementById("sortimentEan").value = raw;
+        onSortimentScan();
+        return;
+      }
+    }
+  } catch(e){ /* manche Browser werfen sporadisch — einfach weiter scannen */ }
+  setTimeout(()=>scanSortimentLoop(video, detector), 200);
+}
+
+function closeSortimentCameraScanner(){
+  sortimentState.scannerActive = false;
+  const video = document.getElementById("sortimentScannerVideo");
+  if(video){ try{ video.pause(); }catch(e){} video.srcObject = null; }
+  if(sortimentState.scannerStream){
+    try{ sortimentState.scannerStream.getTracks().forEach(t => t.stop()); }catch(e){}
+    sortimentState.scannerStream = null;
+  }
+  const modal = document.getElementById("sortimentScannerModal");
+  if(modal) modal.style.display = "none";
+}
+
 function escapeHtml(s){
   return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+}
+function escapeJsAttr(s){
+  return String(s == null ? "" : s).replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g,"\\\"").replace(/\n/g,"\\n").replace(/\r/g,"");
 }
 
 const nameInput=document.getElementById("name");nameInput.value=localStorage.getItem("employeeName")||"";nameInput.addEventListener("input",function(){localStorage.setItem("employeeName",this.value)});const marketInput=document.getElementById("marketFilter"),areaInput=document.getElementById("areaFilter");marketInput.value=localStorage.getItem("selectedMarket")||"Freckenfeld";marketInput.addEventListener("change",function(){localStorage.setItem("selectedMarket",this.value)});document.getElementById("monthFilter").value=todayISO().slice(0,7);document.getElementById("controlDateFrom").value=todayISO();document.getElementById("controlDateTo").value=todayISO();document.getElementById("adminStartDate").value=todayISO();document.getElementById("adminEndDate").value=todayISO();document.getElementById("metricsUploadDate").value=todayISO();populateAllowedDays();loadAreas().then(()=>{handleAreaChange()});
