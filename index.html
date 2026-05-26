@@ -423,22 +423,11 @@
       <div id="articleMasterMsg" class="small" style="margin-top:8px"></div>
       <div id="articleMasterStats" class="small" style="margin-top:8px;color:#475569"></div>
     </div>
-    <div class="box admin admin-sortiment" style="display:none">
-      <h2>📋 Gespeicherte Bewertungen – Übersicht</h2>
-      <div class="control-grid">
-        <div><label>Warengruppe</label><select id="sortimentFilterWG" onchange="renderSortimentList()"><option value="">Alle Warengruppen</option></select></div>
-        <div><label>Daumen</label><select id="sortimentFilterDaumen" onchange="renderSortimentList()"><option value="">Alle</option><option value="up">👍</option><option value="neutral">😐</option><option value="down">👎</option></select></div>
-        <div><label>Suche</label><input id="sortimentFilterSearch" placeholder="EAN / Name / Notiz" oninput="renderSortimentList()"></div>
-        <div><label>&nbsp;</label><button class="btn-yellow" onclick="loadSortimentChecks()" style="width:auto">Aktualisieren</button></div>
-        <div><label>&nbsp;</label><button class="btn-blue" onclick="exportSortimentChecks()" style="width:auto">Excel-Export</button></div>
-      </div>
-      <div id="sortimentListBox" style="margin-top:14px"></div>
-    </div>
     </div><!-- /adminContent -->
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.26-3"; // Sortiment-Browser: keine Spanne im UI/DB, feste Daumen-Schwellen 33/30
+const APP_VERSION = "v2026.05.26-4"; // Sortiment-Browser: nur Anzeige + Code128-Barcode, keine Bewertungen mehr
 const APP_VERSION_DATE = "26.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -2430,7 +2419,7 @@ function showAdminSubTab(name){
   document.getElementById("adminSubTabUploads").classList.toggle("active", name === "uploads");
   document.getElementById("adminSubTabSortiment").classList.toggle("active", name === "sortiment");
   if(name === "todopflege"){ loadAdminTasks(); loadControlTasks(); }
-  else if(name === "sortiment"){ refreshArticleMasterStats(); loadSortimentChecks(); }
+  else if(name === "sortiment"){ refreshArticleMasterStats(); }
 }
 // Modus fuer die Backempfehlung: "today" (aktuell, Heute-Fokus) oder "tomorrow" (Auflegen fuer morgen frueh)
 let backshopMode = "today";
@@ -4694,9 +4683,6 @@ let sortimentState = {
   filterTop: "",
   filterDaumenView: "",
   items: [],          // aktuelle Trefferliste (article_master)
-  myChecks: {},       // ean -> { daumen, notiz, checked_at } (für Override-Anzeige)
-  allChecks: [],      // alle gespeicherten Bewertungen (Admin)
-  warengruppen: [],   // alle bekannten Warengruppen
   topGroups: [],      // alle bekannten Top-Bereiche
   searchTimer: null
 };
@@ -4747,7 +4733,6 @@ async function onSortimentScan(){
   }
   // Trefferliste mit den passenden Items rendern
   sortimentState.items = items;
-  await loadMyChecksForCurrentItems();
   renderSortimentBrowserList();
 }
 
@@ -4769,19 +4754,7 @@ async function renderSortimentBrowser(){
   const r = await q;
   if(r.error){ box.innerHTML = `<div style="color:#c62828">Fehler: ${escapeHtml(r.error.message)}</div>`; return; }
   sortimentState.items = r.data || [];
-  await loadMyChecksForCurrentItems();
   renderSortimentBrowserList();
-}
-
-async function loadMyChecksForCurrentItems(){
-  const eans = (sortimentState.items || []).map(x => x.ean).filter(Boolean);
-  if(!eans.length){ sortimentState.myChecks = {}; return; }
-  const r = await db.from("sortiment_checks").select("*").in("ean", eans).order("checked_at", {ascending:false});
-  const latest = {};
-  for(const c of (r.data || [])){
-    if(!latest[c.ean]) latest[c.ean] = c; // neuester pro EAN
-  }
-  sortimentState.myChecks = latest;
 }
 
 function renderSortimentBrowserList(){
@@ -4793,12 +4766,12 @@ function renderSortimentBrowserList(){
   }
   const iconMap = { up: "👍", neutral: "😐", down: "👎" };
   const colorMap = { up: "#16a34a", neutral: "#ca8a04", down: "#dc2626" };
+  const barcodesToRender = [];
   let html = `<div class="small" style="margin-bottom:8px;color:#475569">${items.length} Treffer${items.length >= SORTIMENT_BROWSER_PAGE_SIZE ? ` (max. ${SORTIMENT_BROWSER_PAGE_SIZE} — Suche verfeinern)` : ""}</div>`;
   for(const a of items){
-    const od = a.ordersatz_daumen;
-    const myCheck = sortimentState.myChecks[a.ean];
-    const eff = myCheck ? myCheck.daumen : od;
-    const cardKey = `card_${(a.ean||"x").replace(/[^A-Za-z0-9_]/g,"_")}`;
+    const eff = a.ordersatz_daumen;
+    const cardKey = `card_${(a.ean||a.artikel_nr||"x").replace(/[^A-Za-z0-9_]/g,"_")}`;
+    const barcodeId = `bc_${cardKey}`;
     const meta = [];
     if(a.artikel_nr) meta.push(`Art.-Nr.: <strong>${escapeHtml(a.artikel_nr)}</strong>`);
     if(a.ean && !String(a.ean).startsWith("AN:")) meta.push(`EAN: <strong>${escapeHtml(a.ean)}</strong>`);
@@ -4806,77 +4779,35 @@ function renderSortimentBrowserList(){
     if(a.warengruppe_nr) meta.push(`WG: <strong>${escapeHtml(a.warengruppe_nr)}</strong>`);
     if(a.sk) meta.push(`SK: <strong>${escapeHtml(a.sk)}</strong>`);
     if(a.warengruppe_top) meta.push(`Bereich: <strong>${escapeHtml(a.warengruppe_top)}</strong>`);
-    const myNote = myCheck && myCheck.notiz ? `<div class="small" style="background:#eef2ff;padding:6px 10px;border-radius:6px;margin-top:6px">📝 ${escapeHtml(myCheck.notiz)} <span style="color:#64748b">· ${escapeHtml(formatDateTimeDE(myCheck.checked_at))}</span></div>` : "";
-    const odNote = (od && !myCheck) ? `<div class="small" style="color:#64748b;margin-top:4px">Standard aus Ordersatz</div>` : "";
+    // Barcode-Wert: EAN bevorzugt (wenn echt, also nicht AN:-Prefix), sonst Artikelnummer
+    const hasRealEan = a.ean && !String(a.ean).startsWith("AN:") && /^\d{8,14}$/.test(a.ean);
+    const barcodeValue = hasRealEan ? a.ean : (a.artikel_nr || "");
+    const barcodeLabel = hasRealEan ? "EAN" : "Art.-Nr.";
+    if(barcodeValue){ barcodesToRender.push({id: barcodeId, value: barcodeValue}); }
     html += `<div class="box" style="background:#fff;padding:12px;margin-bottom:8px;border-left:5px solid ${colorMap[eff]||"#cbd5e1"}">
-      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <div style="font-size:32px">${iconMap[eff]||"—"}</div>
-        <div style="flex:1;min-width:200px">
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div style="font-size:36px;line-height:1">${iconMap[eff]||"—"}</div>
+        <div style="flex:1;min-width:220px">
           <div style="font-size:15px"><strong>${escapeHtml(a.name||"(ohne Name)")}</strong></div>
           <div class="small" style="color:#475569;margin-top:2px">${meta.join(" · ")}</div>
         </div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap">
-          <button id="${cardKey}_up" class="btn-green" style="width:auto;padding:8px 14px;font-size:18px" onclick="quickRateSortiment('${escapeJs(a.ean)}','up')">👍</button>
-          <button id="${cardKey}_neutral" class="btn-yellow" style="width:auto;padding:8px 14px;font-size:18px" onclick="quickRateSortiment('${escapeJs(a.ean)}','neutral')">😐</button>
-          <button id="${cardKey}_down" class="btn-red" style="width:auto;padding:8px 14px;font-size:18px" onclick="quickRateSortiment('${escapeJs(a.ean)}','down')">👎</button>
-        </div>
+        ${barcodeValue ? `<div style="background:#fff;padding:6px 10px;border:1px dashed #cbd5e1;border-radius:8px;min-width:200px;text-align:center"><svg id="${barcodeId}"></svg><div class="small" style="color:#64748b;margin-top:2px">${barcodeLabel}: ${escapeHtml(barcodeValue)}</div></div>` : ""}
       </div>
-      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <input id="${cardKey}_note" placeholder="Notiz (optional)" style="flex:1;min-width:200px" value="${escapeHtml(myCheck && myCheck.notiz ? myCheck.notiz : "")}">
-        <button class="btn-blue" style="width:auto;padding:8px 14px" onclick="saveSortimentNote('${escapeJs(a.ean)}','${cardKey}')">Notiz speichern</button>
-        ${myCheck ? `<button class="btn-dark" style="width:auto;padding:8px 14px" onclick="resetSortimentRating('${escapeJs(a.ean)}')">Zurücksetzen</button>` : ""}
-      </div>
-      ${myNote}
-      ${odNote}
     </div>`;
   }
   box.innerHTML = html;
-}
-
-function escapeJs(s){ return String(s == null ? "" : s).replace(/\\/g,"\\\\").replace(/'/g,"\\'"); }
-
-async function quickRateSortiment(ean, daumen){
-  const art = (sortimentState.items || []).find(x => x.ean === ean);
-  if(!art) return;
-  await persistSortimentCheck(art, daumen, sortimentState.myChecks[ean]?.notiz || null);
-}
-
-async function saveSortimentNote(ean, cardKey){
-  const noteEl = document.getElementById(`${cardKey}_note`);
-  const note = noteEl ? noteEl.value.trim() : "";
-  const art = (sortimentState.items || []).find(x => x.ean === ean);
-  if(!art) return;
-  // Daumen: aktueller (oder Ordersatz-Standard)
-  const my = sortimentState.myChecks[ean];
-  const daumen = my ? my.daumen : (art.ordersatz_daumen || "neutral");
-  await persistSortimentCheck(art, daumen, note);
-}
-
-async function resetSortimentRating(ean){
-  if(!confirm("Eigene Bewertung für diesen Artikel löschen? Es bleibt nur der Standard aus dem Ordersatz übrig.")) return;
-  const r = await db.from("sortiment_checks").delete().eq("ean", ean);
-  if(r.error){ alert("Fehler: " + r.error.message); return; }
-  delete sortimentState.myChecks[ean];
-  renderSortimentBrowserList();
-}
-
-async function persistSortimentCheck(art, daumen, notiz){
-  // Wir speichern keinen Markt, keine Spanne, keinen Namen des MA — bewusst.
-  // Insert: neuester Check gewinnt (Übersicht zeigt jüngsten pro EAN).
-  // Bewusst KEINE Spanne, KEIN EK, KEIN abteilungs_avg_pct, KEIN market, KEIN checked_by.
-  const payload = {
-    ean: art.ean || "",
-    artikel_nr: art.artikel_nr || "",
-    name: art.name || "",
-    warengruppe: art.warengruppe || art.warengruppe_top || "",
-    daumen,
-    notiz: notiz || null,
-    checked_at: berlinNowForDB()
-  };
-  const r = await db.from("sortiment_checks").insert(payload).select();
-  if(r.error){ alert("Fehler beim Speichern: " + r.error.message); return; }
-  sortimentState.myChecks[art.ean] = r.data[0];
-  renderSortimentBrowserList();
+  // Barcodes rendern (Code128 für ArtNr und EAN, robust für beide)
+  barcodesToRender.forEach(({id, value}) => {
+    try{
+      JsBarcode(`#${id}`, value, {
+        format: "CODE128",
+        displayValue: false,
+        height: 50,
+        margin: 0,
+        width: 1.6
+      });
+    }catch(e){ /* ignore */ }
+  });
 }
 
 /* ---------- Admin: Stammdaten-Upload (Ordersatz + allgemein) ---------- */
@@ -5104,96 +5035,19 @@ async function refreshArticleMasterStats(){
   // exact-count separat ziehen, weil count head:false mit großen Tabellen langsam wird
   const cntR = await db.from("article_master").select("ean", {count:"exact", head:true});
   const total = cntR.error ? "?" : (cntR.count || 0);
-  // Distinct-WGs ziehen — bei großen Tabellen limitieren
-  const wgR = await db.from("article_master").select("warengruppe").limit(20000);
-  const wgSet = new Set((wgR.data || []).map(x => x.warengruppe).filter(Boolean));
-  sortimentState.warengruppen = Array.from(wgSet).sort();
-  const sel = document.getElementById("sortimentFilterWG");
-  if(sel){
-    const cur = sel.value;
-    sel.innerHTML = `<option value="">Alle Warengruppen</option>` + sortimentState.warengruppen.map(w => `<option ${w===cur?"selected":""}>${escapeHtml(w)}</option>`).join("");
-  }
-  box.innerHTML = `Aktuell ${total} Stammsätze, ${wgSet.size} Bereiche/Warengruppen.`;
+  // Distinct-Bereiche ziehen, nur für die Stats-Anzeige
+  const wgR = await db.from("article_master").select("warengruppe_top").limit(20000);
+  const wgSet = new Set((wgR.data || []).map(x => x.warengruppe_top).filter(Boolean));
+  box.innerHTML = `Aktuell ${total} Stammsätze, ${wgSet.size} Bereiche.`;
 }
 
 async function clearArticleMaster(){
   if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
-  if(!confirm("Wirklich ALLE Artikel-Stammdaten löschen?\n\nGespeicherte Sortimentschecks bleiben erhalten.")) return;
+  if(!confirm("Wirklich ALLE Artikel-Stammdaten löschen?")) return;
   const r = await db.from("article_master").delete().neq("ean", "");
   if(r.error){ alert("Fehler: " + r.error.message); return; }
   document.getElementById("articleMasterMsg").innerHTML = "Alle Stammdaten gelöscht.";
   refreshArticleMasterStats();
-}
-
-/* ---------- Admin: Sortimentscheck-Übersicht + Export ---------- */
-async function loadSortimentChecks(){
-  const r = await db.from("sortiment_checks").select("*").order("checked_at", {ascending:false}).limit(5000);
-  if(r.error){ document.getElementById("sortimentListBox").innerHTML = "Fehler: " + r.error.message; return; }
-  sortimentState.allChecks = r.data || [];
-  renderSortimentList();
-}
-
-function renderSortimentList(){
-  const box = document.getElementById("sortimentListBox");
-  if(!box) return;
-  const fw = document.getElementById("sortimentFilterWG").value;
-  const fd = document.getElementById("sortimentFilterDaumen").value;
-  const fs = (document.getElementById("sortimentFilterSearch").value || "").trim().toLowerCase();
-  let items = sortimentState.allChecks || [];
-  if(fw) items = items.filter(x => (x.warengruppe||"") === fw);
-  if(fd) items = items.filter(x => x.daumen === fd);
-  if(fs) items = items.filter(x => {
-    return (x.name||"").toLowerCase().includes(fs)
-      || (x.ean||"").toLowerCase().includes(fs)
-      || (x.artikel_nr||"").toLowerCase().includes(fs)
-      || (x.notiz||"").toLowerCase().includes(fs);
-  });
-  if(!items.length){ box.innerHTML = `<div class="small" style="color:#64748b">Keine Treffer mit aktuellen Filtern.</div>`; return; }
-  const iconMap = { up: "👍", neutral: "😐", down: "👎" };
-  let html = `<div class="small" style="margin-bottom:6px">${items.length} Einträge</div>`;
-  html += `<div class="table-wrap"><table><thead><tr><th>Daumen</th><th>Bereich</th><th>Artikel</th><th>Wann</th><th>Notiz</th><th></th></tr></thead><tbody>`;
-  for(const it of items){
-    const ic = iconMap[it.daumen] || "—";
-    const dt = it.checked_at ? formatDateTimeDE(it.checked_at) : "";
-    const eanShown = it.ean && !String(it.ean).startsWith("AN:") ? it.ean : "";
-    html += `<tr><td style="font-size:18px">${ic}</td><td>${escapeHtml(it.warengruppe||"")}</td><td>${escapeHtml(it.name||"")}<div class="small" style="color:#64748b">${escapeHtml(it.artikel_nr || eanShown || "")}</div></td><td class="small">${dt}</td><td class="small">${escapeHtml(it.notiz||"")}</td><td><button class="btn-red" style="width:auto;padding:4px 10px;font-size:12px" onclick="deleteSortimentCheck(${it.id})">×</button></td></tr>`;
-  }
-  html += `</tbody></table></div>`;
-  box.innerHTML = html;
-}
-
-async function deleteSortimentCheck(id){
-  if(!confirm("Diesen Sortimentscheck löschen?")) return;
-  const r = await db.from("sortiment_checks").delete().eq("id", id);
-  if(r.error){ alert("Fehler: " + r.error.message); return; }
-  sortimentState.allChecks = (sortimentState.allChecks || []).filter(x => x.id !== id);
-  renderSortimentList();
-}
-
-function exportSortimentChecks(){
-  const fw = document.getElementById("sortimentFilterWG").value;
-  const fd = document.getElementById("sortimentFilterDaumen").value;
-  const fs = (document.getElementById("sortimentFilterSearch").value || "").trim().toLowerCase();
-  let items = sortimentState.allChecks || [];
-  if(fw) items = items.filter(x => (x.warengruppe||"") === fw);
-  if(fd) items = items.filter(x => x.daumen === fd);
-  if(fs) items = items.filter(x => (x.name||"").toLowerCase().includes(fs) || (x.ean||"").toLowerCase().includes(fs) || (x.artikel_nr||"").toLowerCase().includes(fs) || (x.notiz||"").toLowerCase().includes(fs));
-  if(!items.length){ alert("Nichts zum Exportieren."); return; }
-  const map = { up: "behalten", neutral: "neutral", down: "auslisten" };
-  const data = items.map(it => ({
-    Bereich: it.warengruppe || "",
-    "Artikel-Nr.": it.artikel_nr || "",
-    EAN: (it.ean && !String(it.ean).startsWith("AN:")) ? it.ean : "",
-    Bezeichnung: it.name || "",
-    Daumen: map[it.daumen] || it.daumen || "",
-    Notiz: it.notiz || "",
-    Wann: it.checked_at ? formatDateTimeDE(it.checked_at) : ""
-  }));
-  const ws = XLSX.utils.json_to_sheet(data);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Sortimentscheck");
-  const fname = `sortimentscheck_${todayISO()}.xlsx`;
-  XLSX.writeFile(wb, fname);
 }
 
 function escapeHtml(s){
