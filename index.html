@@ -11,7 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <style>
     :root{--blue:#004f9e;--blue-dark:#00315f;--yellow:#ffdd00;--red:#ef4444;--orange:#f59e0b;--green:#22c55e;--border:#d8e2ef;--text:#08213f}
-    *{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(180deg,var(--blue-dark),var(--blue));color:var(--text);min-height:100vh}.header{background:linear-gradient(135deg,#002b55,#0059ad);padding:22px 26px 18px;border-bottom:6px solid var(--yellow)}.brand{max-width:1300px;margin:0 auto}.logo{max-width:520px;width:100%;height:auto;display:block}.brand-title{font-size:44px;font-weight:900;font-style:italic;color:#fff}.brand-subtitle{font-size:18px;color:#d9ecff}.main{max-width:1300px;margin:0 auto;padding:24px}.tabs{display:flex;gap:10px;margin-bottom:18px}.tab{border:2px solid var(--yellow);background:transparent;color:#fff;padding:14px 24px;border-radius:12px 12px 0 0;font-weight:bold;cursor:pointer}.tab.active{background:var(--yellow);color:var(--blue-dark)}.todo-tab{flex:2}.dispo-tab{flex:2}.backshop-tab{flex:2}.sortiment-tab{flex:2}.analytics-tab{flex:2}.admin-tab{flex:1;min-width:92px}.tab{white-space:nowrap;text-align:center;padding:14px 12px;font-size:15px}.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:14px}.metric-card{background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:16px}.metric-value{font-size:28px;font-weight:900;color:var(--blue-dark)}.locked{opacity:.75}.box{background:#fff;border-radius:14px;padding:18px;margin-bottom:18px;box-shadow:0 8px 24px rgba(0,0,0,.14)}.admin{border:3px solid var(--yellow)}.control-grid{display:grid;grid-template-columns:repeat(5,minmax(160px,1fr));gap:14px;align-items:end}label{font-weight:bold;font-size:14px;display:block;margin-bottom:6px}input,select,textarea,button{padding:12px;border-radius:8px;border:1px solid #b8c7d9;font-size:15px;width:100%}textarea{min-height:86px;resize:vertical}button{cursor:pointer;font-weight:bold;border:none}.btn-yellow{background:var(--yellow);color:var(--blue-dark)}.btn-blue{background:var(--blue);color:#fff}.btn-dark{background:var(--blue-dark);color:#fff}.btn-red{background:#c62828;color:#fff}.btn-green{background:#2e7d32;color:#fff}.task{padding:14px;border-radius:10px;margin-bottom:10px;border:1px solid var(--border);display:flex;gap:12px;align-items:flex-start}.high{background:#ffe5e5;border-color:#ffb3b3}.medium{background:#fff5cc;border-color:#ffe480}.low{background:#e8f5e9;border-color:#bde8c3}.info{background:#e0f2fe;border-color:#7dd3fc}.done{text-decoration:line-through;color:#6b7280}.pill{display:inline-block;padding:3px 8px;border-radius:999px;color:#fff;font-size:12px;font-weight:bold;margin-left:6px}.high-p{background:var(--red)}.medium-p{background:var(--orange)}.low-p{background:var(--green)}.open-p{background:#64748b}.done-p{background:var(--green)}.info-p{background:#0284c7}.small{font-size:13px;color:#64748b;margin-top:4px}.days label,.months label{display:inline-flex;align-items:center;gap:6px;margin:6px 12px 6px 0;font-weight:normal}.days input,.months input{width:auto}.admin-actions{display:flex;gap:8px;flex-wrap:wrap}.admin-actions button{width:auto}.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px}table{border-collapse:collapse;width:100%;min-width:900px;background:#fff}th,td{border:1px solid #e1e8f0;padding:9px;text-align:left;font-size:13px}th{background:#f1f5f9}.footer{background:var(--yellow);color:var(--blue-dark);text-align:center;padding:18px;font-weight:bold;margin-top:30px}
+    *{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(180deg,var(--blue-dark),var(--blue));color:var(--text);min-height:100vh}.header{background:linear-gradient(135deg,#002b55,#0059ad);padding:22px 26px 18px;border-bottom:6px solid var(--yellow)}.brand{max-width:1300px;margin:0 auto}.logo{max-width:520px;width:100%;height:auto;display:block}.brand-title{font-size:44px;font-weight:900;font-style:italic;color:#fff}.brand-subtitle{font-size:18px;color:#d9ecff}.main{max-width:1300px;margin:0 auto;padding:24px}.tabs{display:flex;gap:10px;margin-bottom:18px}.tab{border:2px solid var(--yellow);background:transparent;color:#fff;padding:14px 24px;border-radius:12px 12px 0 0;font-weight:bold;cursor:pointer}.tab.active{background:var(--yellow);color:var(--blue-dark)}.todo-tab{flex:2}.dispo-tab{flex:2}.backshop-tab{flex:2}.analytics-tab{flex:2}.admin-tab{flex:1;min-width:92px}.tab{white-space:nowrap;text-align:center;padding:14px 12px;font-size:15px}.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:14px}.metric-card{background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:16px}.metric-value{font-size:28px;font-weight:900;color:var(--blue-dark)}.locked{opacity:.75}.box{background:#fff;border-radius:14px;padding:18px;margin-bottom:18px;box-shadow:0 8px 24px rgba(0,0,0,.14)}.admin{border:3px solid var(--yellow)}.control-grid{display:grid;grid-template-columns:repeat(5,minmax(160px,1fr));gap:14px;align-items:end}label{font-weight:bold;font-size:14px;display:block;margin-bottom:6px}input,select,textarea,button{padding:12px;border-radius:8px;border:1px solid #b8c7d9;font-size:15px;width:100%}textarea{min-height:86px;resize:vertical}button{cursor:pointer;font-weight:bold;border:none}.btn-yellow{background:var(--yellow);color:var(--blue-dark)}.btn-blue{background:var(--blue);color:#fff}.btn-dark{background:var(--blue-dark);color:#fff}.btn-red{background:#c62828;color:#fff}.btn-green{background:#2e7d32;color:#fff}.task{padding:14px;border-radius:10px;margin-bottom:10px;border:1px solid var(--border);display:flex;gap:12px;align-items:flex-start}.high{background:#ffe5e5;border-color:#ffb3b3}.medium{background:#fff5cc;border-color:#ffe480}.low{background:#e8f5e9;border-color:#bde8c3}.info{background:#e0f2fe;border-color:#7dd3fc}.done{text-decoration:line-through;color:#6b7280}.pill{display:inline-block;padding:3px 8px;border-radius:999px;color:#fff;font-size:12px;font-weight:bold;margin-left:6px}.high-p{background:var(--red)}.medium-p{background:var(--orange)}.low-p{background:var(--green)}.open-p{background:#64748b}.done-p{background:var(--green)}.info-p{background:#0284c7}.small{font-size:13px;color:#64748b;margin-top:4px}.days label,.months label{display:inline-flex;align-items:center;gap:6px;margin:6px 12px 6px 0;font-weight:normal}.days input,.months input{width:auto}.admin-actions{display:flex;gap:8px;flex-wrap:wrap}.admin-actions button{width:auto}.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px}table{border-collapse:collapse;width:100%;min-width:900px;background:#fff}th,td{border:1px solid #e1e8f0;padding:9px;text-align:left;font-size:13px}th{background:#f1f5f9}.footer{background:var(--yellow);color:var(--blue-dark);text-align:center;padding:18px;font-weight:bold;margin-top:30px}
     .kpi-block .kpi-cards{display:none}
     .kpi-mobile-card{background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px}
     .kpi-mobile-card h3{margin:0 0 8px;font-size:16px;color:var(--blue-dark)}
@@ -188,7 +188,7 @@
 </div>
 <header class="header"><div class="brand" onclick="reloadApp()" title="Tippen zum Neuladen" style="cursor:pointer"><img src="logo.png" alt="EDEKA Paul Logo" class="logo" onerror="this.style.display='none';document.getElementById('fallbackBrand').style.display='block';"><div id="fallbackBrand" style="display:none"><div class="brand-title">Paul.</div><div class="brand-subtitle">Regional. Frisch. Freundlich.</div></div></div></header>
 <main class="main">
-  <div class="tabs"><button id="todoTab" class="tab active todo-tab" onclick="showTab('todo')">☑ ToDo</button><button id="dispoTab" class="tab dispo-tab" onclick="showTab('dispo')">📦 Dispo <span class="beta-pill">Beta</span></button><button id="backshopTab" class="tab backshop-tab" onclick="showTab('backshop')">🥐 Backshop <span class="beta-pill">Beta</span></button><button id="sortimentTab" class="tab sortiment-tab" onclick="showTab('sortiment')">👍 Sortiment <span class="beta-pill">Beta</span></button><button id="analyticsTab" class="tab analytics-tab" onclick="showTab('analytics')">📊 Auswertungen</button><button id="adminTab" class="tab admin-tab" onclick="openAdminPin()">🔒 Admin</button></div>
+  <div class="tabs"><button id="todoTab" class="tab active todo-tab" onclick="showTab('todo')">☑ ToDo</button><button id="dispoTab" class="tab dispo-tab" onclick="showTab('dispo')">📦 Dispo</button><button id="backshopTab" class="tab backshop-tab" onclick="showTab('backshop')">🥐 Backshop</button><button id="analyticsTab" class="tab analytics-tab" onclick="showTab('analytics')">📊 Auswertungen</button><button id="adminTab" class="tab admin-tab" onclick="openAdminPin()">🔒 Admin</button></div>
   <section id="todoSection">
     <div class="box"><div class="control-grid"><div><label>Dein Name</label><input id="name" placeholder="Dein Name"></div><div><label>Markt</label><select id="marketFilter" onchange="handleMarketChange()"><option value="ALLE">Alle Märkte</option><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="areaFilter" onchange="handleAreaChange()"><option value="">Alle Bereiche außer Hausmeister</option></select></div><div id="dayControl"><label>Tag</label><select id="day" onchange="loadTasks()"></select></div><div id="monthControl" style="display:none"><label>Monat</label><input id="monthFilter" type="month" onchange="loadTasks()"></div><div><label>Erledigte</label><select id="todoDoneFilter" onchange="handleDoneFilterChange()"><option value="hide">Ausblenden</option><option value="show">Anzeigen</option><option value="only">Nur erledigte</option></select></div><div><label>&nbsp;</label><button class="btn-yellow" onclick="loadTasks()">Aktualisieren</button></div></div></div>
     <div id="tasks" class="box"></div>
@@ -314,26 +314,6 @@
       <div id="bestellContent"></div>
     </div><!-- /backshopSubBestellung -->
   </section>
-  <section id="sortimentSection" style="display:none">
-    <div class="box">
-      <h2>👍 Sortimentscheck</h2>
-      <div class="small">Artikel durchsuchen oder scannen. Der Daumen kommt direkt aus dem Ordersatz. Mit eigener Notiz kannst du eine Bewertung speichern.</div>
-      <div class="control-grid" style="margin-top:14px">
-        <div><label>Suche (Bezeichnung)</label><input id="sortimentSearch" placeholder="z.B. Brötchen, Cola, Joghurt..." autocomplete="off" oninput="onSortimentSearchInput()"></div>
-        <div><label>Artikel-Nr.</label><div style="display:flex;gap:6px"><input id="sortimentEan" placeholder="Eingeben oder scannen" autocomplete="off" inputmode="numeric" onkeydown="if(event.key==='Enter'){event.preventDefault();onSortimentScan();}" style="flex:1"><button id="sortimentScanBtn" class="btn-blue" style="width:auto;padding:0 14px;display:none" onclick="openSortimentCameraScanner()" title="Kamera-Scanner">📷</button></div></div>
-        <div><label>Bereich</label><select id="sortimentFilterTop" onchange="onSortimentFilterChange()"><option value="">Alle Bereiche</option></select></div>
-        <div><label>Warengruppe</label><input id="sortimentFilterWgNr" placeholder="z.B. 440101" inputmode="numeric" oninput="onSortimentSearchInput()"></div>
-        <div><label>Daumen</label><select id="sortimentFilterDaumenView" onchange="renderSortimentBrowser()"><option value="">Alle</option><option value="up">👍 nur Gewinner</option><option value="neutral">😐 nur Neutrale</option><option value="down">👎 nur Verlierer</option><option value="none">— ohne Bewertung</option></select></div>
-        <div><label>Sortierung</label><select id="sortimentSortBy" onchange="renderSortimentBrowser()"><option value="name">Alphabet</option><option value="sk">SKZ aufsteigend</option><option value="top">Bereich (alphabetisch)</option><option value="wg">Warengruppe (Nr.)</option></select></div>
-      </div>
-      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <span class="small" style="color:#64748b">Aktive Filter:</span>
-        <div id="sortimentActiveFilters" class="small" style="display:flex;gap:6px;flex-wrap:wrap"></div>
-        <button class="btn-dark" style="width:auto;padding:4px 10px;font-size:12px" onclick="clearSortimentFilters()">Filter zurücksetzen</button>
-      </div>
-      <div id="sortimentBrowserBox" style="margin-top:14px"></div>
-    </div>
-  </section>
   <section id="adminSection" style="display:none">
     <div id="adminLoginBox" class="box">
       <h2 style="margin-top:0">🔒 Admin-Bereich</h2>
@@ -355,7 +335,6 @@
     <div class="sub-tabs">
       <button id="adminSubTabTodo" class="sub-tab active" onclick="showAdminSubTab('todopflege')">📋 ToDo-Pflege</button>
       <button id="adminSubTabUploads" class="sub-tab" onclick="showAdminSubTab('uploads')">📥 Uploads</button>
-      <button id="adminSubTabSortiment" class="sub-tab" onclick="showAdminSubTab('sortiment')">👍 Sortiment</button>
     </div>
     <div class="box admin admin-todopflege"><h2>Adminbereich – Aufgabe anlegen</h2><div class="control-grid"><div><label>Markt</label><select id="adminMarket" onchange="handleAdminMarketChange()"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="adminArea" onchange="toggleAdminPeriodFields()"></select><input id="adminCustomArea" placeholder="Neue Abteilung / Bereich" style="margin-top:8px"></div><div><label>Wichtigkeit</label><select id="adminPriority"><option>hoch</option><option>mittel</option><option>niedrig</option></select></div><div><label>Bezeichnung</label><input id="adminCustomTitle" placeholder="Aufgabe eingeben"></div><div><label>Art</label><select id="adminTaskMode" onchange="toggleAdminPeriodFields()"><option value="recurring">Wiederholend</option><option value="single">Einmalig / Zeitraum</option></select></div></div>
       <div id="adminDaysBox" style="margin-top:16px"><label>Tage</label><div class="days"><button type="button" class="btn-yellow" onclick="selectAllAdminDays()" style="width:auto;margin-bottom:8px">Täglich Mo–Sa</button><br><label><input type="checkbox" class="adminDay" value="Montag"> Montag</label><label><input type="checkbox" class="adminDay" value="Dienstag"> Dienstag</label><label><input type="checkbox" class="adminDay" value="Mittwoch"> Mittwoch</label><label><input type="checkbox" class="adminDay" value="Donnerstag"> Donnerstag</label><label><input type="checkbox" class="adminDay" value="Freitag"> Freitag</label><label><input type="checkbox" class="adminDay" value="Samstag"> Samstag</label></div></div>
@@ -418,34 +397,12 @@
       </div>
       <div id="adminTasks" style="margin-top:14px"></div></div>
     <div class="box admin admin-todopflege"><h2>Kontrolle / Historie</h2><div class="small">Rückwirkende Kontrolle nach Zeitraum.</div><div class="control-grid" style="margin-top:14px"><div><label>Markt</label><select id="controlMarket" onchange="handleControlMarketChange()"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="controlArea" onchange="loadControlTasks()"><option value="">Alle Bereiche</option></select></div><div><label>Von</label><input id="controlDateFrom" type="date" onchange="loadControlTasks()"></div><div><label>Bis</label><input id="controlDateTo" type="date" onchange="loadControlTasks()"></div><div><label>Status</label><select id="controlStatus" onchange="loadControlTasks()"><option value="all">Alle</option><option value="open">Offen</option><option value="done">Erledigt</option><option value="late">Fehler: verspätet bestätigt</option></select></div></div><div id="controlTasks" style="margin-top:14px"></div></div>
-    <div class="box admin admin-sortiment" style="display:none">
-      <h2>📥 Artikel-Stammdaten hochladen</h2>
-      <div class="small">Unterstützt <strong>EDEKA-Ordersatz-Excel</strong> (Bezeichnung · Inhalt · Barcode · WG · SK · WP · UVP · Spanne · Artikelnummer · Logos) und allgemeine Stammdaten-Excels (EAN, ArtikelNr., Bezeichnung, Warengruppe). Mehrere Dateien gleichzeitig möglich. <strong>Die WP-Spalte (EK) wird hart ignoriert und nicht gespeichert.</strong> Übernommen werden: Name, Artikelnummer, EAN (falls vorhanden), Kartoninhalt, WG-Nummer, Top-Warengruppe, SK und die fertige Spanne aus der Spanne-Spalte.</div>
-      <input id="articleMasterFile" type="file" accept=".xlsx,.xls,.xlsm,.csv" multiple style="margin-top:10px" />
-      <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
-        <button class="btn-green" onclick="uploadArticleMaster()" style="width:auto">Stammdaten hochladen</button>
-        <button class="btn-red" onclick="clearArticleMaster()" style="width:auto">Stammdaten löschen (Reset)</button>
-      </div>
-      <div id="articleMasterMsg" class="small" style="margin-top:8px"></div>
-      <div id="articleMasterStats" class="small" style="margin-top:8px;color:#475569"></div>
-    </div>
     </div><!-- /adminContent -->
   </section>
-</main>
-<div id="sortimentScannerModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:9999;align-items:center;justify-content:center;flex-direction:column;padding:20px;box-sizing:border-box">
-  <div style="background:#0c1f3c;color:#fff;padding:14px 20px;border-radius:10px;max-width:560px;width:100%;text-align:center">
-    <h3 style="margin:0 0 10px">📷 Artikel-Nr. scannen</h3>
-    <video id="sortimentScannerVideo" autoplay playsinline muted style="width:100%;max-height:60vh;background:#000;border-radius:8px"></video>
-    <div id="sortimentScannerHint" class="small" style="color:#cbd5e1;margin-top:8px">Halte die Kamera auf den Code …</div>
-    <div style="margin-top:12px;display:flex;gap:10px;justify-content:center">
-      <button class="btn-red" onclick="closeSortimentCameraScanner()" style="width:auto">Schließen</button>
-    </div>
-  </div>
-</div>
-<div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
+</main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.26-5"; // Sortiment: Sortierung, klickbare Bereiche/WG, Kamera-Scanner
-const APP_VERSION_DATE = "26.05.2026";
+const APP_VERSION = "v2026.05.27-1"; // Sortiment entfernt · Beta-Pills weg · Backshop: 10-Wochen-Fenster mit Trend-Boost
+const APP_VERSION_DATE = "27.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
 function reloadApp(){
@@ -1373,20 +1330,17 @@ function showTab(tab){
   document.getElementById("todoSection").style.display=tab==="todo"?"block":"none";
   document.getElementById("dispoSection").style.display=tab==="dispo"?"block":"none";
   document.getElementById("backshopSection").style.display=tab==="backshop"?"block":"none";
-  document.getElementById("sortimentSection").style.display=tab==="sortiment"?"block":"none";
   document.getElementById("analyticsSection").style.display=tab==="analytics"?"block":"none";
   document.getElementById("adminSection").style.display=tab==="admin"?"block":"none";
   document.getElementById("todoTab").classList.toggle("active",tab==="todo");
   document.getElementById("dispoTab").classList.toggle("active",tab==="dispo");
   document.getElementById("backshopTab").classList.toggle("active",tab==="backshop");
-  document.getElementById("sortimentTab").classList.toggle("active",tab==="sortiment");
   document.getElementById("analyticsTab").classList.toggle("active",tab==="analytics");
   document.getElementById("adminTab").classList.toggle("active",tab==="admin");
   if(tab==="admin"){ if(adminUnlocked) showAdminSubTab("todopflege"); }
   else if(tab==="analytics"){prepareAnalytics()}
   else if(tab==="dispo"){loadDispo()}
   else if(tab==="backshop"){loadBackshop()}
-  else if(tab==="sortiment"){initSortimentTab()}
   else loadTasks()
 }
 // Admin-Tab Aufruf: zeigt entweder Login-Box oder den freigeschalteten Inhalt
@@ -2431,12 +2385,9 @@ let bestellState = { ordersatz: [], lastMarket: null };
 function showAdminSubTab(name){
   document.querySelectorAll(".admin-todopflege").forEach(el => el.style.display = (name === "todopflege" ? "block" : "none"));
   document.querySelectorAll(".admin-uploads").forEach(el => el.style.display = (name === "uploads" ? "block" : "none"));
-  document.querySelectorAll(".admin-sortiment").forEach(el => el.style.display = (name === "sortiment" ? "block" : "none"));
   document.getElementById("adminSubTabTodo").classList.toggle("active", name === "todopflege");
   document.getElementById("adminSubTabUploads").classList.toggle("active", name === "uploads");
-  document.getElementById("adminSubTabSortiment").classList.toggle("active", name === "sortiment");
   if(name === "todopflege"){ loadAdminTasks(); loadControlTasks(); }
-  else if(name === "sortiment"){ refreshArticleMasterStats(); }
 }
 // Modus fuer die Backempfehlung: "today" (aktuell, Heute-Fokus) oder "tomorrow" (Auflegen fuer morgen frueh)
 let backshopMode = "today";
@@ -2779,7 +2730,11 @@ function renderBestellung(){
   const iso = isoWeekOf(today.dateISO);
   function weightFor(year, week){
     const offset = iso.week + (iso.year - year) * 53 - week;
-    return Math.pow(0.5, offset / BACKSHOP_HALFLIFE_WEEKS);
+    if(offset < 0 || offset >= BACKSHOP_WINDOW_WEEKS) return 0;
+    let w = Math.pow(0.5, offset / BACKSHOP_HALFLIFE_WEEKS);
+    // Aktuelle + Vorwoche kriegen einen Boost, damit sich Trends deutlich abzeichnen
+    if(offset < BACKSHOP_TREND_BOOST_WEEKS) w *= BACKSHOP_TREND_BOOST_FACTOR;
+    return w;
   }
   // Bestellzyklus: Bestellung heute → Lieferung übermorgen → horizonDays Verkaufstage decken
   // Sonntage und Feiertage werden nicht mitgezählt (kein Verkauf)
@@ -2975,7 +2930,10 @@ function renderBestellung(){
 /* ===========================
    BACKSHOP: Frequenz-Prognose
    =========================== */
-const BACKSHOP_HALFLIFE_WEEKS = 4;       // Halbwertszeit fuer exponentielle Gewichtung
+const BACKSHOP_HALFLIFE_WEEKS = 10;      // Halbwertszeit fuer exponentielle Gewichtung
+const BACKSHOP_WINDOW_WEEKS = 10;        // Nur die letzten X Wochen einbeziehen (harter Cut-off)
+const BACKSHOP_TREND_BOOST_WEEKS = 2;    // Anzahl neuester Wochen, die einen Boost bekommen (Trend-Signal)
+const BACKSHOP_TREND_BOOST_FACTOR = 1.10;// Faktor fuer den Trend-Boost der neuesten Wochen (+10%)
 const BACKSHOP_HORIZON_HOURS = 5;        // "Naechste X Stunden" inkl. aktueller Stunde
 const BACKSHOP_MARKETS = ["Billigheim-Ingenheim", "Steinfeld"];
 const BACKSHOP_BAKE_OPTIONS = [3, 5, 7, 10, 15, 20, 25, 30];
@@ -3468,7 +3426,7 @@ function renderBackshop(){
   const today = berlinNow();
   const iso = isoWeekOf(today.dateISO);
   const currentRefWeek = iso.week + (iso.year - today.year) * 53; // simpler Offset, reicht fuer Gewichtung
-  headerLine.innerHTML = `Markt: <strong>${market}</strong> · ${weekday}, ${String(currentHour).padStart(2,"0")}:${timeStr.split(":")[1]||"00"} · Referenz-KW ${iso.week}/${iso.year} (Halbwertszeit ${BACKSHOP_HALFLIFE_WEEKS} Wochen, Spitzen ausgeklammert · aktuelle Stunde anteilig nach Restminuten)`;
+  headerLine.innerHTML = `Markt: <strong>${market}</strong> · ${weekday}, ${String(currentHour).padStart(2,"0")}:${timeStr.split(":")[1]||"00"} · Referenz-KW ${iso.week}/${iso.year} · Fenster: letzte ${BACKSHOP_WINDOW_WEEKS} Wochen (Halbwertszeit ${BACKSHOP_HALFLIFE_WEEKS} · +${Math.round((BACKSHOP_TREND_BOOST_FACTOR-1)*100)} % Trend-Boost für die letzten ${BACKSHOP_TREND_BOOST_WEEKS} Wochen · Spitzen ausgeklammert · aktuelle Stunde anteilig)`;
   const rows = (backshopState.rows || []).filter(r => r.weekday === weekday);
   if(!rows.length){
     summary.innerHTML = `<p>Für ${market} / ${weekday} liegen noch keine Daten in der Datenbank. Bitte die Frequenz-Excel im Admin-Bereich hochladen.</p>`;
@@ -3490,10 +3448,16 @@ function renderBackshop(){
     if(r.hour > maxHour) maxHour = r.hour;
   });
   if(minHour > maxHour){ minHour = 5; maxHour = 21; }
-  // Pro Artikel pro Stunde gewichteten Mittelwert berechnen
+  // Pro Artikel pro Stunde gewichteten Mittelwert berechnen.
+  // Fenster: letzte BACKSHOP_WINDOW_WEEKS Wochen. Aeltere Wochen fliessen nicht ein.
+  // Boost: aktuelle Woche und Vorwoche werden mit BACKSHOP_TREND_BOOST_FACTOR multipliziert,
+  // damit sich Trends deutlich abzeichnen.
   function weightFor(year, week){
     const offset = (currentRefWeek) - (week + (year - today.year) * 53);
-    return Math.pow(0.5, offset / BACKSHOP_HALFLIFE_WEEKS);
+    if(offset < 0 || offset >= BACKSHOP_WINDOW_WEEKS) return 0;
+    let w = Math.pow(0.5, offset / BACKSHOP_HALFLIFE_WEEKS);
+    if(offset < BACKSHOP_TREND_BOOST_WEEKS) w *= BACKSHOP_TREND_BOOST_FACTOR;
+    return w;
   }
   // Robuster Mittelwert: schneidet die höchsten Werte ab, damit einmalige Verkaufsspitzen
   // (Wetter, Aktionen, Events) den Backshop-Bedarf nicht überschätzen.
@@ -4686,522 +4650,9 @@ async function toggleDispoItem(id, checked){
   if(it){ it.done_date = update.done_date; it.done_by = update.done_by; }
   renderDispo();
 }
-/* ===========================
-   SORTIMENTSCHECK — Ordersatz-Browser
-   - Es wird NIRGENDS eine Spanne oder ein EK angezeigt oder gespeichert.
-   - Der Daumen kommt direkt aus dem Ordersatz (beim Upload abgeleitet).
-   - User kann pro Artikel einen eigenen Daumen + Notiz speichern.
-   - Schwellen (nur intern beim Upload):
-       > 33 %  -> 👍 / < 30 %  -> 👎 / dazwischen -> 😐
-   =========================== */
-const SORTIMENT_BROWSER_PAGE_SIZE = 60;
-let sortimentState = {
-  searchTerm: "",
-  filterTop: "",
-  filterWgNr: "",
-  filterDaumenView: "",
-  sortBy: "name",
-  items: [],          // aktuelle Trefferliste (article_master)
-  topGroups: [],      // alle bekannten Top-Bereiche
-  searchTimer: null,
-  scannerStream: null,
-  scannerActive: false
-};
-
-function initSortimentTab(){
-  // Kamera-Scanner-Button nur zeigen, wenn BarcodeDetector unterstützt wird
-  const scanBtn = document.getElementById("sortimentScanBtn");
-  if(scanBtn){
-    const supported = ("BarcodeDetector" in window) && (navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
-    scanBtn.style.display = supported ? "inline-block" : "none";
-  }
-  populateSortimentFilters().then(()=>{
-    renderSortimentBrowser();
-  });
-  setTimeout(()=>{ const s = document.getElementById("sortimentSearch"); if(s) s.focus(); }, 80);
-}
-
-function onSortimentFilterChange(){
-  // WG-Filter zurücksetzen wenn Bereich geändert wird, damit die Listen konsistent bleiben
-  renderSortimentBrowser();
-}
-
-function clearSortimentFilters(){
-  document.getElementById("sortimentSearch").value = "";
-  document.getElementById("sortimentFilterTop").value = "";
-  document.getElementById("sortimentFilterWgNr").value = "";
-  document.getElementById("sortimentFilterDaumenView").value = "";
-  document.getElementById("sortimentSortBy").value = "name";
-  renderSortimentBrowser();
-}
-
-function setSortimentTopFilter(top){
-  document.getElementById("sortimentFilterTop").value = top || "";
-  document.getElementById("sortimentFilterWgNr").value = "";
-  renderSortimentBrowser();
-}
-
-function setSortimentWgFilter(wg){
-  document.getElementById("sortimentFilterWgNr").value = wg || "";
-  renderSortimentBrowser();
-}
-
-function renderSortimentActiveFilters(){
-  const box = document.getElementById("sortimentActiveFilters");
-  if(!box) return;
-  const chips = [];
-  const term = (document.getElementById("sortimentSearch").value || "").trim();
-  const top = document.getElementById("sortimentFilterTop").value || "";
-  const wg = (document.getElementById("sortimentFilterWgNr").value || "").trim();
-  const dau = document.getElementById("sortimentFilterDaumenView").value || "";
-  if(term) chips.push(`<span style="background:#e0f2fe;padding:3px 8px;border-radius:999px">🔎 „${escapeHtml(term)}"</span>`);
-  if(top) chips.push(`<span style="background:#dcfce7;padding:3px 8px;border-radius:999px">📂 ${escapeHtml(top)}</span>`);
-  if(wg) chips.push(`<span style="background:#fef3c7;padding:3px 8px;border-radius:999px">🏷️ WG ${escapeHtml(wg)}</span>`);
-  if(dau){
-    const dauLabels = {up:"👍",neutral:"😐",down:"👎",none:"— ohne"};
-    chips.push(`<span style="background:#f3e8ff;padding:3px 8px;border-radius:999px">${dauLabels[dau]||dau}</span>`);
-  }
-  box.innerHTML = chips.length ? chips.join("") : `<span style="color:#94a3b8">keine</span>`;
-}
-
-async function populateSortimentFilters(){
-  // Top-Bereiche aus article_master ziehen
-  const r = await db.from("article_master").select("warengruppe_top").limit(20000);
-  if(!r.error){
-    const set = new Set();
-    for(const x of (r.data||[])){ if(x.warengruppe_top) set.add(x.warengruppe_top); }
-    sortimentState.topGroups = Array.from(set).sort();
-    const sel = document.getElementById("sortimentFilterTop");
-    if(sel){
-      const cur = sel.value;
-      sel.innerHTML = `<option value="">Alle Bereiche</option>` + sortimentState.topGroups.map(t => `<option ${t===cur?"selected":""}>${escapeHtml(t)}</option>`).join("");
-    }
-  }
-}
-
-function onSortimentSearchInput(){
-  if(sortimentState.searchTimer) clearTimeout(sortimentState.searchTimer);
-  sortimentState.searchTimer = setTimeout(()=>{ renderSortimentBrowser(); }, 220);
-}
-
-async function onSortimentScan(){
-  const raw = (document.getElementById("sortimentEan").value || "").trim().replace(/\s+/g, "");
-  if(!raw){ return; }
-  document.getElementById("sortimentEan").value = "";
-  // Artikel-Nr. ist der primäre Lookup-Key. Da der Ordersatz keine EANs hat,
-  // probieren wir zuerst artikel_nr, dann die synthetic-EAN (AN:<artnr>),
-  // und als letzten Fallback noch eine echte EAN (für etwaige Sonderfälle).
-  let items = [];
-  let r = await db.from("article_master").select("*").eq("artikel_nr", raw).limit(5);
-  if(!r.error && r.data) items = r.data;
-  if(!items.length){
-    const r2 = await db.from("article_master").select("*").eq("ean", `AN:${raw}`).limit(1);
-    if(!r2.error && r2.data) items = r2.data;
-  }
-  if(!items.length){
-    const r3 = await db.from("article_master").select("*").eq("ean", raw).limit(5);
-    if(!r3.error && r3.data) items = r3.data;
-  }
-  if(!items.length){
-    document.getElementById("sortimentBrowserBox").innerHTML = `<div class="box" style="background:#fff3cd;padding:12px">Kein Artikel zu Art.-Nr. „${escapeHtml(raw)}" gefunden. Stammdaten geladen?</div>`;
-    return;
-  }
-  sortimentState.items = items;
-  renderSortimentBrowserList();
-}
-
-async function renderSortimentBrowser(){
-  const term = (document.getElementById("sortimentSearch").value || "").trim();
-  const top = document.getElementById("sortimentFilterTop").value || "";
-  const wg = (document.getElementById("sortimentFilterWgNr").value || "").trim();
-  const dau = document.getElementById("sortimentFilterDaumenView").value || "";
-  const sortBy = document.getElementById("sortimentSortBy").value || "name";
-  sortimentState.searchTerm = term;
-  sortimentState.filterTop = top;
-  sortimentState.filterWgNr = wg;
-  sortimentState.filterDaumenView = dau;
-  sortimentState.sortBy = sortBy;
-  renderSortimentActiveFilters();
-  const box = document.getElementById("sortimentBrowserBox");
-  box.innerHTML = `<div class="small" style="color:#64748b">Lade …</div>`;
-  let q = db.from("article_master").select("*");
-  if(top) q = q.eq("warengruppe_top", top);
-  if(wg) q = q.eq("warengruppe_nr", wg);
-  if(term) q = q.ilike("name", `%${term}%`);
-  if(dau === "up" || dau === "neutral" || dau === "down") q = q.eq("ordersatz_daumen", dau);
-  if(dau === "none") q = q.is("ordersatz_daumen", null);
-  // DB-Sortierung: bei "name" direkt in der DB sortieren, sonst alle Treffer
-  // bis zur Page-Size laden und im Browser sortieren (effizienter bei kleinen Pages).
-  if(sortBy === "name") q = q.order("name", {ascending: true});
-  else if(sortBy === "top") q = q.order("warengruppe_top", {ascending: true, nullsFirst: false}).order("name", {ascending: true});
-  else if(sortBy === "wg") q = q.order("warengruppe_nr", {ascending: true, nullsFirst: false}).order("name", {ascending: true});
-  else if(sortBy === "sk") q = q.order("sk", {ascending: true, nullsFirst: false}).order("name", {ascending: true});
-  q = q.limit(SORTIMENT_BROWSER_PAGE_SIZE);
-  const r = await q;
-  if(r.error){ box.innerHTML = `<div style="color:#c62828">Fehler: ${escapeHtml(r.error.message)}</div>`; return; }
-  sortimentState.items = r.data || [];
-  renderSortimentBrowserList();
-}
-
-function renderSortimentBrowserList(){
-  const box = document.getElementById("sortimentBrowserBox");
-  const items = sortimentState.items || [];
-  if(!items.length){
-    box.innerHTML = `<div class="small" style="color:#64748b">Keine Treffer.</div>`;
-    return;
-  }
-  const iconMap = { up: "👍", neutral: "😐", down: "👎" };
-  const colorMap = { up: "#16a34a", neutral: "#ca8a04", down: "#dc2626" };
-  const barcodesToRender = [];
-  let html = `<div class="small" style="margin-bottom:8px;color:#475569">${items.length} Treffer${items.length >= SORTIMENT_BROWSER_PAGE_SIZE ? ` (max. ${SORTIMENT_BROWSER_PAGE_SIZE} — Suche verfeinern)` : ""}</div>`;
-  for(const a of items){
-    const eff = a.ordersatz_daumen;
-    const cardKey = `card_${(a.ean||a.artikel_nr||"x").replace(/[^A-Za-z0-9_]/g,"_")}`;
-    const barcodeId = `bc_${cardKey}`;
-    const meta = [];
-    if(a.artikel_nr) meta.push(`Art.-Nr.: <strong>${escapeHtml(a.artikel_nr)}</strong>`);
-    if(a.ean && !String(a.ean).startsWith("AN:")) meta.push(`EAN: <strong>${escapeHtml(a.ean)}</strong>`);
-    if(a.inhalt) meta.push(`Inhalt: <strong>${escapeHtml(a.inhalt)}</strong>`);
-    if(a.warengruppe_nr) meta.push(`WG: <a href="#" style="color:#1d4ed8;font-weight:bold;text-decoration:underline" onclick="event.preventDefault();setSortimentWgFilter('${escapeJsAttr(a.warengruppe_nr)}')">${escapeHtml(a.warengruppe_nr)}</a>`);
-    if(a.sk) meta.push(`SK: <strong>${escapeHtml(a.sk)}</strong>`);
-    if(a.warengruppe_top) meta.push(`Bereich: <a href="#" style="color:#1d4ed8;font-weight:bold;text-decoration:underline" onclick="event.preventDefault();setSortimentTopFilter('${escapeJsAttr(a.warengruppe_top)}')">${escapeHtml(a.warengruppe_top)}</a>`);
-    // Barcode-Wert: EAN bevorzugt (wenn echt, also nicht AN:-Prefix), sonst Artikelnummer
-    const hasRealEan = a.ean && !String(a.ean).startsWith("AN:") && /^\d{8,14}$/.test(a.ean);
-    const barcodeValue = hasRealEan ? a.ean : (a.artikel_nr || "");
-    const barcodeLabel = hasRealEan ? "EAN" : "Art.-Nr.";
-    if(barcodeValue){ barcodesToRender.push({id: barcodeId, value: barcodeValue}); }
-    html += `<div class="box" style="background:#fff;padding:12px;margin-bottom:8px;border-left:5px solid ${colorMap[eff]||"#cbd5e1"}">
-      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-        <div style="font-size:36px;line-height:1">${iconMap[eff]||"—"}</div>
-        <div style="flex:1;min-width:220px">
-          <div style="font-size:15px"><strong>${escapeHtml(a.name||"(ohne Name)")}</strong></div>
-          <div class="small" style="color:#475569;margin-top:2px">${meta.join(" · ")}</div>
-        </div>
-        ${barcodeValue ? `<div style="background:#fff;padding:6px 10px;border:1px dashed #cbd5e1;border-radius:8px;min-width:200px;text-align:center"><svg id="${barcodeId}"></svg><div class="small" style="color:#64748b;margin-top:2px">${barcodeLabel}: ${escapeHtml(barcodeValue)}</div></div>` : ""}
-      </div>
-    </div>`;
-  }
-  box.innerHTML = html;
-  // Barcodes rendern (Code128 für ArtNr und EAN, robust für beide)
-  barcodesToRender.forEach(({id, value}) => {
-    try{
-      JsBarcode(`#${id}`, value, {
-        format: "CODE128",
-        displayValue: false,
-        height: 50,
-        margin: 0,
-        width: 1.6
-      });
-    }catch(e){ /* ignore */ }
-  });
-}
-
-/* ---------- Admin: Stammdaten-Upload (Ordersatz + allgemein) ---------- */
-async function uploadArticleMaster(){
-  if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
-  const input = document.getElementById("articleMasterFile");
-  const msg = document.getElementById("articleMasterMsg");
-  if(!input.files || !input.files.length){ alert("Bitte Stammdaten-Datei(en) wählen."); return; }
-  const files = Array.from(input.files);
-  msg.style.color = "#0c1f3c";
-  msg.innerHTML = `Lese ${files.length} Datei(en) …`;
-  const allRecords = new Map(); // key = ean ODER artikel_nr (falls keine EAN)
-  const fileSummary = [];
-  for(const file of files){
-    try {
-      const buf = await file.arrayBuffer();
-      const wb = XLSX.read(buf, {type:"array"});
-      let fileCount = 0;
-      let detectedFormat = "unbekannt";
-      for(const name of wb.SheetNames){
-        const ws = wb.Sheets[name];
-        const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:false});
-        // 1) Ordersatz-Format zuerst probieren
-        let found = parseEdekaOrdersatzSheet(rows);
-        if(found && found.length){
-          detectedFormat = "Ordersatz";
-        } else {
-          found = parseArticleMasterSheet(rows);
-          if(found && found.length){ detectedFormat = "Stammdaten"; }
-        }
-        if(found && found.length){
-          for(const p of found){
-            // Defensiv: WP/EK + alle Spannen-Felder hart loeschen, falls der Parser
-            // jemals erweitert wird — diese Felder duerfen NIE in die DB.
-            delete p.wp; delete p.ek; delete p.ek_preis; delete p.werkspreis; delete p.einkauf;
-            delete p.spanne; delete p.spanne_pct; delete p.ordersatz_spanne_pct; delete p.uvp; delete p.vk;
-            const key = p.ean && p.ean !== "" ? p.ean : (`AN:${p.artikel_nr || ""}`);
-            if(!key || key === "AN:") continue;
-            allRecords.set(key, p);
-            fileCount++;
-          }
-        }
-      }
-      fileSummary.push(`${file.name} → ${detectedFormat}, ${fileCount} Artikel`);
-    } catch(e){
-      fileSummary.push(`${file.name} → Fehler: ${(e && e.message ? e.message : String(e))}`);
-    }
-  }
-  if(!allRecords.size){
-    msg.style.color = "#c62828";
-    msg.innerHTML = "Keine gültigen Zeilen erkannt.<br>" + fileSummary.join("<br>");
-    return;
-  }
-  // Records bauen, EAN setzen — wo keine EAN, ArtNr als künstliche EAN verwenden
-  // (damit Primary Key article_master.ean greift). Wir markieren das mit Prefix "AN:".
-  const records = Array.from(allRecords.values()).map(p => ({
-    ean: (p.ean && p.ean !== "") ? p.ean : `AN:${p.artikel_nr || ""}`,
-    artikel_nr: p.artikel_nr || null,
-    name: p.name || null,
-    inhalt: p.inhalt || null,
-    warengruppe: p.warengruppe || null,
-    warengruppe_nr: p.warengruppe_nr || null,
-    warengruppe_top: p.warengruppe_top || null,
-    sk: p.sk || null,
-    ordersatz_daumen: (p.ordersatz_daumen === "up" || p.ordersatz_daumen === "neutral" || p.ordersatz_daumen === "down") ? p.ordersatz_daumen : null,
-    updated_at: berlinNowForDB()
-  }));
-  const batchSize = 500;
-  let inserted = 0;
-  for(let i = 0; i < records.length; i += batchSize){
-    const chunk = records.slice(i, i + batchSize);
-    const r = await db.from("article_master").upsert(chunk, {onConflict:"ean"});
-    if(r.error){
-      msg.style.color = "#c62828";
-      msg.innerHTML = "Fehler beim Speichern: " + r.error.message + "<br><br>" + fileSummary.join("<br>");
-      return;
-    }
-    inserted += chunk.length;
-  }
-  msg.style.color = "#16a34a";
-  msg.innerHTML = `${inserted} Artikel-Stammsätze gespeichert.<br>` + fileSummary.join("<br>");
-  refreshArticleMasterStats();
-}
-
-// EDEKA-Ordersatz-Format:
-// Spalten: Bezeichnung, Inhalt, Barcode, WG, SK, WP, UVP, Spanne, Artikelnummer, Logos
-// Zeilen ohne Artikelnummer = Hierarchie-Header (Top-Kategorie → Untergruppe → Marke).
-// WICHTIG: WP-Spalte (EK) wird gar nicht erst angefasst.
-// Die Spanne-Spalte wird gelesen, sofort ueber die Schwellen 33/30 in einen
-// Daumen umgewandelt — der Spannen-Wert selbst landet NIE in der DB und
-// wird sofort nach der Schwellen-Pruefung verworfen.
-function spanneToDaumen(spannePct){
-  if(!Number.isFinite(spannePct)) return null;
-  if(spannePct > 33.0) return "up";
-  if(spannePct < 30.0) return "down";
-  return "neutral";
-}
-function parseEdekaOrdersatzSheet(rows){
-  if(!rows || rows.length < 2) return [];
-  // Header-Erkennung: erste Zeile mit "Bezeichnung" UND "Artikelnummer" UND "Spanne"
-  let headerRow = -1;
-  for(let r = 0; r < Math.min(rows.length, 5); r++){
-    const cells = (rows[r] || []).map(c => String(c || "").trim().toLowerCase());
-    const hasBez = cells.includes("bezeichnung");
-    const hasArt = cells.some(c => c === "artikelnummer" || c === "artikel-nr.");
-    const hasSpanne = cells.includes("spanne");
-    if(hasBez && hasArt && hasSpanne){ headerRow = r; break; }
-  }
-  if(headerRow === -1) return [];
-  const header = (rows[headerRow] || []).map(c => String(c || "").trim().toLowerCase());
-  // Spaltenindizes finden — wir nehmen NUR die, die wir auch wirklich verwenden.
-  const idxBez = header.indexOf("bezeichnung");
-  const idxInhalt = header.indexOf("inhalt");
-  const idxBarcode = header.findIndex(c => c === "barcode" || c === "ean" || c === "gtin");
-  const idxWG = header.findIndex(c => c === "wg" || c === "warengruppe");
-  const idxSK = header.indexOf("sk");
-  const idxSpanne = header.indexOf("spanne");
-  const idxArtnr = header.findIndex(c => c === "artikelnummer" || c === "artikel-nr.");
-  // WP (idx 5) und UVP werden bewusst NICHT erfasst.
-  if(idxBez < 0 || idxArtnr < 0 || idxSpanne < 0) return [];
-  const out = [];
-  // Hierarchie-Stack: Wir tracken nur die Top-Header (= erster Header in der Datei).
-  // Pragmatisch: Der allererste Header wird als top fixiert; falls weitere Top-Header
-  // (z.B. "FRISCHE" → später "TIEFKÜHL") auftauchen, wird auf den jüngsten umgeschaltet.
-  let topWG = "";
-  let lastHeaderChain = []; // Stack von Header-Strings (oben → unten)
-  for(let r = headerRow + 1; r < rows.length; r++){
-    const row = rows[r] || [];
-    const bez = row[idxBez] != null ? String(row[idxBez]).trim() : "";
-    const artnrRaw = idxArtnr >= 0 ? row[idxArtnr] : "";
-    const artnr = String(artnrRaw == null ? "" : artnrRaw).trim();
-    // Header-Zeile = Bezeichnung gefüllt, Artikelnummer leer, WG (Spalte) leer
-    const wgVal = idxWG >= 0 ? row[idxWG] : "";
-    const wgStr = String(wgVal == null ? "" : wgVal).trim();
-    const isHeader = bez !== "" && artnr === "" && wgStr === "";
-    if(isHeader){
-      // Neuer Header: Top-Level oder Untergruppe?
-      // Pragmatisch: GROSSGESCHRIEBENE Strings ohne Kleinbuchstaben behandeln wir als Top-Level.
-      const isAllUpper = bez === bez.toUpperCase() && /[A-ZÄÖÜ]/.test(bez);
-      if(isAllUpper && lastHeaderChain.length === 0){
-        topWG = bez;
-        lastHeaderChain = [bez];
-      } else if(isAllUpper){
-        // Möglicher neuer Top-Level (Block-Wechsel innerhalb einer Datei)
-        topWG = bez;
-        lastHeaderChain = [bez];
-      } else {
-        lastHeaderChain.push(bez);
-      }
-      continue;
-    }
-    // Datenzeile: braucht ArtNr
-    if(!artnr || !/^\d{6,14}$/.test(artnr)) continue;
-    // Spanne lesen — NUR um sie in einen Daumen umzuwandeln, dann verwerfen.
-    // Der numerische Spannen-Wert verlaesst diese Funktion NICHT.
-    let daumen = null;
-    {
-      const spanneRaw = idxSpanne >= 0 ? row[idxSpanne] : "";
-      if(spanneRaw !== null && spanneRaw !== undefined && String(spanneRaw).trim() !== ""){
-        const m = String(spanneRaw).match(/-?\d+([.,]\d+)?/);
-        if(m){
-          const v = Number(m[0].replace(",", "."));
-          daumen = spanneToDaumen(v);
-          // Spannen-Wert hier explizit nicht weitergereicht.
-        }
-      }
-    }
-    const eanRaw = idxBarcode >= 0 ? row[idxBarcode] : "";
-    const eanStr = String(eanRaw == null ? "" : eanRaw).trim().replace(/\s+/g, "");
-    const ean = /^\d{8,14}$/.test(eanStr) ? eanStr : "";
-    const inhalt = idxInhalt >= 0 ? String(row[idxInhalt] == null ? "" : row[idxInhalt]).trim() : "";
-    const sk = idxSK >= 0 ? String(row[idxSK] == null ? "" : row[idxSK]).trim() : "";
-    const wgNr = wgStr; // bereits trimmed
-    out.push({
-      ean,
-      artikel_nr: artnr,
-      name: bez,
-      inhalt,
-      warengruppe: topWG || "",
-      warengruppe_nr: wgNr,
-      warengruppe_top: topWG || "",
-      sk,
-      ordersatz_daumen: daumen  // nur up/neutral/down oder null — KEINE Spanne!
-    });
-  }
-  return out;
-}
-
-function parseArticleMasterSheet(rows){
-  if(!rows || rows.length < 2) return [];
-  // Header-Zeile suchen (in den ersten 10 Zeilen)
-  let headerRow = -1;
-  for(let r = 0; r < Math.min(rows.length, 10); r++){
-    const cells = (rows[r] || []).map(c => String(c || "").trim().toLowerCase());
-    const hasEan = cells.some(c => /^(ean|gtin|barcode|strichcode)$/.test(c));
-    const hasName = cells.some(c => /^(bezeichnung|artikelname|name|artikel)$/.test(c));
-    if(hasEan && hasName){ headerRow = r; break; }
-  }
-  if(headerRow === -1) return [];
-  const header = (rows[headerRow] || []).map(c => String(c || "").trim().toLowerCase());
-  const idx = {
-    ean: header.findIndex(c => /^(ean|gtin|barcode|strichcode)$/.test(c)),
-    artikel_nr: header.findIndex(c => /^(artikel[- ]?nr|artikelnummer|art\.-nr|art\.?nr|artikel)$/.test(c)),
-    name: header.findIndex(c => /^(bezeichnung|artikelname|name)$/.test(c)),
-    warengruppe: header.findIndex(c => /^(warengruppe|wgr|abteilung|sortimentsbereich)$/.test(c))
-  };
-  if(idx.artikel_nr === idx.name) idx.artikel_nr = header.findIndex(c => /^(artikel[- ]?nr|artikelnummer|art\.-nr|art\.?nr)$/.test(c));
-  const out = [];
-  for(let r = headerRow + 1; r < rows.length; r++){
-    const row = rows[r] || [];
-    const eanRaw = idx.ean >= 0 ? row[idx.ean] : "";
-    const ean = String(eanRaw == null ? "" : eanRaw).trim().replace(/\s+/g, "");
-    if(!ean || !/^\d{6,14}$/.test(ean)) continue;
-    const artikel_nr = idx.artikel_nr >= 0 ? String(row[idx.artikel_nr] == null ? "" : row[idx.artikel_nr]).trim() : "";
-    const name = idx.name >= 0 ? String(row[idx.name] == null ? "" : row[idx.name]).trim() : "";
-    const warengruppe = idx.warengruppe >= 0 ? String(row[idx.warengruppe] == null ? "" : row[idx.warengruppe]).trim() : "";
-    out.push({ ean, artikel_nr, name, warengruppe });
-  }
-  return out;
-}
-
-async function refreshArticleMasterStats(){
-  const box = document.getElementById("articleMasterStats");
-  if(!box) return;
-  // exact-count separat ziehen, weil count head:false mit großen Tabellen langsam wird
-  const cntR = await db.from("article_master").select("ean", {count:"exact", head:true});
-  const total = cntR.error ? "?" : (cntR.count || 0);
-  // Distinct-Bereiche ziehen, nur für die Stats-Anzeige
-  const wgR = await db.from("article_master").select("warengruppe_top").limit(20000);
-  const wgSet = new Set((wgR.data || []).map(x => x.warengruppe_top).filter(Boolean));
-  box.innerHTML = `Aktuell ${total} Stammsätze, ${wgSet.size} Bereiche.`;
-}
-
-async function clearArticleMaster(){
-  if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
-  if(!confirm("Wirklich ALLE Artikel-Stammdaten löschen?")) return;
-  const r = await db.from("article_master").delete().neq("ean", "");
-  if(r.error){ alert("Fehler: " + r.error.message); return; }
-  document.getElementById("articleMasterMsg").innerHTML = "Alle Stammdaten gelöscht.";
-  refreshArticleMasterStats();
-}
-
-/* ---------- Kamera-Scanner für Artikel-Nr. (BarcodeDetector) ---------- */
-async function openSortimentCameraScanner(){
-  if(!("BarcodeDetector" in window)){
-    alert("Dieser Browser unterstützt keinen Kamera-Scanner. Bitte Artikel-Nr. eintippen.");
-    return;
-  }
-  if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)){
-    alert("Kein Kamera-Zugriff verfügbar.");
-    return;
-  }
-  const modal = document.getElementById("sortimentScannerModal");
-  const video = document.getElementById("sortimentScannerVideo");
-  const hint = document.getElementById("sortimentScannerHint");
-  modal.style.display = "flex";
-  hint.innerHTML = "Kamera startet …";
-  try{
-    const supported = await BarcodeDetector.getSupportedFormats();
-    // CODE128, EAN, UPC, ITF — alles was sinnvoll ist
-    const formats = supported.filter(f => ["code_128","ean_13","ean_8","upc_a","upc_e","itf","code_39","code_93"].includes(f));
-    const detector = new BarcodeDetector({formats: formats.length ? formats : ["code_128"]});
-    const stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}, audio:false});
-    sortimentState.scannerStream = stream;
-    sortimentState.scannerActive = true;
-    video.srcObject = stream;
-    await video.play();
-    hint.innerHTML = "Halte die Kamera auf den Code …";
-    scanSortimentLoop(video, detector);
-  } catch(e){
-    hint.innerHTML = `<span style="color:#fca5a5">Fehler: ${escapeHtml(e && e.message ? e.message : String(e))}</span>`;
-  }
-}
-
-async function scanSortimentLoop(video, detector){
-  if(!sortimentState.scannerActive) return;
-  try{
-    const codes = await detector.detect(video);
-    if(codes && codes.length){
-      const raw = String(codes[0].rawValue || "").trim().replace(/\s+/g, "");
-      if(raw && /^\d{6,14}$/.test(raw)){
-        closeSortimentCameraScanner();
-        document.getElementById("sortimentEan").value = raw;
-        onSortimentScan();
-        return;
-      }
-    }
-  } catch(e){ /* manche Browser werfen sporadisch — einfach weiter scannen */ }
-  setTimeout(()=>scanSortimentLoop(video, detector), 200);
-}
-
-function closeSortimentCameraScanner(){
-  sortimentState.scannerActive = false;
-  const video = document.getElementById("sortimentScannerVideo");
-  if(video){ try{ video.pause(); }catch(e){} video.srcObject = null; }
-  if(sortimentState.scannerStream){
-    try{ sortimentState.scannerStream.getTracks().forEach(t => t.stop()); }catch(e){}
-    sortimentState.scannerStream = null;
-  }
-  const modal = document.getElementById("sortimentScannerModal");
-  if(modal) modal.style.display = "none";
-}
 
 function escapeHtml(s){
   return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
-}
-function escapeJsAttr(s){
-  return String(s == null ? "" : s).replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/"/g,"\\\"").replace(/\n/g,"\\n").replace(/\r/g,"");
 }
 
 const nameInput=document.getElementById("name");nameInput.value=localStorage.getItem("employeeName")||"";nameInput.addEventListener("input",function(){localStorage.setItem("employeeName",this.value)});const marketInput=document.getElementById("marketFilter"),areaInput=document.getElementById("areaFilter");marketInput.value=localStorage.getItem("selectedMarket")||"Freckenfeld";marketInput.addEventListener("change",function(){localStorage.setItem("selectedMarket",this.value)});document.getElementById("monthFilter").value=todayISO().slice(0,7);document.getElementById("controlDateFrom").value=todayISO();document.getElementById("controlDateTo").value=todayISO();document.getElementById("adminStartDate").value=todayISO();document.getElementById("adminEndDate").value=todayISO();document.getElementById("metricsUploadDate").value=todayISO();populateAllowedDays();loadAreas().then(()=>{handleAreaChange()});
