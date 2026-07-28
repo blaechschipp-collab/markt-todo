@@ -450,7 +450,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.28-8"; // Bevorratung: Erledigt-Häkchen (Barcode verschwindet), Excel-Debug mit Roh-Werten
+const APP_VERSION = "v2026.05.28-9"; // Bevorratung: parseNum kennt Tausenderkomma + Einheit-Suffix ("1,092 ST")
 const APP_VERSION_DATE = "28.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -5203,9 +5203,35 @@ async function uploadWerbungUmsatz(){
     const records = [];
     function parseNum(s){
       if(s == null) return 0;
-      const t = String(s).trim();
+      // Wenn schon eine Zahl (z.B. raw:true), direkt zurueckgeben
+      if(typeof s === "number") return isFinite(s) ? s : 0;
+      let t = String(s).trim();
       if(!t || t === "*" || t === "#") return 0;
-      const v = Number(t.replace(/\./g, "").replace(",", "."));
+      // Trailing-Einheit entfernen (ST, KG, K, PA, KART, KA, LTR, L, ML, G, GR, STK)
+      t = t.replace(/\s*[A-Za-z]{1,5}\s*$/, "").trim();
+      if(!t) return 0;
+      const hasComma = t.includes(",");
+      const hasDot = t.includes(".");
+      if(hasComma && hasDot){
+        // Beide vorhanden: das letzte Zeichen ist der Dezimaltrenner
+        if(t.lastIndexOf(",") > t.lastIndexOf(".")){
+          // Deutsch: "1.234,56" → Punkte raus, Komma zu Punkt
+          t = t.replace(/\./g, "").replace(",", ".");
+        } else {
+          // Englisch: "1,234.56" → Kommas raus
+          t = t.replace(/,/g, "");
+        }
+      } else if(hasComma){
+        // Nur Komma. "1,092" (3 Ziffern nach Komma) = Tausender (BO-Format). Sonst Dezimal.
+        const parts = t.split(",");
+        if(parts.length === 2 && /^\d{3}$/.test(parts[1]) && /^\d{1,3}$/.test(parts[0])){
+          t = t.replace(",", "");
+        } else {
+          t = t.replace(",", ".");
+        }
+      }
+      // Nur Punkt oder gar nichts: Standard-Parsing (Punkt = Dezimal)
+      const v = Number(t);
       return isFinite(v) ? v : 0;
     }
     let stat = {rows: 0, artOk: 0, artFail: 0, sumMenge: 0};
