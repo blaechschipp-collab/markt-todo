@@ -450,7 +450,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.28-4"; // Bevorratung: aktuelle Aktions-KW mit Datum als Banner
+const APP_VERSION = "v2026.05.28-5"; // Bevorratung: PDF-Parser robuster (Y-Toleranz), Excel-Parser mit Merge-Expand
 const APP_VERSION_DATE = "28.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -4955,16 +4955,31 @@ async function uploadWerbungPdf(){
     for(let pnum = 1; pnum <= pdf.numPages; pnum++){
       const page = await pdf.getPage(pnum);
       const tc = await page.getTextContent();
-      // Zeilen aus TextContent rekonstruieren (nach Y-Position gruppieren)
-      const items = tc.items.map(i => ({str: i.str, y: Math.round(i.transform[5]), x: i.transform[4]}));
-      const lineMap = {};
-      for(const it of items){
-        if(!lineMap[it.y]) lineMap[it.y] = [];
-        lineMap[it.y].push(it);
+      // Zeilen aus TextContent rekonstruieren: nach Y-Position gruppieren,
+      // Toleranz 2 Pixel, damit leicht verschobene Items in der gleichen
+      // visuellen Zeile landen.
+      const raw = tc.items.map(i => ({str: i.str, y: i.transform[5], x: i.transform[4], w: (i.width || 0)}));
+      raw.sort((a,b) => b.y - a.y || a.x - b.x);
+      const lines = [];
+      const TOL = 2.5;
+      for(const it of raw){
+        let placed = false;
+        for(const ln of lines){
+          if(Math.abs(ln.y - it.y) <= TOL){ ln.items.push(it); placed = true; break; }
+        }
+        if(!placed) lines.push({y: it.y, items: [it]});
       }
-      const ys = Object.keys(lineMap).map(Number).sort((a,b)=>b-a);
-      for(const y of ys){
-        const line = lineMap[y].sort((a,b)=>a.x-b.x).map(i => i.str).join(" ").replace(/\s+/g, " ").trim();
+      for(const ln of lines){
+        ln.items.sort((a,b) => a.x - b.x);
+        // Leerzeichen zwischen Items einfuegen, wenn X-Distanz signifikant ist
+        let parts = [];
+        let lastEnd = null;
+        for(const it of ln.items){
+          if(lastEnd !== null && (it.x - lastEnd) > 1.5) parts.push(" ");
+          parts.push(it.str);
+          lastEnd = it.x + it.w;
+        }
+        const line = parts.join("").replace(/\s+/g, " ").trim();
         if(!line) continue;
         const sec = detectSection(line);
         if(sec){ currentSection = sec; continue; }
@@ -5040,8 +5055,10 @@ async function uploadWerbungUmsatz(){
     // Erst Sheet mit "Kreuztabelle" im Namen bevorzugt
     let sheetName = wb.SheetNames.find(n => n.toLowerCase().includes("kreuztab")) || wb.SheetNames[0];
     const ws = wb.Sheets[sheetName];
-    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:false});
-    // Header-Zeilen: 0 = Marktnamen, 1 = KPI ("Menge" / "Menge Aktion" / "Artikel" / "GTIN")
+    // WICHTIG: gemergte Zellen expandieren (Marktnamen sind in BO-Excels ueber
+    // die Spalten "Menge" + "Menge Aktion" gemerged, sonst finden wir nur die
+    // erste Aktions-Spalte nicht).
+    const rows = expandMergedCells(ws, XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:false}));
     if(rows.length < 3){ msg.style.color="#c62828"; msg.innerHTML="Datei hat zu wenig Zeilen."; return; }
     const marketRow = rows[0] || [];
     const kpiRow = rows[1] || [];
@@ -5056,6 +5073,11 @@ async function uploadWerbungUmsatz(){
       if(!marketMap[mkt]) marketMap[mkt] = {menge:-1, aktion:-1};
       if(kpi === "Menge") marketMap[mkt].menge = c;
       else if(kpi.toLowerCase().startsWith("menge aktion")) marketMap[mkt].aktion = c;
+    }
+    if(!Object.keys(marketMap).length){
+      msg.style.color="#c62828";
+      msg.innerHTML="Keine Markt-Spalten erkannt. Erwartete Header: Markt-Namen in Zeile 1, 'Menge' / 'Menge Aktion' in Zeile 2.";
+      return;
     }
     // Zeitraum aus Metadaten-Sheet auslesen -> weeks_covered
     let weeksCovered = 10;
