@@ -450,7 +450,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.28-6"; // Bevorratung: Diagnose-Ausgabe bei fehlgeschlagenen Uploads
+const APP_VERSION = "v2026.05.28-7"; // Bevorratung: PDF-Regex kennt Barcode-Zwischenzeile, Excel-Parser robuster bei KPI-Whitespace
 const APP_VERSION_DATE = "28.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -4914,7 +4914,10 @@ function renderWerbung(){
 }
 
 /* ---------- Werbe-PDF Parser ---------- */
-const WERBUNG_LINE_RE = /^(.+?)\s+([A-Z]{1,3})\s+(\d+)\s+(\d+)\s+(\d{6,12})\s+(\d+[,.]?\d*)\s+(\d+[,.]?\d*)\s+(\d+[,.]?\d*)\s+(\d+[,.]?\d*)\s+(-?\d+[,.]?\d*)(.*)$/;
+// Zeilenformat: NAME EINH_TYP EINH_MENGE SKZ SAP_ARTNR [*SAP_ARTNR* optional] WP UVP WP_A UVP_A ABSCHLAG% [Hinweis]
+// Der Barcode-Klartext "*NUMMER*" kann in derselben Zeile stehen, wenn pdf.js
+// die Zeilen aggressiv zusammengruppiert. Deshalb ist er optional.
+const WERBUNG_LINE_RE = /^(.+?)\s+([A-Z]{1,3})\s+(\d+)\s+(\d+)\s+(\d{6,12})(?:\s+\*\d{6,12}\*)?\s+(\d+[,.]?\d*)\s+(\d+[,.]?\d*)\s+(\d+[,.]?\d*)\s+(\d+[,.]?\d*)\s+(-?\d+[,.]?\d*)(.*)$/;
 
 // Heuristik: welche Bereiche gelten als "Frische" (5 Tage Bevorratung)
 const WERBUNG_FRISCHE_KEYWORDS = ["FRISCHE","MOPRO","MOLKEREI","OBST","GEMUESE","GEMÜSE","FLEISCH","WURST","KÄSE","KAESE","BEDIENUNG","TIEFKUHL","TIEFKÜHL","TK","BROT","BACKWAREN","BACKSHOP"];
@@ -5079,22 +5082,32 @@ async function uploadWerbungUmsatz(){
     const marketRow = rows[0] || [];
     const kpiRow = rows[1] || [];
     // Pro Markt: {mengeCol, aktionCol}
+    // Nicht-druckbare Zeichen (NBSP, Zero-Width-Space etc.) rausfiltern, dann trim + lowercase
+    function normKpi(s){
+      return String(s == null ? "" : s).replace(/[ ​ ]/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+    }
     const marketMap = {};
     for(let c = 0; c < Math.max(marketRow.length, kpiRow.length); c++){
-      const mktRaw = String(marketRow[c] == null ? "" : marketRow[c]).trim();
+      const mktRaw = String(marketRow[c] == null ? "" : marketRow[c]).replace(/[ ​ ]/g, " ").trim();
       if(!mktRaw || mktRaw === "Gesamtergebnis" || mktRaw === "Markt") continue;
-      const kpi = String(kpiRow[c] == null ? "" : kpiRow[c]).trim();
+      const kpi = normKpi(kpiRow[c]);
       const mkt = normalizeMarketName(mktRaw);
       if(!KNOWN_EDEKA_MARKETS.includes(mkt)) continue;
       if(!marketMap[mkt]) marketMap[mkt] = {menge:-1, aktion:-1};
-      if(kpi === "Menge") marketMap[mkt].menge = c;
-      else if(kpi.toLowerCase().startsWith("menge aktion")) marketMap[mkt].aktion = c;
+      // "menge" = Normal + Aktion; "menge aktion" (auch "menge_aktion", "mengeaktion") = nur Aktion
+      if(kpi.includes("aktion")){
+        marketMap[mkt].aktion = c;
+      } else if(kpi === "menge" || kpi.startsWith("menge ") || kpi === "verkaufsmenge") {
+        marketMap[mkt].menge = c;
+      }
     }
     if(!Object.keys(marketMap).length){
       msg.style.color="#c62828";
       msg.innerHTML="Keine Markt-Spalten erkannt. Erwartete Header: Markt-Namen in Zeile 1, 'Menge' / 'Menge Aktion' in Zeile 2.";
       return;
     }
+    // Diagnose: zeige welche Spalten-Zuordnungen gefunden wurden
+    const mapDbg = Object.entries(marketMap).map(([m,c]) => `${m}: Menge=Spalte ${c.menge+1}, Aktion=Spalte ${c.aktion+1}`).join(" · ");
     // Zeitraum aus Metadaten-Sheet auslesen -> weeks_covered
     let weeksCovered = 10;
     const metaSheet = wb.SheetNames.find(n => n.toLowerCase().includes("metadaten"));
@@ -5167,7 +5180,7 @@ async function uploadWerbungUmsatz(){
     }
     if(!records.length){
       msg.style.color="#c62828";
-      let dbg = `Keine gültigen Datenzeilen erkannt.<br>Gelesen: ${stat.rows} Zeilen · ${stat.artOk} mit gültiger ArtNr · ${stat.artFail} ohne · Summe-Menge: ${stat.sumMenge.toFixed(0)}<br>Erkannte Märkte: ${Object.keys(marketMap).join(", ") || "keine"}.`;
+      let dbg = `Keine gültigen Datenzeilen erkannt.<br>Gelesen: ${stat.rows} Zeilen · ${stat.artOk} mit gültiger ArtNr · ${stat.artFail} ohne · Summe-Menge: ${stat.sumMenge.toFixed(0)}<br>Spalten-Zuordnung: ${escapeHtml(mapDbg)}.`;
       if(sampleArtFails.length){
         dbg += "<br><br>Beispiel-Zeilen ohne gültige ArtNr:<br>" + sampleArtFails.map(x => `<code style="background:#f8fafc;padding:2px 4px;font-size:11px">${escapeHtml(x)}</code>`).join("<br>");
       }
