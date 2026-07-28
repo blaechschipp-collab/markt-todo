@@ -459,7 +459,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.29-5"; // Bevorratung: Frische-Abteilungen mit eigener Wochenzahl (Default 1)
+const APP_VERSION = "v2026.05.29-8"; // Werbe-PDF-Upload: Abteilungs-Zuordnung der Werbeartikel anzeigen
 const APP_VERSION_DATE = "28.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -4937,8 +4937,13 @@ function renderWerbung(){
   const totalSaving = recs.reduce((s,r) => s + r.ersparnisGes, 0);
   const totalKartons = recs.reduce((s,r) => s + r.kartons, 0);
   const d = werbungState.lastDebug || {};
+  // Verteilung der Empfehlungen nach Abteilung
+  const byAbt = {};
+  for(const r of recs){ const a = r.abteilung || "— unbekannt"; byAbt[a] = (byAbt[a]||0) + 1; }
+  const abtBreakdown = Object.entries(byAbt).sort((a,b)=>b[1]-a[1]).map(([a,n]) => `${escapeHtml(a)}: <strong>${n}</strong>`).join(" · ");
+  const abtInfo = abtBreakdown ? `<div class="small" style="color:#475569;margin-top:4px">Nach Abteilung: ${abtBreakdown}</div>` : "";
   const dbgInfo = d.total ? `<div class="small" style="color:#94a3b8;margin-top:4px">Von ${d.total} Werbeartikeln: ${d.noSales} ohne Absatz in ${market}, ${d.belowThr} unter ${thr} € Schwelle${d.noErsp?`, ${d.noErsp} ohne Preisvorteil`:""}.</div>` : "";
-  summary.innerHTML = `<strong>${recs.length}</strong> Artikel · <strong>${totalKartons}</strong> Kartons gesamt · Gesamt-Ersparnis <strong>${totalSaving.toFixed(2)} €</strong> · Basis: ${werbungState.weeksCovered} Wochen Normalverkauf${dbgInfo}`;
+  summary.innerHTML = `<strong>${recs.length}</strong> Artikel · <strong>${totalKartons}</strong> Kartons gesamt · Gesamt-Ersparnis <strong>${totalSaving.toFixed(2)} €</strong> · Basis: ${werbungState.weeksCovered} Wochen Normalverkauf${abtInfo}${dbgInfo}`;
   if(!recs.length){
     list.innerHTML = `<div class="small" style="color:#64748b">Keine Empfehlungen bei aktueller Schwelle. Schwelle senken oder Bev-Wochen erhöhen.</div>`;
     return;
@@ -4990,22 +4995,45 @@ function renderWerbung(){
 
 function escapeJsStr(s){ return String(s == null ? "" : s).replace(/\\/g,"\\\\").replace(/'/g,"\\'"); }
 
+// Tolerante Namens-Suche: matcht "Oetker" auch mit "OETK." (Marken-Abkuerzungen im BO/PDF)
+function normalizeForSearch(s){
+  return String(s == null ? "" : s).toLowerCase().replace(/[.\-,/]/g, " ").replace(/\s+/g, " ").trim();
+}
+function nameMatches(name, query){
+  const n = normalizeForSearch(name);
+  const q = normalizeForSearch(query);
+  if(!q) return true;
+  if(n.includes(q)) return true;
+  // Wort-fuer-Wort: jedes Query-Wort muss ein Namens-Wort per Praefix matchen (min. 3 Zeichen)
+  const qw = q.split(" ").filter(w => w.length >= 2);
+  const nw = n.split(" ").filter(w => w.length >= 2);
+  return qw.every(w => nw.some(x => {
+    if(w.length < 3 || x.length < 3) return false;
+    return x.startsWith(w) || w.startsWith(x);
+  }));
+}
+
 function renderWerbungDebug(){
   const el = document.getElementById("werbungDebugResults");
   if(!el) return;
-  const q = (document.getElementById("werbungDebugSearch")?.value || "").trim().toLowerCase();
-  if(!q){ el.innerHTML = ""; return; }
+  const q = (document.getElementById("werbungDebugSearch")?.value || "").trim();
+  if(!q){
+    // Ohne Suche: kurze Bestands-Info anzeigen
+    const nPromo = werbungState.promo.length;
+    const nSales = Object.keys(werbungState.sales).length;
+    el.innerHTML = `<div class="small" style="color:#64748b">Stand: <strong>${nPromo}</strong> Werbeartikel geladen · <strong>${nSales}</strong> Artikel mit Absatzdaten. Tippe einen Namen oder Art-Nr., um konkrete Artikel zu prüfen.</div>`;
+    return;
+  }
   if(!werbungState.loaded){ el.innerHTML = `<div class="small">Bitte warten, Daten laden noch …</div>`; return; }
   const market = document.getElementById("werbungMarket").value;
   const s = werbungState.settings;
   const matches = werbungState.promo.filter(p => {
-    return (p.sap_artnr && p.sap_artnr.toLowerCase().includes(q))
-        || (p.name && p.name.toLowerCase().includes(q));
+    return (p.sap_artnr && p.sap_artnr.includes(q)) || nameMatches(p.name, q);
   }).slice(0, 20);
   if(!matches.length){
     // Auch in Sales-Daten suchen, falls in Werbung nicht
     const salesMatches = Object.entries(werbungState.sales).filter(([artnr, s]) => {
-      return artnr.toLowerCase().includes(q) || (s.name && s.name.toLowerCase().includes(q));
+      return artnr.includes(q) || nameMatches(s.name, q);
     }).slice(0, 5);
     if(salesMatches.length){
       let html = `<div class="small" style="color:#b45309">Kein Werbeartikel gefunden. Aber in Umsatz-Daten:</div>`;
@@ -5153,7 +5181,7 @@ async function uploadWerbungPdf(){
       const raw = tc.items.map(i => ({str: i.str, y: i.transform[5], x: i.transform[4], w: (i.width || 0)}));
       raw.sort((a,b) => b.y - a.y || a.x - b.x);
       const lines = [];
-      const TOL = 2.5;
+      const TOL = 4.0;
       for(const it of raw){
         let placed = false;
         for(const ln of lines){
@@ -5230,10 +5258,45 @@ async function uploadWerbungPdf(){
       const r = await db.from("promo_articles").insert(chunk);
       if(r.error){ msg.style.color = "#c62828"; msg.innerHTML = "Fehler beim Speichern: " + r.error.message; return; }
     }
-    const catCount = {frische:0, haltbar:0, tk:0};
-    for(const rec of records){ catCount[rec.category] = (catCount[rec.category]||0) + 1; }
     msg.style.color = "#16a34a";
-    msg.innerHTML = `${records.length} Werbeartikel gespeichert (Frische ${catCount.frische} · Haltbar ${catCount.haltbar} · TK ${catCount.tk})${kw?` · KW ${kw}/${year}`:""}.`;
+    msg.innerHTML = `${records.length} Werbeartikel gespeichert${kw?` · KW ${kw}/${year}`:""}. Prüfe Abteilungs-Zuordnung …`;
+    // Abteilungs-Zuordnung: alle SAP-Nrn der Werbeartikel gegen article_sales joinen
+    try {
+      const artNrs = records.map(r => r.sap_artnr);
+      const abtMap = new Map(); // sap_artnr -> abteilung
+      const chunk = 500;
+      for(let i = 0; i < artNrs.length; i += chunk){
+        const slice = artNrs.slice(i, i + chunk);
+        const r = await db.from("article_sales").select("sap_artnr,abteilung").in("sap_artnr", slice);
+        if(!r.error){
+          for(const row of (r.data || [])){
+            if(!abtMap.has(row.sap_artnr) && row.abteilung) abtMap.set(row.sap_artnr, row.abteilung);
+          }
+        }
+      }
+      const abtCount = {};
+      let ohneZuord = 0;
+      for(const rec of records){
+        const abt = abtMap.get(rec.sap_artnr);
+        if(!abt){ ohneZuord++; }
+        else { abtCount[abt] = (abtCount[abt]||0) + 1; }
+      }
+      const sorted = Object.entries(abtCount).sort((a,b)=>b[1]-a[1]);
+      let html = `${records.length} Werbeartikel gespeichert${kw?` · KW ${kw}/${year}`:""}.`;
+      html += `<div class="small" style="color:#475569;margin-top:6px"><strong>Abteilungs-Zuordnung (aus Umsatz-Excel):</strong></div>`;
+      html += `<div class="small" style="color:#475569;margin-top:2px">`;
+      html += sorted.map(([a,n]) => `${escapeHtml(a)}: <strong>${n}</strong>`).join(" · ");
+      if(ohneZuord > 0){
+        html += `${sorted.length?` · `:""}<span style="color:#b45309">ohne Zuordnung: <strong>${ohneZuord}</strong></span>`;
+      }
+      html += `</div>`;
+      if(ohneZuord > 0){
+        html += `<div class="small" style="color:#94a3b8;margin-top:4px">"Ohne Zuordnung" heißt: der Werbeartikel steht nicht in der zuletzt hochgeladenen Umsatz-Excel. Diese Artikel bekommen im Bevorratungs-Tab die Standard-Wochen und keine Abteilungs-Kennung.</div>`;
+      }
+      msg.innerHTML = html;
+    } catch(e){
+      msg.innerHTML = `${records.length} Werbeartikel gespeichert. Abteilungs-Zuordnung konnte nicht ermittelt werden: ${escapeHtml(String(e.message||e))}`;
+    }
   }catch(e){
     msg.style.color = "#c62828";
     msg.innerHTML = "Fehler beim Lesen: " + (e && e.message ? e.message : String(e));
