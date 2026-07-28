@@ -437,8 +437,10 @@
       <div class="small">Diese Werte gelten für alle Nutzer der App. Nur der Admin kann sie ändern.</div>
       <div class="control-grid" style="margin-top:14px">
         <div><label>Schwelle (€ Ersparnis)</label><input id="werbungAdminThreshold" type="number" min="0" step="1" value="20"></div>
-        <div><label>Bevorratung (Wochen)</label><input id="werbungAdminBevWochen" type="number" min="1" max="26" step="1" value="6"></div>
+        <div><label>Bevorratung Standard (Wochen)</label><input id="werbungAdminBevWochen" type="number" min="1" max="26" step="1" value="6"></div>
+        <div><label>Bevorratung Frische (Wochen)</label><input id="werbungAdminBevFrische" type="number" min="1" max="12" step="1" value="1"></div>
       </div>
+      <div class="small" style="margin-top:6px;color:#64748b">Frische-Abteilungen (feste Liste, verkürzt auf oben eingestellte Wochen): SB Wurst, Molkerei/MoPro, Obst/Gemüse, Fleisch-/Wurst-/Käse-Bedienung, Backwaren, Frischdienst.</div>
       <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn-green" style="width:auto" onclick="saveWerbungSettings()">Einstellungen speichern</button>
       </div>
@@ -457,7 +459,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.29-4"; // Excel-Upload: Dedup + Upsert gegen PK-Konflikt
+const APP_VERSION = "v2026.05.29-5"; // Bevorratung: Frische-Abteilungen mit eigener Wochenzahl (Default 1)
 const APP_VERSION_DATE = "28.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -4723,13 +4725,28 @@ let werbungState = {
   weeksCovered: 10,
   loaded: false,
   ticked: new Set(),
-  settings: { threshold: 20, bevWochen: 6 }
+  settings: { threshold: 20, bevWochen: 6, bevFrische: 1 }
 };
 
 const WERBUNG_SETTING_KEYS = {
-  threshold: "promo_threshold_eur",
-  bevWochen: "promo_bev_wochen"
+  threshold:  "promo_threshold_eur",
+  bevWochen:  "promo_bev_wochen",
+  bevFrische: "promo_bev_frische_wochen"
 };
+
+// Feste Liste der Abteilungen, die als "Frische" gelten und daher kürzer bevorratet werden
+const WERBUNG_FRISCHE_ABTEILUNGEN = [
+  "SB WURST","WURST","FLEISCH","KAESE","KÄSE","BEDIENUNG",
+  "MOLKEREI","MOPRO","JOGHURT","MILCH",
+  "OBST","GEMUESE","GEMÜSE","O&G",
+  "BROT","BACKWAREN","BROT/BACKWAREN","BACKSHOP",
+  "FRISCHE","FRISCHDIENST","FRISCHEDIENST"
+];
+function isFrischeAbteilung(abt){
+  if(!abt) return false;
+  const s = String(abt).toUpperCase();
+  return WERBUNG_FRISCHE_ABTEILUNGEN.some(kw => s.includes(kw));
+}
 
 async function loadWerbungSettings(){
   const keys = Object.values(WERBUNG_SETTING_KEYS);
@@ -4737,9 +4754,9 @@ async function loadWerbungSettings(){
   if(r.error) return;
   const map = {}; for(const row of (r.data || [])){ map[row.key] = row.value; }
   const s = werbungState.settings;
-  if(map[WERBUNG_SETTING_KEYS.threshold] != null) s.threshold = Number(map[WERBUNG_SETTING_KEYS.threshold]) || 20;
-  if(map[WERBUNG_SETTING_KEYS.bevWochen] != null) s.bevWochen = Number(map[WERBUNG_SETTING_KEYS.bevWochen]) || 6;
-  // Fallback: falls alte Setting-Keys existieren und der neue noch nicht gespeichert wurde
+  if(map[WERBUNG_SETTING_KEYS.threshold]  != null) s.threshold  = Number(map[WERBUNG_SETTING_KEYS.threshold])  || 20;
+  if(map[WERBUNG_SETTING_KEYS.bevWochen]  != null) s.bevWochen  = Number(map[WERBUNG_SETTING_KEYS.bevWochen])  || 6;
+  if(map[WERBUNG_SETTING_KEYS.bevFrische] != null) s.bevFrische = Number(map[WERBUNG_SETTING_KEYS.bevFrische]) || 1;
   if(map[WERBUNG_SETTING_KEYS.bevWochen] == null && map["promo_bev_haltbar"] != null){
     s.bevWochen = Number(map["promo_bev_haltbar"]) || 6;
   }
@@ -4750,15 +4767,17 @@ async function saveWerbungSettings(){
   const msg = document.getElementById("werbungSettingsMsg");
   const thr = Number(document.getElementById("werbungAdminThreshold").value);
   const bw  = Number(document.getElementById("werbungAdminBevWochen").value);
-  if(!(thr >= 0) || !(bw >= 1)){ msg.style.color="#c62828"; msg.innerHTML="Bitte gültige Zahlen eingeben."; return; }
+  const bf  = Number(document.getElementById("werbungAdminBevFrische").value);
+  if(!(thr >= 0) || !(bw >= 1) || !(bf >= 1)){ msg.style.color="#c62828"; msg.innerHTML="Bitte gültige Zahlen eingeben."; return; }
   msg.style.color = "#0c1f3c"; msg.innerHTML = "Speichere …";
   const rows = [
-    {key: WERBUNG_SETTING_KEYS.threshold, value: String(thr)},
-    {key: WERBUNG_SETTING_KEYS.bevWochen, value: String(bw)}
+    {key: WERBUNG_SETTING_KEYS.threshold,  value: String(thr)},
+    {key: WERBUNG_SETTING_KEYS.bevWochen,  value: String(bw)},
+    {key: WERBUNG_SETTING_KEYS.bevFrische, value: String(bf)}
   ];
   const r = await db.from("app_settings").upsert(rows, {onConflict: "key"});
   if(r.error){ msg.style.color="#c62828"; msg.innerHTML="Fehler: " + r.error.message; return; }
-  werbungState.settings = { threshold: thr, bevWochen: bw };
+  werbungState.settings = { threshold: thr, bevWochen: bw, bevFrische: bf };
   msg.style.color = "#16a34a"; msg.innerHTML = "Gespeichert. Änderung wird beim nächsten Öffnen des Bevorratungs-Tabs wirksam.";
 }
 
@@ -4767,8 +4786,10 @@ async function fillWerbungSettingsForm(){
   const s = werbungState.settings;
   const t = document.getElementById("werbungAdminThreshold");
   const bw = document.getElementById("werbungAdminBevWochen");
+  const bf = document.getElementById("werbungAdminBevFrische");
   if(t) t.value = s.threshold;
   if(bw) bw.value = s.bevWochen;
+  if(bf) bf.value = s.bevFrische;
 }
 
 async function initWerbungTab(){
@@ -4807,15 +4828,18 @@ async function loadWerbungData(){
   werbungState.loaded = true;
 }
 
-function evalWerbungArticle(p, market, thresholdEur, bevWochen){
+function evalWerbungArticle(p, market, thresholdEur, bevWochen, bevWochenFrische){
   // Liefert Details fuer einen einzelnen Werbeartikel (auch wenn er nicht empfohlen wird)
   const weeks = werbungState.weeksCovered || 10;
   const ersp = Number(p.ersparnis_pro_stueck) || 0;
   const einh = Number(p.einh_menge) || 1;
   const s = werbungState.sales[p.sap_artnr];
+  const abteilung = (s && s.abteilung) || null;
+  const isFrische = isFrischeAbteilung(abteilung);
+  const effektiveWochen = isFrische ? bevWochenFrische : bevWochen;
   const normalMenge = (s && s.byMarket[market]) ? s.byMarket[market] : 0;
   const wochenverkauf = normalMenge / weeks;
-  const bedarfStueck = wochenverkauf * bevWochen;
+  const bedarfStueck = wochenverkauf * effektiveWochen;
   const kartons = Math.ceil(bedarfStueck / einh);
   const stueckEmpf = kartons * einh;
   const ersparnisGes = stueckEmpf * ersp;
@@ -4834,7 +4858,9 @@ function evalWerbungArticle(p, market, thresholdEur, bevWochen){
     wp_aktion: Number(p.wp_aktion) || 0,
     ersparnis_pro_stueck: ersp,
     hinweis: p.hinweis || "",
-    abteilung: (s && s.abteilung) || null,
+    abteilung,
+    isFrische,
+    effektiveWochen,
     normalMenge,
     wochenverkauf,
     kartons,
@@ -4844,12 +4870,12 @@ function evalWerbungArticle(p, market, thresholdEur, bevWochen){
   };
 }
 
-function computeWerbungRecommendation(market, thresholdEur, bevWochen){
+function computeWerbungRecommendation(market, thresholdEur, bevWochen, bevWochenFrische){
   const out = [];
   const dbg = {total: 0, noErsp: 0, noSales: 0, zeroKartons: 0, belowThr: 0};
   for(const p of werbungState.promo){
     dbg.total++;
-    const r = evalWerbungArticle(p, market, thresholdEur, bevWochen);
+    const r = evalWerbungArticle(p, market, thresholdEur, bevWochen, bevWochenFrische);
     if(r.reason){
       if(r.reason.startsWith("kein Preisvorteil")) dbg.noErsp++;
       else if(r.reason.startsWith("kein Normalabsatz")) dbg.noSales++;
@@ -4893,18 +4919,18 @@ function renderWerbung(){
   const settingsInfo = document.getElementById("werbungSettingsInfo");
   const market = document.getElementById("werbungMarket").value;
   const s = werbungState.settings;
-  const thr = s.threshold, bw = s.bevWochen;
+  const thr = s.threshold, bw = s.bevWochen, bf = s.bevFrische;
   const sortMode = document.getElementById("werbungSort").value || "saving";
   localStorage.setItem("selectedMarket", market);
   renderWerbungWeekBanner();
-  if(settingsInfo) settingsInfo.innerHTML = `Aktuelle Vorgaben: Schwelle <strong>${thr} €</strong> · Bevorratung <strong>${bw} Wochen</strong>`;
+  if(settingsInfo) settingsInfo.innerHTML = `Aktuelle Vorgaben: Schwelle <strong>${thr} €</strong> · Bevorratung <strong>${bw} Wochen</strong> (Frische: <strong>${bf} Woche${bf>1?"n":""}</strong>)`;
   renderWerbungDebug();
   if(!werbungState.promo.length){
     list.innerHTML = `<div class="box" style="background:#fff3cd;padding:12px">Kein Werbe-Ordersatz geladen. Bitte im Admin die aktuelle Werbe-PDF hochladen.</div>`;
     summary.innerHTML = "";
     return;
   }
-  const recs = computeWerbungRecommendation(market, thr, bw);
+  const recs = computeWerbungRecommendation(market, thr, bw, bf);
   if(sortMode === "saving") recs.sort((a,b) => b.ersparnisGes - a.ersparnisGes);
   else if(sortMode === "skz") recs.sort((a,b) => (a.skz||99) - (b.skz||99) || (b.ersparnisGes - a.ersparnisGes));
   else if(sortMode === "name") recs.sort((a,b) => (a.name||"").localeCompare(b.name||"", "de"));
@@ -4936,13 +4962,16 @@ function renderWerbung(){
       ? `<div style="background:#dcfce7;padding:12px 16px;border-radius:8px;min-width:200px;text-align:center;color:#166534;font-weight:bold;font-size:15px">✓ Erledigt</div>`
       : `<div style="background:#fff;padding:6px 10px;border:1px dashed #cbd5e1;border-radius:8px;min-width:200px;text-align:center"><svg id="${bcId}"></svg><div class="small" style="color:#64748b;margin-top:2px">Art.-Nr.: ${escapeHtml(r.sap_artnr)}</div></div>`;
     const kartonBadge = `<div style="background:${ticked?"#e2e8f0":"#0c1f3c"};color:${ticked?"#64748b":"#fff"};padding:10px 16px;border-radius:12px;text-align:center;min-width:100px"><div style="font-size:32px;font-weight:900;line-height:1">${r.kartons}</div><div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px">Karton${r.kartons>1?"s":""}</div><div style="font-size:11px;opacity:0.8;margin-top:2px">${r.stueckEmpf} St.</div></div>`;
-    const abtChip = r.abteilung ? `<span style="background:#e0f2fe;color:#1e40af;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:bold">${escapeHtml(r.abteilung)}</span>` : `<span style="color:#94a3b8;font-size:12px">— Abteilung unbekannt</span>`;
+    const abtChip = r.abteilung
+      ? `<span style="background:${r.isFrische?"#dcfce7":"#e0f2fe"};color:${r.isFrische?"#166534":"#1e40af"};padding:2px 8px;border-radius:6px;font-size:12px;font-weight:bold">${r.isFrische?"🥬 ":""}${escapeHtml(r.abteilung)}</span>`
+      : `<span style="color:#94a3b8;font-size:12px">— Abteilung unbekannt</span>`;
+    const wochenHinweis = r.isFrische ? `<span style="color:#166534;font-weight:bold">${r.effektiveWochen}W</span>` : `${r.effektiveWochen}W`;
     html += `<div class="box" style="${cardStyle}">
       <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
         <div style="flex:1;min-width:220px">
           <div style="font-size:15px;${nameStyle}"><strong>${escapeHtml(r.name)}</strong></div>
           <div class="small" style="color:#475569;margin-top:4px">${abtChip} · Art.-Nr.: <strong>${escapeHtml(r.sap_artnr)}</strong> · ${r.einh_typ} ${r.einh_menge} · SKZ ${r.skz||"—"}${r.hinweis ? " · " + escapeHtml(r.hinweis) : ""}</div>
-          <div class="small" style="color:#475569;margin-top:2px">Ø ${r.wochenverkauf.toFixed(1)} Stk./Woche · Ersparnis: <strong style="color:#16a34a">${r.ersparnisGes.toFixed(2)} €</strong></div>
+          <div class="small" style="color:#475569;margin-top:2px">Ø ${r.wochenverkauf.toFixed(1)} Stk./Woche · Bevorratung ${wochenHinweis} · Ersparnis: <strong style="color:#16a34a">${r.ersparnisGes.toFixed(2)} €</strong></div>
         </div>
         ${kartonBadge}
         ${rightBox}
@@ -4992,7 +5021,7 @@ function renderWerbungDebug(){
   }
   let html = `<div class="small" style="color:#475569;margin-bottom:4px">${matches.length} Treffer in Werbung (Markt: ${escapeHtml(market)}):</div>`;
   for(const p of matches){
-    const r = evalWerbungArticle(p, market, s.threshold, s.bevWochen);
+    const r = evalWerbungArticle(p, market, s.threshold, s.bevWochen, s.bevFrische);
     const status = r.reason
       ? `<span style="color:#c62828">✗ ${escapeHtml(r.reason)}</span>`
       : `<span style="color:#16a34a">✓ empfohlen: ${r.kartons} Karton · ${r.ersparnisGes.toFixed(2)} €</span>`;
