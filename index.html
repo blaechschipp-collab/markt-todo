@@ -11,8 +11,8 @@
   <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
   <style>
     :root{--blue:#004f9e;--blue-dark:#00315f;--yellow:#ffdd00;--red:#ef4444;--orange:#f59e0b;--green:#22c55e;--border:#d8e2ef;--text:#08213f}
-    *{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(180deg,var(--blue-dark),var(--blue));color:var(--text);min-height:100vh}.header{background:linear-gradient(135deg,#002b55,#0059ad);padding:22px 26px 18px;border-bottom:6px solid var(--yellow)}.brand{max-width:1300px;margin:0 auto}.logo{max-width:520px;width:100%;height:auto;display:block}.brand-title{font-size:44px;font-weight:900;font-style:italic;color:#fff}.brand-subtitle{font-size:18px;color:#d9ecff}.main{max-width:1300px;margin:0 auto;padding:24px}.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px}.tab{border:2px solid var(--yellow);background:transparent;color:#fff;padding:14px 24px;border-radius:12px 12px 0 0;font-weight:bold;cursor:pointer}.tab.active{background:var(--yellow);color:var(--blue-dark)}.todo-tab{flex:1 1 30%}.dispo-tab{flex:1 1 30%}.backshop-tab{flex:1 1 30%}.werbung-tab{flex:1 1 30%}.analytics-tab{flex:1 1 30%}.admin-tab{flex:1 1 30%;min-width:92px}.tab{white-space:nowrap;text-align:center;padding:12px 8px;font-size:14px}
-@media (max-width: 700px){.main{padding:12px}.tab{padding:10px 6px;font-size:13px;border-radius:10px}.tabs{gap:4px}.todo-tab,.dispo-tab,.backshop-tab,.werbung-tab,.analytics-tab,.admin-tab{flex:1 1 30%}}.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:14px}.metric-card{background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:16px}.metric-value{font-size:28px;font-weight:900;color:var(--blue-dark)}.locked{opacity:.75}.box{background:#fff;border-radius:14px;padding:18px;margin-bottom:18px;box-shadow:0 8px 24px rgba(0,0,0,.14)}.admin{border:3px solid var(--yellow)}.control-grid{display:grid;grid-template-columns:repeat(5,minmax(160px,1fr));gap:14px;align-items:end}label{font-weight:bold;font-size:14px;display:block;margin-bottom:6px}input,select,textarea,button{padding:12px;border-radius:8px;border:1px solid #b8c7d9;font-size:15px;width:100%}textarea{min-height:86px;resize:vertical}button{cursor:pointer;font-weight:bold;border:none}.btn-yellow{background:var(--yellow);color:var(--blue-dark)}.btn-blue{background:var(--blue);color:#fff}.btn-dark{background:var(--blue-dark);color:#fff}.btn-red{background:#c62828;color:#fff}.btn-green{background:#2e7d32;color:#fff}.task{padding:14px;border-radius:10px;margin-bottom:10px;border:1px solid var(--border);display:flex;gap:12px;align-items:flex-start}.high{background:#ffe5e5;border-color:#ffb3b3}.medium{background:#fff5cc;border-color:#ffe480}.low{background:#e8f5e9;border-color:#bde8c3}.info{background:#e0f2fe;border-color:#7dd3fc}.done{text-decoration:line-through;color:#6b7280}.pill{display:inline-block;padding:3px 8px;border-radius:999px;color:#fff;font-size:12px;font-weight:bold;margin-left:6px}.high-p{background:var(--red)}.medium-p{background:var(--orange)}.low-p{background:var(--green)}.open-p{background:#64748b}.done-p{background:var(--green)}.info-p{background:#0284c7}.small{font-size:13px;color:#64748b;margin-top:4px}.days label,.months label{display:inline-flex;align-items:center;gap:6px;margin:6px 12px 6px 0;font-weight:normal}.days input,.months input{width:auto}.admin-actions{display:flex;gap:8px;flex-wrap:wrap}.admin-actions button{width:auto}.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px}table{border-collapse:collapse;width:100%;min-width:900px;background:#fff}th,td{border:1px solid #e1e8f0;padding:9px;text-align:left;font-size:13px}th{background:#f1f5f9}.footer{background:var(--yellow);color:var(--blue-dark);text-align:center;padding:18px;font-weight:bold;margin-top:30px}
+    *{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(180deg,var(--blue-dark),var(--blue));color:var(--text);min-height:100vh}.header{background:linear-gradient(135deg,#002b55,#0059ad);padding:22px 26px 18px;border-bottom:6px solid var(--yellow)}.brand{max-width:1300px;margin:0 auto}.logo{max-width:520px;width:100%;height:auto;display:block}.brand-title{font-size:44px;font-weight:900;font-style:italic;color:#fff}.brand-subtitle{font-size:18px;color:#d9ecff}.main{max-width:1300px;margin:0 auto;padding:24px}.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px}.tab{border:2px solid var(--yellow);background:transparent;color:#fff;padding:14px 24px;border-radius:12px 12px 0 0;font-weight:bold;cursor:pointer}.tab.active{background:var(--yellow);color:var(--blue-dark)}.todo-tab{flex:1 1 30%}.dispo-tab{flex:1 1 30%}.backshop-tab{flex:1 1 30%}.werbung-tab{flex:1 1 30%}.mhd-tab{flex:1 1 30%}.analytics-tab{flex:1 1 30%}.admin-tab{flex:1 1 30%;min-width:92px}.tab{white-space:nowrap;text-align:center;padding:12px 8px;font-size:14px}
+@media (max-width: 700px){.main{padding:12px}.tab{padding:10px 6px;font-size:13px;border-radius:10px}.tabs{gap:4px}.todo-tab,.dispo-tab,.backshop-tab,.werbung-tab,.mhd-tab,.analytics-tab,.admin-tab{flex:1 1 30%}}.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:14px}.metric-card{background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:16px}.metric-value{font-size:28px;font-weight:900;color:var(--blue-dark)}.locked{opacity:.75}.box{background:#fff;border-radius:14px;padding:18px;margin-bottom:18px;box-shadow:0 8px 24px rgba(0,0,0,.14)}.admin{border:3px solid var(--yellow)}.control-grid{display:grid;grid-template-columns:repeat(5,minmax(160px,1fr));gap:14px;align-items:end}label{font-weight:bold;font-size:14px;display:block;margin-bottom:6px}input,select,textarea,button{padding:12px;border-radius:8px;border:1px solid #b8c7d9;font-size:15px;width:100%}textarea{min-height:86px;resize:vertical}button{cursor:pointer;font-weight:bold;border:none}.btn-yellow{background:var(--yellow);color:var(--blue-dark)}.btn-blue{background:var(--blue);color:#fff}.btn-dark{background:var(--blue-dark);color:#fff}.btn-red{background:#c62828;color:#fff}.btn-green{background:#2e7d32;color:#fff}.task{padding:14px;border-radius:10px;margin-bottom:10px;border:1px solid var(--border);display:flex;gap:12px;align-items:flex-start}.high{background:#ffe5e5;border-color:#ffb3b3}.medium{background:#fff5cc;border-color:#ffe480}.low{background:#e8f5e9;border-color:#bde8c3}.info{background:#e0f2fe;border-color:#7dd3fc}.done{text-decoration:line-through;color:#6b7280}.pill{display:inline-block;padding:3px 8px;border-radius:999px;color:#fff;font-size:12px;font-weight:bold;margin-left:6px}.high-p{background:var(--red)}.medium-p{background:var(--orange)}.low-p{background:var(--green)}.open-p{background:#64748b}.done-p{background:var(--green)}.info-p{background:#0284c7}.small{font-size:13px;color:#64748b;margin-top:4px}.days label,.months label{display:inline-flex;align-items:center;gap:6px;margin:6px 12px 6px 0;font-weight:normal}.days input,.months input{width:auto}.admin-actions{display:flex;gap:8px;flex-wrap:wrap}.admin-actions button{width:auto}.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px}table{border-collapse:collapse;width:100%;min-width:900px;background:#fff}th,td{border:1px solid #e1e8f0;padding:9px;text-align:left;font-size:13px}th{background:#f1f5f9}.footer{background:var(--yellow);color:var(--blue-dark);text-align:center;padding:18px;font-weight:bold;margin-top:30px}
     .kpi-block .kpi-cards{display:none}
     .kpi-mobile-card{background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px}
     .kpi-mobile-card h3{margin:0 0 8px;font-size:16px;color:var(--blue-dark)}
@@ -189,7 +189,7 @@
 </div>
 <header class="header"><div class="brand" onclick="reloadApp()" title="Tippen zum Neuladen" style="cursor:pointer"><img src="logo.png" alt="EDEKA Paul Logo" class="logo" onerror="this.style.display='none';document.getElementById('fallbackBrand').style.display='block';"><div id="fallbackBrand" style="display:none"><div class="brand-title">Paul.</div><div class="brand-subtitle">Regional. Frisch. Freundlich.</div></div></div></header>
 <main class="main">
-  <div class="tabs"><button id="todoTab" class="tab active todo-tab" onclick="showTab('todo')">☑ ToDo</button><button id="dispoTab" class="tab dispo-tab" onclick="showTab('dispo')">📦 Dispo</button><button id="backshopTab" class="tab backshop-tab" onclick="showTab('backshop')">🥐 Backshop</button><button id="werbungTab" class="tab werbung-tab" onclick="showTab('werbung')">💰 Bevorratung</button><button id="analyticsTab" class="tab analytics-tab" onclick="showTab('analytics')">📊 Auswertungen</button><button id="adminTab" class="tab admin-tab" onclick="openAdminPin()">🔒 Admin</button></div>
+  <div class="tabs"><button id="todoTab" class="tab active todo-tab" onclick="showTab('todo')">☑ ToDo</button><button id="dispoTab" class="tab dispo-tab" onclick="showTab('dispo')">📦 Dispo</button><button id="backshopTab" class="tab backshop-tab" onclick="showTab('backshop')">🥐 Backshop</button><button id="werbungTab" class="tab werbung-tab" onclick="showTab('werbung')">💰 Bevorratung</button><button id="mhdTab" class="tab mhd-tab" onclick="showTab('mhd')">📅 MHD</button><button id="analyticsTab" class="tab analytics-tab" onclick="showTab('analytics')">📊 Auswertungen</button><button id="adminTab" class="tab admin-tab" onclick="openAdminPin()">🔒 Admin</button></div>
   <section id="todoSection">
     <div class="box"><div class="control-grid"><div><label>Dein Name</label><input id="name" placeholder="Dein Name"></div><div><label>Markt</label><select id="marketFilter" onchange="handleMarketChange()"><option value="ALLE">Alle Märkte</option><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="areaFilter" onchange="handleAreaChange()"><option value="">Alle Bereiche außer Hausmeister</option></select></div><div id="dayControl"><label>Tag</label><select id="day" onchange="loadTasks()"></select></div><div id="monthControl" style="display:none"><label>Monat</label><input id="monthFilter" type="month" onchange="loadTasks()"></div><div><label>Erledigte</label><select id="todoDoneFilter" onchange="handleDoneFilterChange()"><option value="hide">Ausblenden</option><option value="show">Anzeigen</option><option value="only">Nur erledigte</option></select></div><div><label>&nbsp;</label><button class="btn-yellow" onclick="loadTasks()">Aktualisieren</button></div></div></div>
     <div id="tasks" class="box"></div>
@@ -337,6 +337,20 @@
       <div id="werbungList" style="margin-top:12px"></div>
     </div>
   </section>
+  <section id="mhdSection" style="display:none">
+    <div class="box">
+      <h2>📅 MHD-Kontrolle</h2>
+      <div class="small">Klick auf ein Regal markiert es als geprüft. Grün = kürzlich geprüft, Orange = überfällig. Nach der eingestellten Frist wird ein Regal automatisch wieder orange.</div>
+      <div class="control-grid" style="margin-top:14px">
+        <div><label>Markt</label><select id="mhdMarket" onchange="onMhdMarketChange()"><option>Gossersweiler-Stein</option></select></div>
+        <div><label>Frist (Tage)</label><input id="mhdResetTage" type="number" min="1" max="60" value="7" oninput="renderMhd()"></div>
+        <div><label>&nbsp;</label><button class="btn-yellow" onclick="renderMhd()" style="width:auto">Aktualisieren</button></div>
+      </div>
+      <div id="mhdSummary" class="small" style="margin-top:10px;color:#475569"></div>
+      <div id="mhdPlan" style="margin-top:12px;position:relative;background:#f8fafc;border-radius:8px;overflow:auto"></div>
+      <div id="mhdList" style="margin-top:14px"></div>
+    </div>
+  </section>
   <section id="adminSection" style="display:none">
     <div id="adminLoginBox" class="box">
       <h2 style="margin-top:0">🔒 Admin-Bereich</h2>
@@ -446,6 +460,27 @@
       </div>
       <div id="werbungSettingsMsg" class="small" style="margin-top:8px"></div>
     </div>
+    <div class="box admin admin-uploads">
+      <h2>📅 MHD – Regalplan verwalten (nur Gossersweiler-Stein)</h2>
+      <div class="small">1) PDF-Regalplan hochladen (wird zu PNG konvertiert und in der DB gespeichert). 2) Regale einmalig durch Klick auf den Plan positionieren. 3) Fertig — MA können im MHD-Tab die Regale abhaken.</div>
+      <div class="control-grid" style="margin-top:14px">
+        <div><label>Regalplan-PDF hochladen</label><input id="mhdPdfFile" type="file" accept=".pdf"></div>
+        <div><label>&nbsp;</label><button class="btn-green" onclick="uploadMhdRegalplan()" style="width:auto">PDF einlesen &amp; speichern</button></div>
+      </div>
+      <div id="mhdUploadMsg" class="small" style="margin-top:8px"></div>
+      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <button class="btn-blue" onclick="startMhdEditor()" style="width:auto">Regal-Editor starten</button>
+        <button class="btn-red" onclick="clearMhdRegale()" style="width:auto">Alle Regal-Positionen löschen</button>
+        <span id="mhdEditorInfo" class="small" style="color:#64748b"></span>
+      </div>
+      <div id="mhdEditorBox" style="margin-top:12px;display:none">
+        <div class="small" style="color:#0c1f3c;background:#e0f2fe;padding:8px;border-radius:6px;margin-bottom:8px">
+          <strong>Editor-Modus:</strong> Klicke auf den Plan an die Stelle wo ein Regal ist. Es öffnet sich ein Feld für den Namen (z.B. "1", "MOPRO 7"). Fertige Positionen sind blau markiert.
+          <button class="btn-dark" style="width:auto;padding:4px 10px;font-size:12px;margin-left:8px" onclick="stopMhdEditor()">Editor beenden</button>
+        </div>
+        <div id="mhdEditorPlan" style="position:relative;background:#f8fafc;border-radius:8px;overflow:auto;cursor:crosshair"></div>
+      </div>
+    </div>
     <div class="box admin admin-todopflege"><h2>Adminbereich – bestehende Aufgaben</h2><div class="small">Vorlagen, Einmalaufgaben und Übergaben als Tabelle.</div>
       <div class="control-grid" style="margin-top:14px">
         <div><label>Bereich filtern</label><select id="adminTableAreaFilter" onchange="loadAdminTasks()"><option value="">Alle Bereiche</option></select></div>
@@ -459,8 +494,8 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.29-10"; // Bevorratung: manueller "als Frische"-Override pro Artikel (persistent)
-const APP_VERSION_DATE = "28.05.2026";
+const APP_VERSION = "v2026.05.30-1"; // NEU: MHD-Kontrolle mit Regalplan (nur Gossersweiler-Stein)
+const APP_VERSION_DATE = "30.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
 function reloadApp(){
@@ -1389,12 +1424,14 @@ function showTab(tab){
   document.getElementById("dispoSection").style.display=tab==="dispo"?"block":"none";
   document.getElementById("backshopSection").style.display=tab==="backshop"?"block":"none";
   document.getElementById("werbungSection").style.display=tab==="werbung"?"block":"none";
+  document.getElementById("mhdSection").style.display=tab==="mhd"?"block":"none";
   document.getElementById("analyticsSection").style.display=tab==="analytics"?"block":"none";
   document.getElementById("adminSection").style.display=tab==="admin"?"block":"none";
   document.getElementById("todoTab").classList.toggle("active",tab==="todo");
   document.getElementById("dispoTab").classList.toggle("active",tab==="dispo");
   document.getElementById("backshopTab").classList.toggle("active",tab==="backshop");
   document.getElementById("werbungTab").classList.toggle("active",tab==="werbung");
+  document.getElementById("mhdTab").classList.toggle("active",tab==="mhd");
   document.getElementById("analyticsTab").classList.toggle("active",tab==="analytics");
   document.getElementById("adminTab").classList.toggle("active",tab==="admin");
   if(tab==="admin"){ if(adminUnlocked) showAdminSubTab("todopflege"); }
@@ -1402,6 +1439,7 @@ function showTab(tab){
   else if(tab==="dispo"){loadDispo()}
   else if(tab==="backshop"){loadBackshop()}
   else if(tab==="werbung"){initWerbungTab()}
+  else if(tab==="mhd"){initMhdTab()}
   else loadTasks()
 }
 // Admin-Tab Aufruf: zeigt entweder Login-Box oder den freigeschalteten Inhalt
@@ -5581,6 +5619,222 @@ async function clearWerbungUmsatz(){
   const r = await db.from("article_sales").delete().gte("updated_at", "1900-01-01");
   if(r.error){ alert("Fehler: " + r.error.message); return; }
   document.getElementById("werbungUmsatzMsg").innerHTML = "Alle Absätze gelöscht.";
+}
+
+/* ===========================
+   MHD-Kontrolle (Regal-Check)
+   =========================== */
+let mhdState = {
+  market: "Gossersweiler-Stein",
+  imageDataUrl: null,
+  regale: [],       // {id, name, x, y}
+  checks: {},       // regal_id -> checked_at ISO
+  editorActive: false,
+  resetTage: 7
+};
+
+async function initMhdTab(){
+  const sel = document.getElementById("mhdMarket");
+  mhdState.market = sel.value;
+  await loadMhdPlan();
+  await loadMhdRegale();
+  await loadMhdChecks();
+  renderMhd();
+}
+
+async function onMhdMarketChange(){
+  mhdState.market = document.getElementById("mhdMarket").value;
+  await loadMhdPlan();
+  await loadMhdRegale();
+  await loadMhdChecks();
+  renderMhd();
+}
+
+async function loadMhdPlan(){
+  const r = await db.from("markt_regalplan").select("image_data_url").eq("market", mhdState.market).maybeSingle();
+  mhdState.imageDataUrl = (!r.error && r.data) ? r.data.image_data_url : null;
+}
+
+async function loadMhdRegale(){
+  const r = await db.from("markt_regale").select("id,name,x,y").eq("market", mhdState.market).order("id", {ascending: true});
+  mhdState.regale = (!r.error && r.data) ? r.data : [];
+}
+
+async function loadMhdChecks(){
+  const r = await db.from("regal_checks").select("regal_id,checked_at").eq("market", mhdState.market);
+  mhdState.checks = {};
+  for(const row of (r.data || [])){ mhdState.checks[row.regal_id] = row.checked_at; }
+}
+
+function mhdStatusOf(regalId){
+  const iso = mhdState.checks[regalId];
+  if(!iso) return {color:"#ea580c", label:"noch nicht geprüft", days: null};
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / (24*60*60*1000));
+  const tage = Number(document.getElementById("mhdResetTage")?.value || mhdState.resetTage || 7);
+  if(days >= tage) return {color:"#ea580c", label:`überfällig (${days} T)`, days};
+  return {color:"#16a34a", label:`vor ${days} T`, days};
+}
+
+function renderMhd(){
+  const plan = document.getElementById("mhdPlan");
+  const summary = document.getElementById("mhdSummary");
+  const list = document.getElementById("mhdList");
+  if(!plan) return;
+  if(!mhdState.imageDataUrl){
+    plan.innerHTML = `<div class="box" style="background:#fff3cd;padding:12px">Kein Regalplan hochgeladen. Bitte im Admin → Uploads unter "MHD – Regalplan verwalten" hochladen.</div>`;
+    summary.innerHTML = "";
+    list.innerHTML = "";
+    return;
+  }
+  const tage = Number(document.getElementById("mhdResetTage").value) || 7;
+  const total = mhdState.regale.length;
+  let green = 0, orange = 0;
+  const dots = mhdState.regale.map(r => {
+    const st = mhdStatusOf(r.id);
+    if(st.color === "#16a34a") green++; else orange++;
+    return `<button title="Regal ${escapeHtml(r.name)} · ${st.label}" onclick="toggleMhdRegal(${r.id})" style="position:absolute;left:calc(${(r.x*100).toFixed(2)}% - 18px);top:calc(${(r.y*100).toFixed(2)}% - 18px);width:36px;height:36px;border-radius:50%;border:3px solid #fff;background:${st.color};box-shadow:0 2px 6px rgba(0,0,0,0.3);color:#fff;font-weight:bold;font-size:12px;cursor:pointer;padding:0;line-height:1">${escapeHtml(r.name).slice(0,4)}</button>`;
+  }).join("");
+  summary.innerHTML = `<strong>${green}</strong> geprüft (letzte ${tage} T) · <strong style="color:#ea580c">${orange}</strong> überfällig · gesamt: ${total} Regale`;
+  plan.innerHTML = `<div style="position:relative;display:inline-block"><img src="${mhdState.imageDataUrl}" style="display:block;max-width:100%;height:auto">${dots}</div>`;
+  // Liste zusätzlich (sortiert nach Namen)
+  if(mhdState.regale.length){
+    const sorted = [...mhdState.regale].sort((a,b) => (""+a.name).localeCompare(""+b.name, "de", {numeric:true}));
+    let html = `<h3 style="margin-bottom:8px">Regal-Liste</h3><div style="display:flex;flex-wrap:wrap;gap:6px">`;
+    for(const r of sorted){
+      const st = mhdStatusOf(r.id);
+      html += `<button onclick="toggleMhdRegal(${r.id})" style="background:${st.color};color:#fff;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:bold">${escapeHtml(r.name)} · ${st.label}</button>`;
+    }
+    html += `</div>`;
+    list.innerHTML = html;
+  } else {
+    list.innerHTML = "";
+  }
+}
+
+async function toggleMhdRegal(regalId){
+  // Klick = Datum jetzt stempeln (immer upsert)
+  const r = await db.from("regal_checks").upsert({
+    regal_id: regalId,
+    market: mhdState.market,
+    checked_at: berlinNowForDB()
+  }, {onConflict: "regal_id"});
+  if(r.error){ alert("Fehler: " + r.error.message); return; }
+  mhdState.checks[regalId] = berlinNowForDB();
+  renderMhd();
+}
+
+/* ---------- Admin: Regalplan-PDF hochladen ---------- */
+async function uploadMhdRegalplan(){
+  if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
+  if(typeof pdfjsLib === "undefined"){ alert("PDF-Bibliothek nicht geladen."); return; }
+  const input = document.getElementById("mhdPdfFile");
+  const msg = document.getElementById("mhdUploadMsg");
+  if(!input.files || !input.files.length){ alert("Bitte PDF wählen."); return; }
+  msg.style.color = "#0c1f3c";
+  msg.innerHTML = "Lese PDF …";
+  const file = input.files[0];
+  try{
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+    const page = await pdf.getPage(1);
+    // Skalierung so, dass die längere Seite max. 1600 px hat
+    const vpBase = page.getViewport({scale: 1.0});
+    const scale = Math.min(1600 / Math.max(vpBase.width, vpBase.height), 2.0);
+    const vp = page.getViewport({scale});
+    const canvas = document.createElement("canvas");
+    canvas.width = vp.width;
+    canvas.height = vp.height;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    await page.render({canvasContext: ctx, viewport: vp}).promise;
+    const dataUrl = canvas.toDataURL("image/png");
+    msg.innerHTML = `PDF gerendert (${vp.width}x${vp.height} px, ${Math.round(dataUrl.length/1024)} KB). Speichere …`;
+    const r = await db.from("markt_regalplan").upsert({
+      market: "Gossersweiler-Stein",
+      image_data_url: dataUrl,
+      updated_at: berlinNowForDB()
+    }, {onConflict: "market"});
+    if(r.error){ msg.style.color = "#c62828"; msg.innerHTML = "Fehler: " + r.error.message; return; }
+    msg.style.color = "#16a34a";
+    msg.innerHTML = `Regalplan gespeichert. Öffne den MHD-Tab oder klicke unten "Regal-Editor starten", um Regale zu positionieren.`;
+    // Auch in state
+    mhdState.imageDataUrl = dataUrl;
+  }catch(e){
+    msg.style.color = "#c62828";
+    msg.innerHTML = "Fehler: " + (e && e.message ? e.message : String(e));
+  }
+}
+
+/* ---------- Admin: Regal-Editor ---------- */
+async function startMhdEditor(){
+  if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
+  await loadMhdPlan();
+  await loadMhdRegale();
+  if(!mhdState.imageDataUrl){ alert("Bitte zuerst ein Regalplan-PDF hochladen."); return; }
+  mhdState.editorActive = true;
+  document.getElementById("mhdEditorBox").style.display = "block";
+  renderMhdEditor();
+}
+
+function stopMhdEditor(){
+  mhdState.editorActive = false;
+  document.getElementById("mhdEditorBox").style.display = "none";
+  document.getElementById("mhdEditorInfo").textContent = `${mhdState.regale.length} Regale positioniert.`;
+}
+
+function renderMhdEditor(){
+  const box = document.getElementById("mhdEditorPlan");
+  if(!box) return;
+  const dots = mhdState.regale.map(r =>
+    `<button onclick="deleteMhdRegal(event, ${r.id})" title="Klick löscht dieses Regal" style="position:absolute;left:calc(${(r.x*100).toFixed(2)}% - 14px);top:calc(${(r.y*100).toFixed(2)}% - 14px);width:28px;height:28px;border-radius:50%;border:2px solid #fff;background:#1d4ed8;color:#fff;font-weight:bold;font-size:11px;cursor:pointer;padding:0">${escapeHtml(r.name).slice(0,3)}</button>`
+  ).join("");
+  box.innerHTML = `<div style="position:relative;display:inline-block" id="mhdEditorImgWrap"><img id="mhdEditorImg" src="${mhdState.imageDataUrl}" style="display:block;max-width:100%;height:auto" onload="attachMhdEditorClick()">${dots}</div>`;
+  attachMhdEditorClick();
+  document.getElementById("mhdEditorInfo").textContent = `${mhdState.regale.length} Regale positioniert.`;
+}
+
+function attachMhdEditorClick(){
+  const wrap = document.getElementById("mhdEditorImgWrap");
+  if(!wrap) return;
+  wrap.onclick = async (e) => {
+    // Wenn auf einen Regal-Button geklickt, ignorieren (der hat eigenen Handler)
+    if(e.target.tagName === "BUTTON") return;
+    const img = document.getElementById("mhdEditorImg");
+    const rect = img.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    if(x < 0 || x > 1 || y < 0 || y > 1) return;
+    const name = prompt("Regal-Name (z.B. '1', 'MOPRO 7'):");
+    if(name === null) return;
+    const n = String(name).trim();
+    if(!n) return;
+    const r = await db.from("markt_regale").insert({
+      market: mhdState.market, name: n, x, y
+    }).select();
+    if(r.error){ alert("Fehler: " + r.error.message); return; }
+    mhdState.regale.push(r.data[0]);
+    renderMhdEditor();
+  };
+}
+
+async function deleteMhdRegal(ev, id){
+  ev.stopPropagation();
+  if(!confirm("Dieses Regal löschen?")) return;
+  const r = await db.from("markt_regale").delete().eq("id", id);
+  if(r.error){ alert("Fehler: " + r.error.message); return; }
+  mhdState.regale = mhdState.regale.filter(x => x.id !== id);
+  renderMhdEditor();
+}
+
+async function clearMhdRegale(){
+  if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
+  if(!confirm("Alle Regal-Positionen für Gossersweiler-Stein löschen?")) return;
+  const r = await db.from("markt_regale").delete().eq("market", "Gossersweiler-Stein");
+  if(r.error){ alert("Fehler: " + r.error.message); return; }
+  mhdState.regale = [];
+  if(mhdState.editorActive) renderMhdEditor();
+  document.getElementById("mhdEditorInfo").textContent = "0 Regale positioniert.";
 }
 
 function escapeHtml(s){
