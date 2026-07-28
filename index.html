@@ -459,7 +459,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.29-8"; // Werbe-PDF-Upload: Abteilungs-Zuordnung der Werbeartikel anzeigen
+const APP_VERSION = "v2026.05.29-10"; // Bevorratung: manueller "als Frische"-Override pro Artikel (persistent)
 const APP_VERSION_DATE = "28.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -4725,6 +4725,7 @@ let werbungState = {
   weeksCovered: 10,
   loaded: false,
   ticked: new Set(),
+  frischeOverrides: new Set(), // manuelle "als Frische" Kennzeichnungen (persistent)
   settings: { threshold: 20, bevWochen: 6, bevFrische: 1 }
 };
 
@@ -4798,7 +4799,31 @@ async function initWerbungTab(){
   if(stored && Array.from(marketSel.options).some(o => o.value === stored)) marketSel.value = stored;
   await loadWerbungSettings();
   await loadWerbungData();
+  await loadWerbungFrischeOverrides();
   await loadWerbungTicked();
+  renderWerbung();
+}
+
+async function loadWerbungFrischeOverrides(){
+  werbungState.frischeOverrides = new Set();
+  const r = await db.from("promo_frische_overrides").select("sap_artnr");
+  if(r.error) return;
+  for(const row of (r.data || [])){ werbungState.frischeOverrides.add(row.sap_artnr); }
+}
+
+async function toggleWerbungManualFrische(sapArtnr){
+  if(!sapArtnr) return;
+  if(werbungState.frischeOverrides.has(sapArtnr)){
+    const r = await db.from("promo_frische_overrides").delete().eq("sap_artnr", sapArtnr);
+    if(r.error){ alert("Fehler: " + r.error.message); return; }
+    werbungState.frischeOverrides.delete(sapArtnr);
+  } else {
+    const r = await db.from("promo_frische_overrides").insert({sap_artnr: sapArtnr, updated_at: berlinNowForDB()});
+    if(r.error && !String(r.error.message).toLowerCase().includes("duplicate")){
+      alert("Fehler: " + r.error.message); return;
+    }
+    werbungState.frischeOverrides.add(sapArtnr);
+  }
   renderWerbung();
 }
 
@@ -4835,7 +4860,9 @@ function evalWerbungArticle(p, market, thresholdEur, bevWochen, bevWochenFrische
   const einh = Number(p.einh_menge) || 1;
   const s = werbungState.sales[p.sap_artnr];
   const abteilung = (s && s.abteilung) || null;
-  const isFrische = isFrischeAbteilung(abteilung);
+  const isFrischeAbt = isFrischeAbteilung(abteilung);
+  const isManualFrische = werbungState.frischeOverrides.has(p.sap_artnr);
+  const isFrische = isFrischeAbt || isManualFrische;
   const effektiveWochen = isFrische ? bevWochenFrische : bevWochen;
   const normalMenge = (s && s.byMarket[market]) ? s.byMarket[market] : 0;
   const wochenverkauf = normalMenge / weeks;
@@ -4860,6 +4887,8 @@ function evalWerbungArticle(p, market, thresholdEur, bevWochen, bevWochenFrische
     hinweis: p.hinweis || "",
     abteilung,
     isFrische,
+    isFrischeAbt,
+    isManualFrische,
     effektiveWochen,
     normalMenge,
     wochenverkauf,
@@ -4968,14 +4997,18 @@ function renderWerbung(){
       : `<div style="background:#fff;padding:6px 10px;border:1px dashed #cbd5e1;border-radius:8px;min-width:200px;text-align:center"><svg id="${bcId}"></svg><div class="small" style="color:#64748b;margin-top:2px">Art.-Nr.: ${escapeHtml(r.sap_artnr)}</div></div>`;
     const kartonBadge = `<div style="background:${ticked?"#e2e8f0":"#0c1f3c"};color:${ticked?"#64748b":"#fff"};padding:10px 16px;border-radius:12px;text-align:center;min-width:100px"><div style="font-size:32px;font-weight:900;line-height:1">${r.kartons}</div><div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px">Karton${r.kartons>1?"s":""}</div><div style="font-size:11px;opacity:0.8;margin-top:2px">${r.stueckEmpf} St.</div></div>`;
     const abtChip = r.abteilung
-      ? `<span style="background:${r.isFrische?"#dcfce7":"#e0f2fe"};color:${r.isFrische?"#166534":"#1e40af"};padding:2px 8px;border-radius:6px;font-size:12px;font-weight:bold">${r.isFrische?"🥬 ":""}${escapeHtml(r.abteilung)}</span>`
+      ? `<span style="background:${r.isFrische?"#dcfce7":"#e0f2fe"};color:${r.isFrische?"#166534":"#1e40af"};padding:2px 8px;border-radius:6px;font-size:12px;font-weight:bold">${r.isFrische?"🥬 ":""}${escapeHtml(r.abteilung)}${r.isManualFrische?" ✋":""}</span>`
       : `<span style="color:#94a3b8;font-size:12px">— Abteilung unbekannt</span>`;
     const wochenHinweis = r.isFrische ? `<span style="color:#166534;font-weight:bold">${r.effektiveWochen}W</span>` : `${r.effektiveWochen}W`;
+    // Toggle-Button: nur zeigen, wenn die Abteilung NICHT bereits als Frische gilt (dann macht ein Override keinen Sinn)
+    const frischeToggle = r.isFrischeAbt
+      ? ""
+      : `<button title="${r.isManualFrische?"Wieder auf Standard (Wochen bevorraten)":"Als Frische markieren (nur wenige Wochen bevorraten)"}" onclick="toggleWerbungManualFrische('${escapeJsStr(r.sap_artnr)}')" style="background:${r.isManualFrische?"#dcfce7":"#f1f5f9"};color:${r.isManualFrische?"#166534":"#475569"};border:1px solid ${r.isManualFrische?"#86efac":"#cbd5e1"};padding:2px 8px;border-radius:6px;font-size:12px;cursor:pointer;margin-left:4px">${r.isManualFrische?"🥬 als Frische":"→ als Frische"}</button>`;
     html += `<div class="box" style="${cardStyle}">
       <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
         <div style="flex:1;min-width:220px">
           <div style="font-size:15px;${nameStyle}"><strong>${escapeHtml(r.name)}</strong></div>
-          <div class="small" style="color:#475569;margin-top:4px">${abtChip} · Art.-Nr.: <strong>${escapeHtml(r.sap_artnr)}</strong> · ${r.einh_typ} ${r.einh_menge} · SKZ ${r.skz||"—"}${r.hinweis ? " · " + escapeHtml(r.hinweis) : ""}</div>
+          <div class="small" style="color:#475569;margin-top:4px">${abtChip}${frischeToggle} · Art.-Nr.: <strong>${escapeHtml(r.sap_artnr)}</strong> · ${r.einh_typ} ${r.einh_menge} · SKZ ${r.skz||"—"}${r.hinweis ? " · " + escapeHtml(r.hinweis) : ""}</div>
           <div class="small" style="color:#475569;margin-top:2px">Ø ${r.wochenverkauf.toFixed(1)} Stk./Woche · Bevorratung ${wochenHinweis} · Ersparnis: <strong style="color:#16a34a">${r.ersparnisGes.toFixed(2)} €</strong></div>
         </div>
         ${kartonBadge}
@@ -5171,6 +5204,8 @@ async function uploadWerbungPdf(){
     const articles = [];
     let currentSection = "";
     let totalLines = 0;
+    let failedSapCount = 0;      // Anzahl 10-stelliger SAP-Nrn in Zeilen, die NICHT gematcht wurden
+    const failedSaps = new Set(); // eindeutige Beispiel-SAPs die nicht gematcht wurden
     const sampleFails = [];
     for(let pnum = 1; pnum <= pdf.numPages; pnum++){
       const page = await pdf.getPage(pnum);
@@ -5206,8 +5241,13 @@ async function uploadWerbungPdf(){
         if(sec){ currentSection = sec; continue; }
         const m = WERBUNG_LINE_RE.exec(line);
         if(!m){
-          // Beispielhaft Zeilen mit 10-stelliger Zahl (SAP-Nr) sammeln, die aber nicht matchen
-          if(/\b\d{10}\b/.test(line) && sampleFails.length < 5) sampleFails.push(line);
+          // Zeilen mit 10-stelliger Zahl (SAP-Nr) sammeln, die aber nicht matchen
+          const sapM = line.match(/\b(\d{10})\b/);
+          if(sapM){
+            failedSapCount++;
+            failedSaps.add(sapM[1]);
+            if(sampleFails.length < 10) sampleFails.push(line);
+          }
         }
         if(m){
           const wpS = parseFloat(m[6].replace(",", "."));
@@ -5292,6 +5332,12 @@ async function uploadWerbungPdf(){
       html += `</div>`;
       if(ohneZuord > 0){
         html += `<div class="small" style="color:#94a3b8;margin-top:4px">"Ohne Zuordnung" heißt: der Werbeartikel steht nicht in der zuletzt hochgeladenen Umsatz-Excel. Diese Artikel bekommen im Bevorratungs-Tab die Standard-Wochen und keine Abteilungs-Kennung.</div>`;
+      }
+      if(failedSapCount > 0){
+        html += `<div class="small" style="color:#b45309;margin-top:6px"><strong>⚠ ${failedSapCount} Zeilen mit 10-stelliger SAP-Nr wurden NICHT als Werbeartikel erkannt.</strong> (${failedSaps.size} verschiedene Artikel)</div>`;
+        html += `<details style="margin-top:4px"><summary class="small" style="cursor:pointer;color:#b45309">Erste ${Math.min(sampleFails.length,10)} ungematchte Zeilen anzeigen</summary>`;
+        html += sampleFails.slice(0,10).map(f => `<code style="background:#fef3c7;padding:2px 4px;font-size:11px;display:block;margin-top:2px;white-space:pre-wrap">${escapeHtml(f)}</code>`).join("");
+        html += `</details>`;
       }
       msg.innerHTML = html;
     } catch(e){
