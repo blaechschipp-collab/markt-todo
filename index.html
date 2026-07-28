@@ -343,11 +343,15 @@
       <div class="small">Klick auf ein Regal markiert es als geprüft. Grün = kürzlich geprüft, Orange = überfällig. Nach der eingestellten Frist wird ein Regal automatisch wieder orange.</div>
       <div class="control-grid" style="margin-top:14px">
         <div><label>Markt</label><select id="mhdMarket" onchange="onMhdMarketChange()"><option>Gossersweiler-Stein</option></select></div>
-        <div><label>Frist (Tage)</label><input id="mhdResetTage" type="number" min="1" max="60" value="7" oninput="renderMhd()"></div>
-        <div><label>&nbsp;</label><button class="btn-yellow" onclick="renderMhd()" style="width:auto">Aktualisieren</button></div>
+        <div><label>Zoom</label><input id="mhdZoom" type="range" min="50" max="400" step="10" value="100" oninput="onMhdViewChange()"><span id="mhdZoomLabel" class="small" style="color:#64748b">100 %</span></div>
+        <div><label>Ansicht</label><div style="display:flex;gap:6px"><button class="btn-dark" style="width:auto;padding:8px 12px" onclick="rotateMhdPlan()">🔄 90°</button><button class="btn-yellow" style="width:auto;padding:8px 12px" onclick="resetMhdView()">↺ Reset</button></div></div>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button id="mhdUndoBtn" class="btn-yellow" style="width:auto;padding:6px 12px;font-size:13px;display:none" onclick="undoLastMhdCheck()">↩ Rückgängig: letzten Klick</button>
+        <span id="mhdUndoInfo" class="small" style="color:#64748b"></span>
       </div>
       <div id="mhdSummary" class="small" style="margin-top:10px;color:#475569"></div>
-      <div id="mhdPlan" style="margin-top:12px;position:relative;background:#f8fafc;border-radius:8px;overflow:auto"></div>
+      <div id="mhdPlan" style="margin-top:12px;background:#f8fafc;border-radius:8px;overflow:auto;max-height:75vh"></div>
       <div id="mhdList" style="margin-top:14px"></div>
     </div>
   </section>
@@ -461,25 +465,13 @@
       <div id="werbungSettingsMsg" class="small" style="margin-top:8px"></div>
     </div>
     <div class="box admin admin-uploads">
-      <h2>📅 MHD – Regalplan verwalten (nur Gossersweiler-Stein)</h2>
-      <div class="small">1) PDF-Regalplan hochladen (wird zu PNG konvertiert und in der DB gespeichert). 2) Regale einmalig durch Klick auf den Plan positionieren. 3) Fertig — MA können im MHD-Tab die Regale abhaken.</div>
-      <div class="control-grid" style="margin-top:14px">
-        <div><label>Regalplan-PDF hochladen</label><input id="mhdPdfFile" type="file" accept=".pdf"></div>
-        <div><label>&nbsp;</label><button class="btn-green" onclick="uploadMhdRegalplan()" style="width:auto">PDF einlesen &amp; speichern</button></div>
-      </div>
-      <div id="mhdUploadMsg" class="small" style="margin-top:8px"></div>
-      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <button class="btn-blue" onclick="startMhdEditor()" style="width:auto">Regal-Editor starten</button>
-        <button class="btn-red" onclick="clearMhdRegale()" style="width:auto">Alle Regal-Positionen löschen</button>
+      <h2>📅 MHD – Regale zurücksetzen</h2>
+      <div class="small">Der Regalplan Gossersweiler-Stein und die Regal-Positionen sind fest in der App eingebaut. Über diesen Button werden alle Regale (inkl. Frist) auf den fabrikneuen Zustand zurückgesetzt. Prüf-Historie bleibt erhalten.</div>
+      <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <button class="btn-yellow" onclick="reseedMhdRegale()" style="width:auto">Regale neu einrichten (Werksstand)</button>
         <span id="mhdEditorInfo" class="small" style="color:#64748b"></span>
       </div>
-      <div id="mhdEditorBox" style="margin-top:12px;display:none">
-        <div class="small" style="color:#0c1f3c;background:#e0f2fe;padding:8px;border-radius:6px;margin-bottom:8px">
-          <strong>Editor-Modus:</strong> Klicke auf den Plan an die Stelle wo ein Regal ist. Es öffnet sich ein Feld für den Namen (z.B. "1", "MOPRO 7"). Fertige Positionen sind blau markiert.
-          <button class="btn-dark" style="width:auto;padding:4px 10px;font-size:12px;margin-left:8px" onclick="stopMhdEditor()">Editor beenden</button>
-        </div>
-        <div id="mhdEditorPlan" style="position:relative;background:#f8fafc;border-radius:8px;overflow:auto;cursor:crosshair"></div>
-      </div>
+      <div id="mhdUploadMsg" class="small" style="margin-top:8px"></div>
     </div>
     <div class="box admin admin-todopflege"><h2>Adminbereich – bestehende Aufgaben</h2><div class="small">Vorlagen, Einmalaufgaben und Übergaben als Tabelle.</div>
       <div class="control-grid" style="margin-top:14px">
@@ -494,7 +486,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.30-1"; // NEU: MHD-Kontrolle mit Regalplan (nur Gossersweiler-Stein)
+const APP_VERSION = "v2026.05.30-2"; // MHD: Regale fest im Code · Frist pro Regal · Undo · Zoom/Rotate
 const APP_VERSION_DATE = "30.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -5623,40 +5615,118 @@ async function clearWerbungUmsatz(){
 
 /* ===========================
    MHD-Kontrolle (Regal-Check)
+   Regalplan-Bild ist fest ausgeliefert (gossersweiler_regalplan.png),
+   Regal-Positionen sind fest im Code. Beim ersten Aufruf werden
+   die Standard-Regale in die DB geschrieben, falls noch keine drin sind.
    =========================== */
+const MHD_PLAN_URL = "gossersweiler_regalplan.png";
+
+// Standard-Regale mit Positionen (relativ 0..1 auf dem Grundriss) und Frist in Tagen
+// Frist-Konvention: Frische kurz (1-3 Tage), 18er-Bereich täglich (1), TK/Trocken lang (7-14)
+const MHD_DEFAULT_REGALE = [
+  {name:"MOPRO",      x:0.148, y:0.645, frist_tage:2},
+  {name:"TK",         x:0.341, y:0.645, frist_tage:7},
+  {name:"Getränke",   x:0.115, y:0.782, frist_tage:14},
+  {name:"Aktion",     x:0.195, y:0.790, frist_tage:3},
+  {name:"SB-Back",    x:0.278, y:0.878, frist_tage:1},
+  {name:"18er A",     x:0.418, y:0.845, frist_tage:1},
+  {name:"18er B",     x:0.470, y:0.845, frist_tage:1},
+  {name:"18er C",     x:0.516, y:0.845, frist_tage:1},
+  {name:"18er D",     x:0.562, y:0.845, frist_tage:1},
+  {name:"Kasse",      x:0.128, y:0.870, frist_tage:14},
+  {name:"Regal 1",    x:0.240, y:0.755, frist_tage:14},
+  {name:"Regal 2",    x:0.315, y:0.750, frist_tage:14},
+  {name:"Regal 3",    x:0.315, y:0.810, frist_tage:14},
+  {name:"Regal 4",    x:0.360, y:0.795, frist_tage:14},
+  {name:"Regal 5",    x:0.425, y:0.780, frist_tage:14},
+  {name:"Regal 6",    x:0.470, y:0.790, frist_tage:14},
+  {name:"Regal 7",    x:0.518, y:0.795, frist_tage:14},
+  {name:"Regal 8",    x:0.560, y:0.795, frist_tage:14}
+];
+
 let mhdState = {
   market: "Gossersweiler-Stein",
-  imageDataUrl: null,
-  regale: [],       // {id, name, x, y}
+  regale: [],       // {id, name, x, y, frist_tage}
   checks: {},       // regal_id -> checked_at ISO
-  editorActive: false,
-  resetTage: 7
+  zoom: 100,
+  rotate: 0,
+  lastUndo: null    // { regalId, prevIso } fuer Undo des letzten Klicks
 };
+
+function loadMhdViewFromStorage(){
+  const z = parseInt(localStorage.getItem("mhdZoom") || "100", 10);
+  const r = parseInt(localStorage.getItem("mhdRotate") || "0", 10);
+  mhdState.zoom = isNaN(z) ? 100 : z;
+  mhdState.rotate = (isNaN(r) ? 0 : r) % 360;
+  const zoomEl = document.getElementById("mhdZoom");
+  const zoomLbl = document.getElementById("mhdZoomLabel");
+  if(zoomEl) zoomEl.value = String(mhdState.zoom);
+  if(zoomLbl) zoomLbl.textContent = mhdState.zoom + " %";
+}
+function saveMhdViewToStorage(){
+  localStorage.setItem("mhdZoom", String(mhdState.zoom));
+  localStorage.setItem("mhdRotate", String(mhdState.rotate));
+}
+function onMhdViewChange(){
+  mhdState.zoom = parseInt(document.getElementById("mhdZoom").value, 10) || 100;
+  document.getElementById("mhdZoomLabel").textContent = mhdState.zoom + " %";
+  saveMhdViewToStorage();
+  renderMhd();
+}
+function rotateMhdPlan(){
+  mhdState.rotate = (mhdState.rotate + 90) % 360;
+  saveMhdViewToStorage();
+  renderMhd();
+}
+function resetMhdView(){
+  mhdState.zoom = 100;
+  mhdState.rotate = 0;
+  const zoomEl = document.getElementById("mhdZoom");
+  const zoomLbl = document.getElementById("mhdZoomLabel");
+  if(zoomEl) zoomEl.value = "100";
+  if(zoomLbl) zoomLbl.textContent = "100 %";
+  saveMhdViewToStorage();
+  renderMhd();
+}
 
 async function initMhdTab(){
   const sel = document.getElementById("mhdMarket");
   mhdState.market = sel.value;
-  await loadMhdPlan();
   await loadMhdRegale();
+  if(!mhdState.regale.length){ await seedMhdDefaultRegale(); await loadMhdRegale(); }
   await loadMhdChecks();
   renderMhd();
 }
 
 async function onMhdMarketChange(){
   mhdState.market = document.getElementById("mhdMarket").value;
-  await loadMhdPlan();
   await loadMhdRegale();
+  if(!mhdState.regale.length){ await seedMhdDefaultRegale(); await loadMhdRegale(); }
   await loadMhdChecks();
   renderMhd();
 }
 
-async function loadMhdPlan(){
-  const r = await db.from("markt_regalplan").select("image_data_url").eq("market", mhdState.market).maybeSingle();
-  mhdState.imageDataUrl = (!r.error && r.data) ? r.data.image_data_url : null;
+async function seedMhdDefaultRegale(){
+  const rows = MHD_DEFAULT_REGALE.map(r => ({
+    market: mhdState.market,
+    name: r.name, x: r.x, y: r.y,
+    frist_tage: r.frist_tage
+  }));
+  const r = await db.from("markt_regale").insert(rows);
+  if(r.error) console.warn("Seed-Fehler:", r.error.message);
+}
+
+async function reseedMhdRegale(){
+  if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
+  if(!confirm("Alle Regal-Positionen für Gossersweiler-Stein löschen und Werksstand wiederherstellen? Prüf-Historie bleibt.")) return;
+  const del = await db.from("markt_regale").delete().eq("market", "Gossersweiler-Stein");
+  if(del.error){ document.getElementById("mhdUploadMsg").innerHTML = "Fehler: " + del.error.message; return; }
+  await seedMhdDefaultRegale();
+  document.getElementById("mhdUploadMsg").innerHTML = `${MHD_DEFAULT_REGALE.length} Regale neu eingerichtet.`;
 }
 
 async function loadMhdRegale(){
-  const r = await db.from("markt_regale").select("id,name,x,y").eq("market", mhdState.market).order("id", {ascending: true});
+  const r = await db.from("markt_regale").select("id,name,x,y,frist_tage").eq("market", mhdState.market).order("id", {ascending: true});
   mhdState.regale = (!r.error && r.data) ? r.data : [];
 }
 
@@ -5666,43 +5736,50 @@ async function loadMhdChecks(){
   for(const row of (r.data || [])){ mhdState.checks[row.regal_id] = row.checked_at; }
 }
 
-function mhdStatusOf(regalId){
-  const iso = mhdState.checks[regalId];
-  if(!iso) return {color:"#ea580c", label:"noch nicht geprüft", days: null};
+function mhdStatusOf(regal){
+  const iso = mhdState.checks[regal.id];
+  const frist = Number(regal.frist_tage || 7);
+  if(!iso) return {color:"#ea580c", label:`noch nicht geprüft (${frist}T-Frist)`, days: null, frist};
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / (24*60*60*1000));
-  const tage = Number(document.getElementById("mhdResetTage")?.value || mhdState.resetTage || 7);
-  if(days >= tage) return {color:"#ea580c", label:`überfällig (${days} T)`, days};
-  return {color:"#16a34a", label:`vor ${days} T`, days};
+  if(days >= frist) return {color:"#ea580c", label:`überfällig (${days} T > ${frist})`, days, frist};
+  return {color:"#16a34a", label:`vor ${days} T (Frist ${frist})`, days, frist};
 }
 
 function renderMhd(){
+  loadMhdViewFromStorage();
   const plan = document.getElementById("mhdPlan");
   const summary = document.getElementById("mhdSummary");
   const list = document.getElementById("mhdList");
   if(!plan) return;
-  if(!mhdState.imageDataUrl){
-    plan.innerHTML = `<div class="box" style="background:#fff3cd;padding:12px">Kein Regalplan hochgeladen. Bitte im Admin → Uploads unter "MHD – Regalplan verwalten" hochladen.</div>`;
-    summary.innerHTML = "";
-    list.innerHTML = "";
-    return;
-  }
-  const tage = Number(document.getElementById("mhdResetTage").value) || 7;
   const total = mhdState.regale.length;
   let green = 0, orange = 0;
   const dots = mhdState.regale.map(r => {
-    const st = mhdStatusOf(r.id);
+    const st = mhdStatusOf(r);
     if(st.color === "#16a34a") green++; else orange++;
-    return `<button title="Regal ${escapeHtml(r.name)} · ${st.label}" onclick="toggleMhdRegal(${r.id})" style="position:absolute;left:calc(${(r.x*100).toFixed(2)}% - 18px);top:calc(${(r.y*100).toFixed(2)}% - 18px);width:36px;height:36px;border-radius:50%;border:3px solid #fff;background:${st.color};box-shadow:0 2px 6px rgba(0,0,0,0.3);color:#fff;font-weight:bold;font-size:12px;cursor:pointer;padding:0;line-height:1">${escapeHtml(r.name).slice(0,4)}</button>`;
+    return `<button title="Regal ${escapeHtml(r.name)} · ${st.label} · Klick = geprüft" oncontextmenu="event.preventDefault();openMhdRegalDetails(${r.id});return false" onclick="toggleMhdRegal(${r.id})" style="position:absolute;left:calc(${(r.x*100).toFixed(2)}% - 20px);top:calc(${(r.y*100).toFixed(2)}% - 20px);width:40px;height:40px;border-radius:50%;border:3px solid #fff;background:${st.color};box-shadow:0 2px 6px rgba(0,0,0,0.4);color:#fff;font-weight:bold;font-size:11px;cursor:pointer;padding:0;line-height:1">${escapeHtml(r.name).slice(0,5)}</button>`;
   }).join("");
-  summary.innerHTML = `<strong>${green}</strong> geprüft (letzte ${tage} T) · <strong style="color:#ea580c">${orange}</strong> überfällig · gesamt: ${total} Regale`;
-  plan.innerHTML = `<div style="position:relative;display:inline-block"><img src="${mhdState.imageDataUrl}" style="display:block;max-width:100%;height:auto">${dots}</div>`;
-  // Liste zusätzlich (sortiert nach Namen)
+  summary.innerHTML = `<strong>${green}</strong> geprüft · <strong style="color:#ea580c">${orange}</strong> überfällig · gesamt: ${total} Regale · <span class="small">Rechtsklick auf Regal öffnet Details (Name/Frist ändern)</span>`;
+  const undoBtn = document.getElementById("mhdUndoBtn");
+  const undoInfo = document.getElementById("mhdUndoInfo");
+  if(mhdState.lastUndo){
+    const r = mhdState.regale.find(x => x.id === mhdState.lastUndo.regalId);
+    if(undoBtn) undoBtn.style.display = "inline-block";
+    if(undoInfo) undoInfo.textContent = r ? `Zuletzt geklickt: ${r.name}` : "";
+  } else {
+    if(undoBtn) undoBtn.style.display = "none";
+    if(undoInfo) undoInfo.textContent = "";
+  }
+  const zoom = mhdState.zoom / 100;
+  const rot = mhdState.rotate;
+  const rotatedIsPortrait = (rot === 90 || rot === 270);
+  const transform = `rotate(${rot}deg) scale(${zoom})`;
+  plan.innerHTML = `<div style="display:inline-block;position:relative;transform:${transform};transform-origin:${rotatedIsPortrait?"center center":"top left"};margin:${rotatedIsPortrait?"40vh 20vw":"0"}"><img src="${MHD_PLAN_URL}" style="display:block;max-width:100%;height:auto" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'box',style:'background:#fff3cd;padding:12px',innerHTML:'Regalplan-Bild <code>${MHD_PLAN_URL}</code> nicht gefunden. Bitte im Hosting neben der HTML ablegen.'}))">${dots}</div>`;
   if(mhdState.regale.length){
     const sorted = [...mhdState.regale].sort((a,b) => (""+a.name).localeCompare(""+b.name, "de", {numeric:true}));
-    let html = `<h3 style="margin-bottom:8px">Regal-Liste</h3><div style="display:flex;flex-wrap:wrap;gap:6px">`;
+    let html = `<h3 style="margin-bottom:8px">Regal-Liste (klicken = geprüft)</h3><div style="display:flex;flex-wrap:wrap;gap:6px">`;
     for(const r of sorted){
-      const st = mhdStatusOf(r.id);
-      html += `<button onclick="toggleMhdRegal(${r.id})" style="background:${st.color};color:#fff;border:none;padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:bold">${escapeHtml(r.name)} · ${st.label}</button>`;
+      const st = mhdStatusOf(r);
+      html += `<div style="display:inline-flex;align-items:stretch;border-radius:8px;overflow:hidden;background:${st.color}"><button onclick="toggleMhdRegal(${r.id})" style="background:transparent;color:#fff;border:none;padding:8px 14px;cursor:pointer;font-weight:bold">${escapeHtml(r.name)} · ${st.label}</button><button title="Details" onclick="openMhdRegalDetails(${r.id})" style="background:rgba(0,0,0,0.2);color:#fff;border:none;padding:8px 10px;cursor:pointer">⚙</button></div>`;
     }
     html += `</div>`;
     list.innerHTML = html;
@@ -5711,130 +5788,67 @@ function renderMhd(){
   }
 }
 
-async function toggleMhdRegal(regalId){
-  // Klick = Datum jetzt stempeln (immer upsert)
-  const r = await db.from("regal_checks").upsert({
-    regal_id: regalId,
-    market: mhdState.market,
-    checked_at: berlinNowForDB()
-  }, {onConflict: "regal_id"});
-  if(r.error){ alert("Fehler: " + r.error.message); return; }
-  mhdState.checks[regalId] = berlinNowForDB();
-  renderMhd();
-}
-
-/* ---------- Admin: Regalplan-PDF hochladen ---------- */
-async function uploadMhdRegalplan(){
-  if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
-  if(typeof pdfjsLib === "undefined"){ alert("PDF-Bibliothek nicht geladen."); return; }
-  const input = document.getElementById("mhdPdfFile");
-  const msg = document.getElementById("mhdUploadMsg");
-  if(!input.files || !input.files.length){ alert("Bitte PDF wählen."); return; }
-  msg.style.color = "#0c1f3c";
-  msg.innerHTML = "Lese PDF …";
-  const file = input.files[0];
-  try{
-    const buf = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({data: buf}).promise;
-    const page = await pdf.getPage(1);
-    // Skalierung so, dass die längere Seite max. 1600 px hat
-    const vpBase = page.getViewport({scale: 1.0});
-    const scale = Math.min(1600 / Math.max(vpBase.width, vpBase.height), 2.0);
-    const vp = page.getViewport({scale});
-    const canvas = document.createElement("canvas");
-    canvas.width = vp.width;
-    canvas.height = vp.height;
-    const ctx = canvas.getContext("2d");
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    await page.render({canvasContext: ctx, viewport: vp}).promise;
-    const dataUrl = canvas.toDataURL("image/png");
-    msg.innerHTML = `PDF gerendert (${vp.width}x${vp.height} px, ${Math.round(dataUrl.length/1024)} KB). Speichere …`;
-    const r = await db.from("markt_regalplan").upsert({
-      market: "Gossersweiler-Stein",
-      image_data_url: dataUrl,
-      updated_at: berlinNowForDB()
-    }, {onConflict: "market"});
-    if(r.error){ msg.style.color = "#c62828"; msg.innerHTML = "Fehler: " + r.error.message; return; }
-    msg.style.color = "#16a34a";
-    msg.innerHTML = `Regalplan gespeichert. Öffne den MHD-Tab oder klicke unten "Regal-Editor starten", um Regale zu positionieren.`;
-    // Auch in state
-    mhdState.imageDataUrl = dataUrl;
-  }catch(e){
-    msg.style.color = "#c62828";
-    msg.innerHTML = "Fehler: " + (e && e.message ? e.message : String(e));
+async function openMhdRegalDetails(regalId){
+  const regal = mhdState.regale.find(r => r.id === regalId);
+  if(!regal) return;
+  const iso = mhdState.checks[regalId];
+  const lastStr = iso ? formatDateTimeDE(iso) : "noch nie";
+  const info = `Regal: ${regal.name}\nZuletzt geprüft: ${lastStr}\nFrist: ${regal.frist_tage} Tage\n\nWas tun?\n1 = Frist ändern\n2 = Namen ändern\n3 = Prüfung zurücksetzen (kein Datum)\nAbbrechen = nichts tun`;
+  const wahl = prompt(info, "");
+  if(wahl === null) return;
+  if(wahl === "1"){
+    const neuFrist = prompt(`Neue Frist in Tagen (aktuell: ${regal.frist_tage})`, String(regal.frist_tage));
+    if(neuFrist === null) return;
+    const n = parseInt(neuFrist, 10);
+    if(!(n >= 1 && n <= 365)){ alert("Bitte 1–365 Tage."); return; }
+    const r = await db.from("markt_regale").update({frist_tage: n}).eq("id", regalId);
+    if(r.error){ alert("Fehler: " + r.error.message); return; }
+    regal.frist_tage = n;
+    renderMhd();
+  } else if(wahl === "2"){
+    const neuName = prompt("Neuer Name:", regal.name);
+    if(neuName === null || !neuName.trim()) return;
+    const r = await db.from("markt_regale").update({name: neuName.trim()}).eq("id", regalId);
+    if(r.error){ alert("Fehler: " + r.error.message); return; }
+    regal.name = neuName.trim();
+    renderMhd();
+  } else if(wahl === "3"){
+    if(!confirm("Letzte Prüfung wirklich löschen? Regal wird als 'noch nicht geprüft' angezeigt.")) return;
+    const r = await db.from("regal_checks").delete().eq("regal_id", regalId);
+    if(r.error){ alert("Fehler: " + r.error.message); return; }
+    delete mhdState.checks[regalId];
+    renderMhd();
   }
 }
 
-/* ---------- Admin: Regal-Editor ---------- */
-async function startMhdEditor(){
-  if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
-  await loadMhdPlan();
-  await loadMhdRegale();
-  if(!mhdState.imageDataUrl){ alert("Bitte zuerst ein Regalplan-PDF hochladen."); return; }
-  mhdState.editorActive = true;
-  document.getElementById("mhdEditorBox").style.display = "block";
-  renderMhdEditor();
-}
-
-function stopMhdEditor(){
-  mhdState.editorActive = false;
-  document.getElementById("mhdEditorBox").style.display = "none";
-  document.getElementById("mhdEditorInfo").textContent = `${mhdState.regale.length} Regale positioniert.`;
-}
-
-function renderMhdEditor(){
-  const box = document.getElementById("mhdEditorPlan");
-  if(!box) return;
-  const dots = mhdState.regale.map(r =>
-    `<button onclick="deleteMhdRegal(event, ${r.id})" title="Klick löscht dieses Regal" style="position:absolute;left:calc(${(r.x*100).toFixed(2)}% - 14px);top:calc(${(r.y*100).toFixed(2)}% - 14px);width:28px;height:28px;border-radius:50%;border:2px solid #fff;background:#1d4ed8;color:#fff;font-weight:bold;font-size:11px;cursor:pointer;padding:0">${escapeHtml(r.name).slice(0,3)}</button>`
-  ).join("");
-  box.innerHTML = `<div style="position:relative;display:inline-block" id="mhdEditorImgWrap"><img id="mhdEditorImg" src="${mhdState.imageDataUrl}" style="display:block;max-width:100%;height:auto" onload="attachMhdEditorClick()">${dots}</div>`;
-  attachMhdEditorClick();
-  document.getElementById("mhdEditorInfo").textContent = `${mhdState.regale.length} Regale positioniert.`;
-}
-
-function attachMhdEditorClick(){
-  const wrap = document.getElementById("mhdEditorImgWrap");
-  if(!wrap) return;
-  wrap.onclick = async (e) => {
-    // Wenn auf einen Regal-Button geklickt, ignorieren (der hat eigenen Handler)
-    if(e.target.tagName === "BUTTON") return;
-    const img = document.getElementById("mhdEditorImg");
-    const rect = img.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-    if(x < 0 || x > 1 || y < 0 || y > 1) return;
-    const name = prompt("Regal-Name (z.B. '1', 'MOPRO 7'):");
-    if(name === null) return;
-    const n = String(name).trim();
-    if(!n) return;
-    const r = await db.from("markt_regale").insert({
-      market: mhdState.market, name: n, x, y
-    }).select();
+async function undoLastMhdCheck(){
+  if(!mhdState.lastUndo) return;
+  const {regalId, prevIso} = mhdState.lastUndo;
+  if(prevIso){
+    const r = await db.from("regal_checks").upsert({regal_id: regalId, market: mhdState.market, checked_at: prevIso}, {onConflict:"regal_id"});
     if(r.error){ alert("Fehler: " + r.error.message); return; }
-    mhdState.regale.push(r.data[0]);
-    renderMhdEditor();
-  };
+    mhdState.checks[regalId] = prevIso;
+  } else {
+    const r = await db.from("regal_checks").delete().eq("regal_id", regalId);
+    if(r.error){ alert("Fehler: " + r.error.message); return; }
+    delete mhdState.checks[regalId];
+  }
+  mhdState.lastUndo = null;
+  renderMhd();
 }
 
-async function deleteMhdRegal(ev, id){
-  ev.stopPropagation();
-  if(!confirm("Dieses Regal löschen?")) return;
-  const r = await db.from("markt_regale").delete().eq("id", id);
-  if(r.error){ alert("Fehler: " + r.error.message); return; }
-  mhdState.regale = mhdState.regale.filter(x => x.id !== id);
-  renderMhdEditor();
-}
-
-async function clearMhdRegale(){
-  if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
-  if(!confirm("Alle Regal-Positionen für Gossersweiler-Stein löschen?")) return;
-  const r = await db.from("markt_regale").delete().eq("market", "Gossersweiler-Stein");
-  if(r.error){ alert("Fehler: " + r.error.message); return; }
-  mhdState.regale = [];
-  if(mhdState.editorActive) renderMhdEditor();
-  document.getElementById("mhdEditorInfo").textContent = "0 Regale positioniert.";
+async function toggleMhdRegal(regalId){
+  // Vorherigen Wert für Undo merken
+  mhdState.lastUndo = {regalId, prevIso: mhdState.checks[regalId] || null};
+  const now = berlinNowForDB();
+  const r = await db.from("regal_checks").upsert({
+    regal_id: regalId,
+    market: mhdState.market,
+    checked_at: now
+  }, {onConflict: "regal_id"});
+  if(r.error){ alert("Fehler: " + r.error.message); mhdState.lastUndo = null; return; }
+  mhdState.checks[regalId] = now;
+  renderMhd();
 }
 
 function escapeHtml(s){
