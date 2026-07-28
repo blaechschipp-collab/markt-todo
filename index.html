@@ -327,6 +327,13 @@
       </div>
       <div id="werbungSettingsInfo" class="small" style="margin-top:6px;color:#94a3b8"></div>
       <div id="werbungSummary" class="small" style="margin-top:10px;color:#475569"></div>
+      <details style="margin-top:8px">
+        <summary style="cursor:pointer;color:#0c1f3c;font-weight:bold">🔍 Artikel prüfen (Debug)</summary>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap">
+          <input id="werbungDebugSearch" placeholder="Name oder ArtNr..." style="flex:1;min-width:180px" oninput="renderWerbungDebug()">
+        </div>
+        <div id="werbungDebugResults" style="margin-top:8px"></div>
+      </details>
       <div id="werbungList" style="margin-top:12px"></div>
     </div>
   </section>
@@ -430,9 +437,7 @@
       <div class="small">Diese Werte gelten für alle Nutzer der App. Nur der Admin kann sie ändern.</div>
       <div class="control-grid" style="margin-top:14px">
         <div><label>Schwelle (€ Ersparnis)</label><input id="werbungAdminThreshold" type="number" min="0" step="1" value="20"></div>
-        <div><label>Bevorratung Haltbar (Wochen)</label><input id="werbungAdminBevHaltbar" type="number" min="1" max="24" step="1" value="4"></div>
-        <div><label>Bevorratung Frische (Tage)</label><input id="werbungAdminBevFrische" type="number" min="1" max="30" step="1" value="5"></div>
-        <div><label>Bevorratung Tiefkühl (Wochen)</label><input id="werbungAdminBevTk" type="number" min="1" max="52" step="1" value="8"></div>
+        <div><label>Bevorratung (Wochen)</label><input id="werbungAdminBevWochen" type="number" min="1" max="26" step="1" value="6"></div>
       </div>
       <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn-green" style="width:auto" onclick="saveWerbungSettings()">Einstellungen speichern</button>
@@ -452,7 +457,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.29-2"; // Bevorratung: TK-Erkennung auch aus Artikelnamen (Eis, Pizza, ...) + Filter-Diagnose
+const APP_VERSION = "v2026.05.29-3"; // Bevorratung: Abteilung aus Umsatz-Excel, einheitlich 6W, Debug-Suche
 const APP_VERSION_DATE = "28.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -4713,37 +4718,18 @@ async function toggleDispoItem(id, checked){
    - Nur Artikel mit Ersparnis >= Schwelle werden angezeigt
    =========================== */
 let werbungState = {
-  promo: [],      // Werbeartikel aus DB
-  sales: {},      // { sap_artnr: { market: menge_normal, ... } }
+  promo: [],
+  sales: {},
   weeksCovered: 10,
   loaded: false,
-  ticked: new Set(),  // "sap_artnr" der abgehakten Artikel (pro aktueller Markt+KW)
-  settings: { threshold: 20, bevHaltbar: 4, bevFrische: 5, bevTk: 8 }
+  ticked: new Set(),
+  settings: { threshold: 20, bevWochen: 6 }
 };
 
 const WERBUNG_SETTING_KEYS = {
-  threshold:  "promo_threshold_eur",
-  bevHaltbar: "promo_bev_haltbar",
-  bevFrische: "promo_bev_frische",
-  bevTk:      "promo_bev_tk"
+  threshold: "promo_threshold_eur",
+  bevWochen: "promo_bev_wochen"
 };
-
-// Kategorie-Metadaten
-const WERBUNG_CATEGORIES = {
-  frische: { icon: "🥬", label: "Frische", color: "#dcfce7", textColor: "#166534" },
-  haltbar: { icon: "📦", label: "Haltbar", color: "#e0f2fe", textColor: "#1e40af" },
-  tk:      { icon: "🧊", label: "Tiefkühl", color: "#dbeafe", textColor: "#1e3a8a" }
-};
-function nextCategory(c){
-  if(c === "frische") return "haltbar";
-  if(c === "haltbar") return "tk";
-  return "frische";
-}
-function categoryOf(p){
-  const c = p && p.category;
-  if(c === "frische" || c === "haltbar" || c === "tk") return c;
-  return p && p.is_frische ? "frische" : "haltbar";
-}
 
 async function loadWerbungSettings(){
   const keys = Object.values(WERBUNG_SETTING_KEYS);
@@ -4751,30 +4737,28 @@ async function loadWerbungSettings(){
   if(r.error) return;
   const map = {}; for(const row of (r.data || [])){ map[row.key] = row.value; }
   const s = werbungState.settings;
-  if(map[WERBUNG_SETTING_KEYS.threshold]  != null)  s.threshold  = Number(map[WERBUNG_SETTING_KEYS.threshold])  || 20;
-  if(map[WERBUNG_SETTING_KEYS.bevHaltbar] != null) s.bevHaltbar = Number(map[WERBUNG_SETTING_KEYS.bevHaltbar]) || 4;
-  if(map[WERBUNG_SETTING_KEYS.bevFrische] != null) s.bevFrische = Number(map[WERBUNG_SETTING_KEYS.bevFrische]) || 5;
-  if(map[WERBUNG_SETTING_KEYS.bevTk]      != null) s.bevTk      = Number(map[WERBUNG_SETTING_KEYS.bevTk])      || 8;
+  if(map[WERBUNG_SETTING_KEYS.threshold] != null) s.threshold = Number(map[WERBUNG_SETTING_KEYS.threshold]) || 20;
+  if(map[WERBUNG_SETTING_KEYS.bevWochen] != null) s.bevWochen = Number(map[WERBUNG_SETTING_KEYS.bevWochen]) || 6;
+  // Fallback: falls alte Setting-Keys existieren und der neue noch nicht gespeichert wurde
+  if(map[WERBUNG_SETTING_KEYS.bevWochen] == null && map["promo_bev_haltbar"] != null){
+    s.bevWochen = Number(map["promo_bev_haltbar"]) || 6;
+  }
 }
 
 async function saveWerbungSettings(){
   if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
   const msg = document.getElementById("werbungSettingsMsg");
   const thr = Number(document.getElementById("werbungAdminThreshold").value);
-  const bh  = Number(document.getElementById("werbungAdminBevHaltbar").value);
-  const bf  = Number(document.getElementById("werbungAdminBevFrische").value);
-  const bt  = Number(document.getElementById("werbungAdminBevTk").value);
-  if(!(thr >= 0) || !(bh >= 1) || !(bf >= 1) || !(bt >= 1)){ msg.style.color="#c62828"; msg.innerHTML="Bitte gültige Zahlen eingeben."; return; }
+  const bw  = Number(document.getElementById("werbungAdminBevWochen").value);
+  if(!(thr >= 0) || !(bw >= 1)){ msg.style.color="#c62828"; msg.innerHTML="Bitte gültige Zahlen eingeben."; return; }
   msg.style.color = "#0c1f3c"; msg.innerHTML = "Speichere …";
   const rows = [
-    {key: WERBUNG_SETTING_KEYS.threshold,  value: String(thr)},
-    {key: WERBUNG_SETTING_KEYS.bevHaltbar, value: String(bh)},
-    {key: WERBUNG_SETTING_KEYS.bevFrische, value: String(bf)},
-    {key: WERBUNG_SETTING_KEYS.bevTk,      value: String(bt)}
+    {key: WERBUNG_SETTING_KEYS.threshold, value: String(thr)},
+    {key: WERBUNG_SETTING_KEYS.bevWochen, value: String(bw)}
   ];
   const r = await db.from("app_settings").upsert(rows, {onConflict: "key"});
   if(r.error){ msg.style.color="#c62828"; msg.innerHTML="Fehler: " + r.error.message; return; }
-  werbungState.settings = { threshold: thr, bevHaltbar: bh, bevFrische: bf, bevTk: bt };
+  werbungState.settings = { threshold: thr, bevWochen: bw };
   msg.style.color = "#16a34a"; msg.innerHTML = "Gespeichert. Änderung wird beim nächsten Öffnen des Bevorratungs-Tabs wirksam.";
 }
 
@@ -4782,13 +4766,9 @@ async function fillWerbungSettingsForm(){
   await loadWerbungSettings();
   const s = werbungState.settings;
   const t = document.getElementById("werbungAdminThreshold");
-  const bh = document.getElementById("werbungAdminBevHaltbar");
-  const bf = document.getElementById("werbungAdminBevFrische");
-  const bt = document.getElementById("werbungAdminBevTk");
-  if(t)  t.value  = s.threshold;
-  if(bh) bh.value = s.bevHaltbar;
-  if(bf) bf.value = s.bevFrische;
-  if(bt) bt.value = s.bevTk;
+  const bw = document.getElementById("werbungAdminBevWochen");
+  if(t) t.value = s.threshold;
+  if(bw) bw.value = s.bevWochen;
 }
 
 async function initWerbungTab(){
@@ -4811,61 +4791,73 @@ async function loadWerbungData(){
   list.innerHTML = `<div class="small" style="color:#64748b">Lade Werbedaten …</div>`;
   const [pRes, sRes] = await Promise.all([
     db.from("promo_articles").select("*"),
-    fetchAllPaged(()=>db.from("article_sales").select("sap_artnr,market,weeks_covered,menge_normal,name"))
+    fetchAllPaged(()=>db.from("article_sales").select("sap_artnr,market,weeks_covered,menge_normal,name,abteilung"))
   ]);
   if(pRes.error){ list.innerHTML = `<div style="color:#c62828">Fehler Werbeartikel: ${escapeHtml(pRes.error.message)}</div>`; return; }
   werbungState.promo = pRes.data || [];
   werbungState.sales = {};
   let maxWeeks = 10;
   for(const row of (sRes || [])){
-    if(!werbungState.sales[row.sap_artnr]) werbungState.sales[row.sap_artnr] = {name: row.name || "", byMarket: {}};
+    if(!werbungState.sales[row.sap_artnr]) werbungState.sales[row.sap_artnr] = {name: row.name || "", byMarket: {}, abteilung: row.abteilung || null};
     werbungState.sales[row.sap_artnr].byMarket[row.market] = Number(row.menge_normal) || 0;
+    if(row.abteilung && !werbungState.sales[row.sap_artnr].abteilung) werbungState.sales[row.sap_artnr].abteilung = row.abteilung;
     if(row.weeks_covered && row.weeks_covered > 0) maxWeeks = row.weeks_covered;
   }
   werbungState.weeksCovered = maxWeeks;
   werbungState.loaded = true;
 }
 
-function computeWerbungRecommendation(market, thresholdEur, bevWochenHaltbar, bevTageFrische, bevWochenTk){
-  const bevWochenFrische = bevTageFrische / 6; // 6 Verkaufstage/Woche
+function evalWerbungArticle(p, market, thresholdEur, bevWochen){
+  // Liefert Details fuer einen einzelnen Werbeartikel (auch wenn er nicht empfohlen wird)
   const weeks = werbungState.weeksCovered || 10;
+  const ersp = Number(p.ersparnis_pro_stueck) || 0;
+  const einh = Number(p.einh_menge) || 1;
+  const s = werbungState.sales[p.sap_artnr];
+  const normalMenge = (s && s.byMarket[market]) ? s.byMarket[market] : 0;
+  const wochenverkauf = normalMenge / weeks;
+  const bedarfStueck = wochenverkauf * bevWochen;
+  const kartons = Math.ceil(bedarfStueck / einh);
+  const stueckEmpf = kartons * einh;
+  const ersparnisGes = stueckEmpf * ersp;
+  let reason = null;
+  if(ersp <= 0) reason = "kein Preisvorteil (WP-Sortiment = WP-Aktion)";
+  else if(normalMenge <= 0) reason = "kein Normalabsatz in " + market;
+  else if(kartons <= 0) reason = "0 Kartons berechnet";
+  else if(ersparnisGes < thresholdEur) reason = `Ersparnis ${ersparnisGes.toFixed(2)} € < Schwelle ${thresholdEur} €`;
+  return {
+    sap_artnr: p.sap_artnr,
+    name: p.name || (s && s.name) || "",
+    einh_typ: p.einh_typ || "",
+    einh_menge: einh,
+    skz: p.skz,
+    wp_sortiment: Number(p.wp_sortiment) || 0,
+    wp_aktion: Number(p.wp_aktion) || 0,
+    ersparnis_pro_stueck: ersp,
+    hinweis: p.hinweis || "",
+    abteilung: (s && s.abteilung) || null,
+    normalMenge,
+    wochenverkauf,
+    kartons,
+    stueckEmpf,
+    ersparnisGes,
+    reason
+  };
+}
+
+function computeWerbungRecommendation(market, thresholdEur, bevWochen){
   const out = [];
-  const dbg = {total: 0, noErsp: 0, noSales: 0, zeroKartons: 0, belowThr: 0, byCat: {frische:0, haltbar:0, tk:0}};
+  const dbg = {total: 0, noErsp: 0, noSales: 0, zeroKartons: 0, belowThr: 0};
   for(const p of werbungState.promo){
     dbg.total++;
-    const ersp = Number(p.ersparnis_pro_stueck) || 0;
-    if(ersp <= 0){ dbg.noErsp++; continue; }
-    const einh = Number(p.einh_menge) || 1;
-    const s = werbungState.sales[p.sap_artnr];
-    const normalMenge = (s && s.byMarket[market]) ? s.byMarket[market] : 0;
-    if(normalMenge <= 0){ dbg.noSales++; continue; }
-    const wochenverkauf = normalMenge / weeks;
-    const cat = categoryOf(p);
-    const bevWochen = cat === "frische" ? bevWochenFrische : (cat === "tk" ? bevWochenTk : bevWochenHaltbar);
-    const bedarfStueck = wochenverkauf * bevWochen;
-    const kartons = Math.ceil(bedarfStueck / einh);
-    if(kartons <= 0){ dbg.zeroKartons++; continue; }
-    const stueckEmpf = kartons * einh;
-    const ersparnisGes = stueckEmpf * ersp;
-    if(ersparnisGes < thresholdEur){ dbg.belowThr++; continue; }
-    dbg.byCat[cat]++;
-    out.push({
-      sap_artnr: p.sap_artnr,
-      name: p.name || (s && s.name) || "",
-      einh_typ: p.einh_typ || "",
-      einh_menge: einh,
-      skz: p.skz,
-      wp_sortiment: Number(p.wp_sortiment) || 0,
-      wp_aktion: Number(p.wp_aktion) || 0,
-      ersparnis_pro_stueck: ersp,
-      hinweis: p.hinweis || "",
-      category: cat,
-      wochenverkauf,
-      kartons,
-      stueckEmpf,
-      ersparnisGes,
-      section: p.section || ""
-    });
+    const r = evalWerbungArticle(p, market, thresholdEur, bevWochen);
+    if(r.reason){
+      if(r.reason.startsWith("kein Preisvorteil")) dbg.noErsp++;
+      else if(r.reason.startsWith("kein Normalabsatz")) dbg.noSales++;
+      else if(r.reason.startsWith("0 Kartons")) dbg.zeroKartons++;
+      else dbg.belowThr++;
+      continue;
+    }
+    out.push(r);
   }
   werbungState.lastDebug = dbg;
   return out;
@@ -4901,26 +4893,26 @@ function renderWerbung(){
   const settingsInfo = document.getElementById("werbungSettingsInfo");
   const market = document.getElementById("werbungMarket").value;
   const s = werbungState.settings;
-  const thr = s.threshold, bh = s.bevHaltbar, bf = s.bevFrische, bt = s.bevTk;
+  const thr = s.threshold, bw = s.bevWochen;
   const sortMode = document.getElementById("werbungSort").value || "saving";
   localStorage.setItem("selectedMarket", market);
   renderWerbungWeekBanner();
-  if(settingsInfo) settingsInfo.innerHTML = `Aktuelle Vorgaben: Schwelle <strong>${thr} €</strong> · Bevorratung Haltbar <strong>${bh} Wochen</strong> · Frische <strong>${bf} Tage</strong> · Tiefkühl <strong>${bt} Wochen</strong>`;
+  if(settingsInfo) settingsInfo.innerHTML = `Aktuelle Vorgaben: Schwelle <strong>${thr} €</strong> · Bevorratung <strong>${bw} Wochen</strong>`;
+  renderWerbungDebug();
   if(!werbungState.promo.length){
     list.innerHTML = `<div class="box" style="background:#fff3cd;padding:12px">Kein Werbe-Ordersatz geladen. Bitte im Admin die aktuelle Werbe-PDF hochladen.</div>`;
     summary.innerHTML = "";
     return;
   }
-  const recs = computeWerbungRecommendation(market, thr, bh, bf, bt);
+  const recs = computeWerbungRecommendation(market, thr, bw);
   if(sortMode === "saving") recs.sort((a,b) => b.ersparnisGes - a.ersparnisGes);
   else if(sortMode === "skz") recs.sort((a,b) => (a.skz||99) - (b.skz||99) || (b.ersparnisGes - a.ersparnisGes));
   else if(sortMode === "name") recs.sort((a,b) => (a.name||"").localeCompare(b.name||"", "de"));
   const totalSaving = recs.reduce((s,r) => s + r.ersparnisGes, 0);
   const totalKartons = recs.reduce((s,r) => s + r.kartons, 0);
   const d = werbungState.lastDebug || {};
-  const catInfo = d.byCat ? ` · 🥬 ${d.byCat.frische||0} · 📦 ${d.byCat.haltbar||0} · 🧊 ${d.byCat.tk||0}` : "";
   const dbgInfo = d.total ? `<div class="small" style="color:#94a3b8;margin-top:4px">Von ${d.total} Werbeartikeln: ${d.noSales} ohne Absatz in ${market}, ${d.belowThr} unter ${thr} € Schwelle${d.noErsp?`, ${d.noErsp} ohne Preisvorteil`:""}.</div>` : "";
-  summary.innerHTML = `<strong>${recs.length}</strong> Artikel · <strong>${totalKartons}</strong> Kartons gesamt · Gesamt-Ersparnis <strong>${totalSaving.toFixed(2)} €</strong> · Basis: ${werbungState.weeksCovered} Wochen Normalverkauf${catInfo}${dbgInfo}`;
+  summary.innerHTML = `<strong>${recs.length}</strong> Artikel · <strong>${totalKartons}</strong> Kartons gesamt · Gesamt-Ersparnis <strong>${totalSaving.toFixed(2)} €</strong> · Basis: ${werbungState.weeksCovered} Wochen Normalverkauf${dbgInfo}`;
   if(!recs.length){
     list.innerHTML = `<div class="small" style="color:#64748b">Keine Empfehlungen bei aktueller Schwelle. Schwelle senken oder Bev-Wochen erhöhen.</div>`;
     return;
@@ -4933,9 +4925,6 @@ function renderWerbung(){
     if(ticked) doneCount++;
     const bcId = `wbc_${r.sap_artnr.replace(/[^0-9A-Za-z_]/g,"_")}`;
     if(!ticked) barcodesToRender.push({id: bcId, value: r.sap_artnr});
-    const catMeta = WERBUNG_CATEGORIES[r.category] || WERBUNG_CATEGORIES.haltbar;
-    const bpKind = catMeta.icon;
-    const bpKindLabel = catMeta.label;
     const cardStyle = ticked
       ? `background:#f1f5f9;padding:12px;margin-bottom:8px;border-left:5px solid #64748b;opacity:0.7`
       : `background:#fff;padding:12px;margin-bottom:8px;border-left:5px solid #16a34a`;
@@ -4946,17 +4935,13 @@ function renderWerbung(){
     const rightBox = ticked
       ? `<div style="background:#dcfce7;padding:12px 16px;border-radius:8px;min-width:200px;text-align:center;color:#166534;font-weight:bold;font-size:15px">✓ Erledigt</div>`
       : `<div style="background:#fff;padding:6px 10px;border:1px dashed #cbd5e1;border-radius:8px;min-width:200px;text-align:center"><svg id="${bcId}"></svg><div class="small" style="color:#64748b;margin-top:2px">Art.-Nr.: ${escapeHtml(r.sap_artnr)}</div></div>`;
-    const nextCat = nextCategory(r.category);
-    const nextMeta = WERBUNG_CATEGORIES[nextCat];
-    const toggleTitle = `Klick: als ${nextMeta.label} einstufen`;
-    const bpKindBtn = `<button title="${toggleTitle}" onclick="toggleWerbungFrische('${escapeJsStr(r.sap_artnr)}')" style="font-size:26px;line-height:1;background:transparent;border:none;padding:0 4px;cursor:pointer" aria-label="Kategorie wechseln">${bpKind}</button>`;
     const kartonBadge = `<div style="background:${ticked?"#e2e8f0":"#0c1f3c"};color:${ticked?"#64748b":"#fff"};padding:10px 16px;border-radius:12px;text-align:center;min-width:100px"><div style="font-size:32px;font-weight:900;line-height:1">${r.kartons}</div><div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px">Karton${r.kartons>1?"s":""}</div><div style="font-size:11px;opacity:0.8;margin-top:2px">${r.stueckEmpf} St.</div></div>`;
+    const abtChip = r.abteilung ? `<span style="background:#e0f2fe;color:#1e40af;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:bold">${escapeHtml(r.abteilung)}</span>` : `<span style="color:#94a3b8;font-size:12px">— Abteilung unbekannt</span>`;
     html += `<div class="box" style="${cardStyle}">
       <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
-        ${bpKindBtn}
         <div style="flex:1;min-width:220px">
           <div style="font-size:15px;${nameStyle}"><strong>${escapeHtml(r.name)}</strong></div>
-          <div class="small" style="color:#475569;margin-top:2px">Art.-Nr.: <strong>${escapeHtml(r.sap_artnr)}</strong> · ${r.einh_typ} ${r.einh_menge} · SKZ ${r.skz||"—"} · <button onclick="toggleWerbungFrische('${escapeJsStr(r.sap_artnr)}')" style="background:${catMeta.color};color:${catMeta.textColor};border:none;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer" title="Klick wechselt zu: ${nextMeta.label}">${bpKindLabel} → ${nextMeta.label}</button>${r.hinweis ? " · " + escapeHtml(r.hinweis) : ""}</div>
+          <div class="small" style="color:#475569;margin-top:4px">${abtChip} · Art.-Nr.: <strong>${escapeHtml(r.sap_artnr)}</strong> · ${r.einh_typ} ${r.einh_menge} · SKZ ${r.skz||"—"}${r.hinweis ? " · " + escapeHtml(r.hinweis) : ""}</div>
           <div class="small" style="color:#475569;margin-top:2px">Ø ${r.wochenverkauf.toFixed(1)} Stk./Woche · Ersparnis: <strong style="color:#16a34a">${r.ersparnisGes.toFixed(2)} €</strong></div>
         </div>
         ${kartonBadge}
@@ -4976,18 +4961,49 @@ function renderWerbung(){
 
 function escapeJsStr(s){ return String(s == null ? "" : s).replace(/\\/g,"\\\\").replace(/'/g,"\\'"); }
 
-/* ---------- Kategorie-Toggle pro Artikel (Frische -> Haltbar -> TK) ---------- */
-async function toggleWerbungFrische(sapArtnr){
-  const p = werbungState.promo.find(x => x.sap_artnr === sapArtnr);
-  if(!p) return;
-  const cur = categoryOf(p);
-  const next = nextCategory(cur);
-  const update = { category: next, is_frische: (next === "frische") };
-  const r = await db.from("promo_articles").update(update).eq("sap_artnr", sapArtnr);
-  if(r.error){ alert("Fehler: " + r.error.message); return; }
-  p.category = next;
-  p.is_frische = (next === "frische");
-  renderWerbung();
+function renderWerbungDebug(){
+  const el = document.getElementById("werbungDebugResults");
+  if(!el) return;
+  const q = (document.getElementById("werbungDebugSearch")?.value || "").trim().toLowerCase();
+  if(!q){ el.innerHTML = ""; return; }
+  if(!werbungState.loaded){ el.innerHTML = `<div class="small">Bitte warten, Daten laden noch …</div>`; return; }
+  const market = document.getElementById("werbungMarket").value;
+  const s = werbungState.settings;
+  const matches = werbungState.promo.filter(p => {
+    return (p.sap_artnr && p.sap_artnr.toLowerCase().includes(q))
+        || (p.name && p.name.toLowerCase().includes(q));
+  }).slice(0, 20);
+  if(!matches.length){
+    // Auch in Sales-Daten suchen, falls in Werbung nicht
+    const salesMatches = Object.entries(werbungState.sales).filter(([artnr, s]) => {
+      return artnr.toLowerCase().includes(q) || (s.name && s.name.toLowerCase().includes(q));
+    }).slice(0, 5);
+    if(salesMatches.length){
+      let html = `<div class="small" style="color:#b45309">Kein Werbeartikel gefunden. Aber in Umsatz-Daten:</div>`;
+      for(const [artnr, sales] of salesMatches){
+        const mktMenge = sales.byMarket[market] || 0;
+        html += `<div style="background:#fef3c7;padding:8px 10px;border-radius:6px;margin-top:4px;font-size:12px"><strong>${escapeHtml(sales.name || "?")}</strong> · ArtNr <strong>${escapeHtml(artnr)}</strong> · ${escapeHtml(sales.abteilung||"—")} · Normalabsatz ${market}: <strong>${mktMenge}</strong> St. (${werbungState.weeksCovered} Wochen) — <em>nicht in KW-Werbung</em></div>`;
+      }
+      el.innerHTML = html;
+      return;
+    }
+    el.innerHTML = `<div class="small" style="color:#64748b">Keine Treffer.</div>`;
+    return;
+  }
+  let html = `<div class="small" style="color:#475569;margin-bottom:4px">${matches.length} Treffer in Werbung (Markt: ${escapeHtml(market)}):</div>`;
+  for(const p of matches){
+    const r = evalWerbungArticle(p, market, s.threshold, s.bevWochen);
+    const status = r.reason
+      ? `<span style="color:#c62828">✗ ${escapeHtml(r.reason)}</span>`
+      : `<span style="color:#16a34a">✓ empfohlen: ${r.kartons} Karton · ${r.ersparnisGes.toFixed(2)} €</span>`;
+    html += `<div style="background:#f8fafc;padding:8px 10px;border-radius:6px;margin-top:4px;font-size:12px;border:1px solid #e2e8f0">
+      <div><strong>${escapeHtml(r.name)}</strong> · ArtNr ${escapeHtml(r.sap_artnr)}</div>
+      <div style="color:#64748b;margin-top:2px">${escapeHtml(r.abteilung||"— Abt.")} · Karton ${r.einh_typ} ${r.einh_menge} · WP ${r.wp_sortiment} € → Aktion ${r.wp_aktion} € (Ersparnis/Stk ${r.ersparnis_pro_stueck.toFixed(3)} €)</div>
+      <div style="color:#64748b">Normalabsatz ${market}: ${r.normalMenge} St. → ${r.wochenverkauf.toFixed(1)}/Woche · Bedarf ${s.bevWochen} W = ${(r.wochenverkauf*s.bevWochen).toFixed(0)} St → ${r.kartons} Karton (${r.stueckEmpf} St)</div>
+      <div style="margin-top:2px">${status}</div>
+    </div>`;
+  }
+  el.innerHTML = html;
 }
 
 /* ---------- Abhaken: DB-gestuetzt pro Markt+KW ---------- */
@@ -5039,7 +5055,20 @@ const WERBUNG_LINE_RE = /^(.+?)\s+([A-Z]{1,3})\s+(\d+)\s+(\d+)\s+(\d{6,12})(?:\s
 // weil im Ordersatz-PDF die TK-Sektion nur einmal steht und im Zeilen-Rekonstruktor
 // leicht verloren geht.
 const WERBUNG_TK_SECTION_KW = ["TIEFKUHL","TIEFKÜHL","TIEFKUEHL","TK-SORT","TK SORT"];
-const WERBUNG_TK_NAME_KW    = ["EIS","ICE","EISCREME","EIS-","EIS ","PIZZA","PIRULO","MAGNUM","CORNETTO","SANDWICH","MINI POPS","POPSICLE","TIEFK","BIG POPS","WATERMELON","KAKTUS","POMMES","FRITE","SPINAT","FISCHSTAEBCH","FISCHSTÄBCH","BOFROST"];
+// Eindeutige TK-Marker im Artikelnamen. SANDWICH und WATERMELON allein sind zu breit
+// (Toastbrot, frisches Obst) - deshalb nur in Kombination mit Marken oder eindeutigen
+// Eis-Woertern.
+const WERBUNG_TK_NAME_KW = [
+  " EIS ", " EIS-", "EISCREME", "SPEISEEIS", "SORBET",
+  " ICE ", " ICE-", "ICE-CR", "ICECREAM", "ICE POP",
+  "MAGNUM", "CORNETTO", "PIRULO", "MOEVENPICK", "MÖVENPICK",
+  "SCHOELLER", "SCHÖLLER", "LANGNESE", "NUII", "SOLERO",
+  "S.BIG SANDWICH", "MINI SANDWICH", "BIG POPS", "KAKTUS ICE",
+  "PIZZA", "POMMES", "FRITE",
+  "FISCHSTAEBCH", "FISCHSTÄBCH", "SEELACHS",
+  "TIEFK", "BOFROST",
+  "SPINAT-BLATT", "RAHMSPINAT"
+];
 const WERBUNG_FRISCHE_KEYWORDS = ["FRISCHE","MOPRO","MOLKEREI","OBST","GEMUESE","GEMÜSE","FLEISCH","WURST","KÄSE","KAESE","BEDIENUNG","BROT","BACKWAREN","BACKSHOP"];
 function detectSection(headerCandidate){
   const s = String(headerCandidate || "").toUpperCase().trim();
@@ -5212,6 +5241,20 @@ async function uploadWerbungUmsatz(){
     if(rows.length < 3){ msg.style.color="#c62828"; msg.innerHTML="Datei hat zu wenig Zeilen."; return; }
     const marketRow = rows[0] || [];
     const kpiRow = rows[1] || [];
+    // Spalten dynamisch anhand der KPI-Zeile finden:
+    //   "Abteilung" (optional, neuer BO-Export), "Artikel", "GTIN"
+    function findCol(pattern){
+      for(let c = 0; c < kpiRow.length; c++){
+        const v = String(kpiRow[c] == null ? "" : kpiRow[c]).trim().toLowerCase();
+        if(pattern.test(v)) return c;
+      }
+      return -1;
+    }
+    const colAbteilung = findCol(/^abteilung$/);
+    const colArtikel   = findCol(/^artikel$/);
+    const colGtin      = findCol(/^gtin$/);
+    // Namens-Spalte ist typisch die Spalte direkt nach Artikel (ohne Header)
+    const colName = colArtikel >= 0 ? colArtikel + 1 : 2;
     // Pro Markt: {mengeCol, aktionCol}
     // Nicht-druckbare Zeichen (NBSP, Zero-Width-Space etc.) rausfiltern, dann trim + lowercase
     function normKpi(s){
@@ -5306,19 +5349,30 @@ async function uploadWerbungUmsatz(){
     }
     let stat = {rows: 0, artOk: 0, artFail: 0, sumMenge: 0};
     let sampleArtFails = [];
-    let sampleValues = [];  // erste Datenzeilen mit Roh-Werten fuer Debug
+    let sampleValues = [];
+    // Manche Zeilen haben keine eigene Abteilung, sondern erben von der vorigen (Sub-Total-Layout)
+    let lastAbteilung = "";
+    // Fallback wenn kein Artikel-Header gefunden: klassisch Spalte 0
+    const artCol = colArtikel >= 0 ? colArtikel : 0;
+    const nameCol = colArtikel >= 0 ? colArtikel + 1 : 1;
     for(let r = 2; r < rows.length; r++){
       const row = rows[r] || [];
       stat.rows++;
-      const artNr = String(row[0] == null ? "" : row[0]).trim();
-      if(!artNr || artNr === "Artikel" || artNr === "Gesamtergebnis") continue;
+      // Abteilung
+      if(colAbteilung >= 0){
+        const abt = String(row[colAbteilung] == null ? "" : row[colAbteilung]).trim();
+        if(abt) lastAbteilung = abt;
+      }
+      const artNr = String(row[artCol] == null ? "" : row[artCol]).trim();
+      if(!artNr || artNr === "Artikel" || artNr === "Gesamtergebnis" || artNr === "Ergebnis") continue;
       if(!/^\d{4,12}$/.test(artNr)){
         stat.artFail++;
-        if(sampleArtFails.length < 3) sampleArtFails.push(`Zeile ${r+1}: Art-Nr "${artNr}" · Name "${String(row[1]||"").trim().slice(0,30)}"`);
+        if(sampleArtFails.length < 3) sampleArtFails.push(`Zeile ${r+1}: Art-Nr "${artNr}" · Name "${String(row[nameCol]||"").trim().slice(0,30)}"`);
         continue;
       }
       stat.artOk++;
-      const name = String(row[1] == null ? "" : row[1]).trim();
+      const name = String(row[nameCol] == null ? "" : row[nameCol]).trim();
+      const abteilung = (colAbteilung >= 0 && lastAbteilung && lastAbteilung !== "Gesamtergebnis") ? lastAbteilung : null;
       let firstMkt = null;
       for(const [mkt, cols] of Object.entries(marketMap)){
         if(cols.menge < 0) continue;
@@ -5328,10 +5382,9 @@ async function uploadWerbungUmsatz(){
         const aktion = parseNum(rawAktion);
         const normal = Math.max(0, menge - aktion);
         stat.sumMenge += normal;
-        // Debug: erste 3 Beispiele mit vollen Roh-Werten sammeln
         if(sampleValues.length < 3 && firstMkt === null){
           firstMkt = mkt;
-          sampleValues.push(`Z${r+1} ArtNr ${artNr}: ${mkt} rawMenge="${String(rawMenge)}" typ=${typeof rawMenge} → parsed ${menge}; rawAktion="${String(rawAktion)}" → ${aktion}; normal=${normal}`);
+          sampleValues.push(`Z${r+1} ArtNr ${artNr} (${abteilung||"?"}): ${mkt} rawMenge="${String(rawMenge)}" → ${menge}; Aktion="${String(rawAktion)}" → ${aktion}; normal=${normal}`);
         }
         if(normal <= 0) continue;
         records.push({
@@ -5340,6 +5393,7 @@ async function uploadWerbungUmsatz(){
           weeks_covered: weeksCovered,
           menge_normal: normal,
           name,
+          abteilung,
           updated_at: berlinNowForDB()
         });
       }
