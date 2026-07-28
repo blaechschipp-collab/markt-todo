@@ -430,8 +430,9 @@
       <div class="small">Diese Werte gelten für alle Nutzer der App. Nur der Admin kann sie ändern.</div>
       <div class="control-grid" style="margin-top:14px">
         <div><label>Schwelle (€ Ersparnis)</label><input id="werbungAdminThreshold" type="number" min="0" step="1" value="20"></div>
-        <div><label>Bevorratung Haltbar (Wochen)</label><input id="werbungAdminBevHaltbar" type="number" min="1" max="12" step="1" value="4"></div>
+        <div><label>Bevorratung Haltbar (Wochen)</label><input id="werbungAdminBevHaltbar" type="number" min="1" max="24" step="1" value="4"></div>
         <div><label>Bevorratung Frische (Tage)</label><input id="werbungAdminBevFrische" type="number" min="1" max="30" step="1" value="5"></div>
+        <div><label>Bevorratung Tiefkühl (Wochen)</label><input id="werbungAdminBevTk" type="number" min="1" max="52" step="1" value="8"></div>
       </div>
       <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn-green" style="width:auto" onclick="saveWerbungSettings()">Einstellungen speichern</button>
@@ -451,7 +452,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.28-11"; // Mobile Tabs umbrechen, Kartonanzahl als großes Badge
+const APP_VERSION = "v2026.05.29-1"; // Bevorratung: TK als eigene Kategorie mit längerer Bevorratung
 const APP_VERSION_DATE = "28.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -4717,14 +4718,32 @@ let werbungState = {
   weeksCovered: 10,
   loaded: false,
   ticked: new Set(),  // "sap_artnr" der abgehakten Artikel (pro aktueller Markt+KW)
-  settings: { threshold: 20, bevHaltbar: 4, bevFrische: 5 }
+  settings: { threshold: 20, bevHaltbar: 4, bevFrische: 5, bevTk: 8 }
 };
 
 const WERBUNG_SETTING_KEYS = {
   threshold:  "promo_threshold_eur",
   bevHaltbar: "promo_bev_haltbar",
-  bevFrische: "promo_bev_frische"
+  bevFrische: "promo_bev_frische",
+  bevTk:      "promo_bev_tk"
 };
+
+// Kategorie-Metadaten
+const WERBUNG_CATEGORIES = {
+  frische: { icon: "🥬", label: "Frische", color: "#dcfce7", textColor: "#166534" },
+  haltbar: { icon: "📦", label: "Haltbar", color: "#e0f2fe", textColor: "#1e40af" },
+  tk:      { icon: "🧊", label: "Tiefkühl", color: "#dbeafe", textColor: "#1e3a8a" }
+};
+function nextCategory(c){
+  if(c === "frische") return "haltbar";
+  if(c === "haltbar") return "tk";
+  return "frische";
+}
+function categoryOf(p){
+  const c = p && p.category;
+  if(c === "frische" || c === "haltbar" || c === "tk") return c;
+  return p && p.is_frische ? "frische" : "haltbar";
+}
 
 async function loadWerbungSettings(){
   const keys = Object.values(WERBUNG_SETTING_KEYS);
@@ -4732,9 +4751,10 @@ async function loadWerbungSettings(){
   if(r.error) return;
   const map = {}; for(const row of (r.data || [])){ map[row.key] = row.value; }
   const s = werbungState.settings;
-  if(map[WERBUNG_SETTING_KEYS.threshold]  !== undefined && map[WERBUNG_SETTING_KEYS.threshold] !== null)  s.threshold  = Number(map[WERBUNG_SETTING_KEYS.threshold])  || 20;
-  if(map[WERBUNG_SETTING_KEYS.bevHaltbar] !== undefined && map[WERBUNG_SETTING_KEYS.bevHaltbar] !== null) s.bevHaltbar = Number(map[WERBUNG_SETTING_KEYS.bevHaltbar]) || 4;
-  if(map[WERBUNG_SETTING_KEYS.bevFrische] !== undefined && map[WERBUNG_SETTING_KEYS.bevFrische] !== null) s.bevFrische = Number(map[WERBUNG_SETTING_KEYS.bevFrische]) || 5;
+  if(map[WERBUNG_SETTING_KEYS.threshold]  != null)  s.threshold  = Number(map[WERBUNG_SETTING_KEYS.threshold])  || 20;
+  if(map[WERBUNG_SETTING_KEYS.bevHaltbar] != null) s.bevHaltbar = Number(map[WERBUNG_SETTING_KEYS.bevHaltbar]) || 4;
+  if(map[WERBUNG_SETTING_KEYS.bevFrische] != null) s.bevFrische = Number(map[WERBUNG_SETTING_KEYS.bevFrische]) || 5;
+  if(map[WERBUNG_SETTING_KEYS.bevTk]      != null) s.bevTk      = Number(map[WERBUNG_SETTING_KEYS.bevTk])      || 8;
 }
 
 async function saveWerbungSettings(){
@@ -4743,16 +4763,18 @@ async function saveWerbungSettings(){
   const thr = Number(document.getElementById("werbungAdminThreshold").value);
   const bh  = Number(document.getElementById("werbungAdminBevHaltbar").value);
   const bf  = Number(document.getElementById("werbungAdminBevFrische").value);
-  if(!(thr >= 0) || !(bh >= 1) || !(bf >= 1)){ msg.style.color="#c62828"; msg.innerHTML="Bitte gültige Zahlen eingeben."; return; }
+  const bt  = Number(document.getElementById("werbungAdminBevTk").value);
+  if(!(thr >= 0) || !(bh >= 1) || !(bf >= 1) || !(bt >= 1)){ msg.style.color="#c62828"; msg.innerHTML="Bitte gültige Zahlen eingeben."; return; }
   msg.style.color = "#0c1f3c"; msg.innerHTML = "Speichere …";
   const rows = [
     {key: WERBUNG_SETTING_KEYS.threshold,  value: String(thr)},
     {key: WERBUNG_SETTING_KEYS.bevHaltbar, value: String(bh)},
-    {key: WERBUNG_SETTING_KEYS.bevFrische, value: String(bf)}
+    {key: WERBUNG_SETTING_KEYS.bevFrische, value: String(bf)},
+    {key: WERBUNG_SETTING_KEYS.bevTk,      value: String(bt)}
   ];
   const r = await db.from("app_settings").upsert(rows, {onConflict: "key"});
   if(r.error){ msg.style.color="#c62828"; msg.innerHTML="Fehler: " + r.error.message; return; }
-  werbungState.settings = { threshold: thr, bevHaltbar: bh, bevFrische: bf };
+  werbungState.settings = { threshold: thr, bevHaltbar: bh, bevFrische: bf, bevTk: bt };
   msg.style.color = "#16a34a"; msg.innerHTML = "Gespeichert. Änderung wird beim nächsten Öffnen des Bevorratungs-Tabs wirksam.";
 }
 
@@ -4762,9 +4784,11 @@ async function fillWerbungSettingsForm(){
   const t = document.getElementById("werbungAdminThreshold");
   const bh = document.getElementById("werbungAdminBevHaltbar");
   const bf = document.getElementById("werbungAdminBevFrische");
+  const bt = document.getElementById("werbungAdminBevTk");
   if(t)  t.value  = s.threshold;
   if(bh) bh.value = s.bevHaltbar;
   if(bf) bf.value = s.bevFrische;
+  if(bt) bt.value = s.bevTk;
 }
 
 async function initWerbungTab(){
@@ -4802,7 +4826,7 @@ async function loadWerbungData(){
   werbungState.loaded = true;
 }
 
-function computeWerbungRecommendation(market, thresholdEur, bevWochenHaltbar, bevTageFrische){
+function computeWerbungRecommendation(market, thresholdEur, bevWochenHaltbar, bevTageFrische, bevWochenTk){
   const bevWochenFrische = bevTageFrische / 6; // 6 Verkaufstage/Woche
   const weeks = werbungState.weeksCovered || 10;
   const out = [];
@@ -4814,7 +4838,8 @@ function computeWerbungRecommendation(market, thresholdEur, bevWochenHaltbar, be
     const normalMenge = (s && s.byMarket[market]) ? s.byMarket[market] : 0;
     if(normalMenge <= 0) continue;
     const wochenverkauf = normalMenge / weeks;
-    const bevWochen = p.is_frische ? bevWochenFrische : bevWochenHaltbar;
+    const cat = categoryOf(p);
+    const bevWochen = cat === "frische" ? bevWochenFrische : (cat === "tk" ? bevWochenTk : bevWochenHaltbar);
     const bedarfStueck = wochenverkauf * bevWochen;
     const kartons = Math.ceil(bedarfStueck / einh);
     if(kartons <= 0) continue;
@@ -4831,7 +4856,7 @@ function computeWerbungRecommendation(market, thresholdEur, bevWochenHaltbar, be
       wp_aktion: Number(p.wp_aktion) || 0,
       ersparnis_pro_stueck: ersp,
       hinweis: p.hinweis || "",
-      is_frische: !!p.is_frische,
+      category: cat,
       wochenverkauf,
       kartons,
       stueckEmpf,
@@ -4872,17 +4897,17 @@ function renderWerbung(){
   const settingsInfo = document.getElementById("werbungSettingsInfo");
   const market = document.getElementById("werbungMarket").value;
   const s = werbungState.settings;
-  const thr = s.threshold, bh = s.bevHaltbar, bf = s.bevFrische;
+  const thr = s.threshold, bh = s.bevHaltbar, bf = s.bevFrische, bt = s.bevTk;
   const sortMode = document.getElementById("werbungSort").value || "saving";
   localStorage.setItem("selectedMarket", market);
   renderWerbungWeekBanner();
-  if(settingsInfo) settingsInfo.innerHTML = `Aktuelle Vorgaben: Schwelle <strong>${thr} €</strong> · Bevorratung Haltbar <strong>${bh} Wochen</strong> · Frische <strong>${bf} Tage</strong>`;
+  if(settingsInfo) settingsInfo.innerHTML = `Aktuelle Vorgaben: Schwelle <strong>${thr} €</strong> · Bevorratung Haltbar <strong>${bh} Wochen</strong> · Frische <strong>${bf} Tage</strong> · Tiefkühl <strong>${bt} Wochen</strong>`;
   if(!werbungState.promo.length){
     list.innerHTML = `<div class="box" style="background:#fff3cd;padding:12px">Kein Werbe-Ordersatz geladen. Bitte im Admin die aktuelle Werbe-PDF hochladen.</div>`;
     summary.innerHTML = "";
     return;
   }
-  const recs = computeWerbungRecommendation(market, thr, bh, bf);
+  const recs = computeWerbungRecommendation(market, thr, bh, bf, bt);
   if(sortMode === "saving") recs.sort((a,b) => b.ersparnisGes - a.ersparnisGes);
   else if(sortMode === "skz") recs.sort((a,b) => (a.skz||99) - (b.skz||99) || (b.ersparnisGes - a.ersparnisGes));
   else if(sortMode === "name") recs.sort((a,b) => (a.name||"").localeCompare(b.name||"", "de"));
@@ -4901,8 +4926,9 @@ function renderWerbung(){
     if(ticked) doneCount++;
     const bcId = `wbc_${r.sap_artnr.replace(/[^0-9A-Za-z_]/g,"_")}`;
     if(!ticked) barcodesToRender.push({id: bcId, value: r.sap_artnr});
-    const bpKind = r.is_frische ? "🥬" : "📦";
-    const bpKindLabel = r.is_frische ? "Frische" : "Haltbar";
+    const catMeta = WERBUNG_CATEGORIES[r.category] || WERBUNG_CATEGORIES.haltbar;
+    const bpKind = catMeta.icon;
+    const bpKindLabel = catMeta.label;
     const cardStyle = ticked
       ? `background:#f1f5f9;padding:12px;margin-bottom:8px;border-left:5px solid #64748b;opacity:0.7`
       : `background:#fff;padding:12px;margin-bottom:8px;border-left:5px solid #16a34a`;
@@ -4913,15 +4939,17 @@ function renderWerbung(){
     const rightBox = ticked
       ? `<div style="background:#dcfce7;padding:12px 16px;border-radius:8px;min-width:200px;text-align:center;color:#166534;font-weight:bold;font-size:15px">✓ Erledigt</div>`
       : `<div style="background:#fff;padding:6px 10px;border:1px dashed #cbd5e1;border-radius:8px;min-width:200px;text-align:center"><svg id="${bcId}"></svg><div class="small" style="color:#64748b;margin-top:2px">Art.-Nr.: ${escapeHtml(r.sap_artnr)}</div></div>`;
-    const toggleTitle = r.is_frische ? "Klick: als Haltbar (4 Wochen) einstufen" : "Klick: als Frische (5 Tage) einstufen";
-    const bpKindBtn = `<button title="${toggleTitle}" onclick="toggleWerbungFrische('${escapeJsStr(r.sap_artnr)}')" style="font-size:26px;line-height:1;background:transparent;border:none;padding:0 4px;cursor:pointer" aria-label="Bereich wechseln">${bpKind}</button>`;
+    const nextCat = nextCategory(r.category);
+    const nextMeta = WERBUNG_CATEGORIES[nextCat];
+    const toggleTitle = `Klick: als ${nextMeta.label} einstufen`;
+    const bpKindBtn = `<button title="${toggleTitle}" onclick="toggleWerbungFrische('${escapeJsStr(r.sap_artnr)}')" style="font-size:26px;line-height:1;background:transparent;border:none;padding:0 4px;cursor:pointer" aria-label="Kategorie wechseln">${bpKind}</button>`;
     const kartonBadge = `<div style="background:${ticked?"#e2e8f0":"#0c1f3c"};color:${ticked?"#64748b":"#fff"};padding:10px 16px;border-radius:12px;text-align:center;min-width:100px"><div style="font-size:32px;font-weight:900;line-height:1">${r.kartons}</div><div style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px">Karton${r.kartons>1?"s":""}</div><div style="font-size:11px;opacity:0.8;margin-top:2px">${r.stueckEmpf} St.</div></div>`;
     html += `<div class="box" style="${cardStyle}">
       <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
         ${bpKindBtn}
         <div style="flex:1;min-width:220px">
           <div style="font-size:15px;${nameStyle}"><strong>${escapeHtml(r.name)}</strong></div>
-          <div class="small" style="color:#475569;margin-top:2px">Art.-Nr.: <strong>${escapeHtml(r.sap_artnr)}</strong> · ${r.einh_typ} ${r.einh_menge} · SKZ ${r.skz||"—"} · <button onclick="toggleWerbungFrische('${escapeJsStr(r.sap_artnr)}')" style="background:${r.is_frische?"#dcfce7":"#e0f2fe"};color:${r.is_frische?"#166534":"#1e40af"};border:none;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer">${bpKindLabel} umschalten</button>${r.hinweis ? " · " + escapeHtml(r.hinweis) : ""}</div>
+          <div class="small" style="color:#475569;margin-top:2px">Art.-Nr.: <strong>${escapeHtml(r.sap_artnr)}</strong> · ${r.einh_typ} ${r.einh_menge} · SKZ ${r.skz||"—"} · <button onclick="toggleWerbungFrische('${escapeJsStr(r.sap_artnr)}')" style="background:${catMeta.color};color:${catMeta.textColor};border:none;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:bold;cursor:pointer" title="Klick wechselt zu: ${nextMeta.label}">${bpKindLabel} → ${nextMeta.label}</button>${r.hinweis ? " · " + escapeHtml(r.hinweis) : ""}</div>
           <div class="small" style="color:#475569;margin-top:2px">Ø ${r.wochenverkauf.toFixed(1)} Stk./Woche · Ersparnis: <strong style="color:#16a34a">${r.ersparnisGes.toFixed(2)} €</strong></div>
         </div>
         ${kartonBadge}
@@ -4941,14 +4969,17 @@ function renderWerbung(){
 
 function escapeJsStr(s){ return String(s == null ? "" : s).replace(/\\/g,"\\\\").replace(/'/g,"\\'"); }
 
-/* ---------- Frische/Haltbar Toggle pro Artikel ---------- */
+/* ---------- Kategorie-Toggle pro Artikel (Frische -> Haltbar -> TK) ---------- */
 async function toggleWerbungFrische(sapArtnr){
   const p = werbungState.promo.find(x => x.sap_artnr === sapArtnr);
   if(!p) return;
-  const newVal = !p.is_frische;
-  const r = await db.from("promo_articles").update({is_frische: newVal}).eq("sap_artnr", sapArtnr);
+  const cur = categoryOf(p);
+  const next = nextCategory(cur);
+  const update = { category: next, is_frische: (next === "frische") };
+  const r = await db.from("promo_articles").update(update).eq("sap_artnr", sapArtnr);
   if(r.error){ alert("Fehler: " + r.error.message); return; }
-  p.is_frische = newVal;
+  p.category = next;
+  p.is_frische = (next === "frische");
   renderWerbung();
 }
 
@@ -4996,22 +5027,24 @@ async function toggleWerbungTick(sapArtnr){
 // die Zeilen aggressiv zusammengruppiert. Deshalb ist er optional.
 const WERBUNG_LINE_RE = /^(.+?)\s+([A-Z]{1,3})\s+(\d+)\s+(\d+)\s+(\d{6,12})(?:\s+\*\d{6,12}\*)?\s+(\d+[,.]?\d*)\s+(\d+[,.]?\d*)\s+(\d+[,.]?\d*)\s+(\d+[,.]?\d*)\s+(-?\d+[,.]?\d*)(.*)$/;
 
-// Heuristik: welche Bereiche gelten als "Frische" (5 Tage Bevorratung)
-const WERBUNG_FRISCHE_KEYWORDS = ["FRISCHE","MOPRO","MOLKEREI","OBST","GEMUESE","GEMÜSE","FLEISCH","WURST","KÄSE","KAESE","BEDIENUNG","TIEFKUHL","TIEFKÜHL","TK","BROT","BACKWAREN","BACKSHOP"];
+// Heuristik: Bereich aus PDF-Sektions-Header ableiten
+const WERBUNG_TK_KEYWORDS      = ["TIEFKUHL","TIEFKÜHL","TIEFKUEHL","TK-","TK "];
+const WERBUNG_FRISCHE_KEYWORDS = ["FRISCHE","MOPRO","MOLKEREI","OBST","GEMUESE","GEMÜSE","FLEISCH","WURST","KÄSE","KAESE","BEDIENUNG","BROT","BACKWAREN","BACKSHOP"];
 function detectSection(headerCandidate){
   const s = String(headerCandidate || "").toUpperCase().trim();
   if(!s) return null;
-  // Sektions-Header: mind. 6 Zeichen, mehrheitlich Grossbuchstaben, keine Ziffern
   if(s.length < 6 || /\d/.test(s)) return null;
-  // Fuer die Erkennung reichen ein paar bekannte Keywords
-  for(const kw of ["TROCKENSORTIMENT","MOPRO","FRISCHE","TIEFKUHL","TIEFKÜHL","TK","OBST","GEMUESE","GEMÜSE","FLEISCH","WURST","KÄSE","KAESE","BROT","BACKWAREN","GETRAENKE","GETRÄNKE","NON FOOD","NONFOOD","DROGERIE","BAZAR"]){
+  for(const kw of ["TROCKENSORTIMENT","MOPRO","FRISCHE","TIEFKUHL","TIEFKÜHL","TIEFKUEHL","OBST","GEMUESE","GEMÜSE","FLEISCH","WURST","KÄSE","KAESE","BROT","BACKWAREN","GETRAENKE","GETRÄNKE","NON FOOD","NONFOOD","DROGERIE","BAZAR"]){
     if(s.includes(kw)) return s;
   }
   return null;
 }
-function isSectionFrische(section){
+function categoryFromSection(section){
   const s = String(section || "").toUpperCase();
-  return WERBUNG_FRISCHE_KEYWORDS.some(kw => s.includes(kw));
+  // TK zuerst pruefen (sonst wuerde "TIEFKUHL" auch als Frische matchen ueber die alte Liste)
+  if(WERBUNG_TK_KEYWORDS.some(kw => s.includes(kw))) return "tk";
+  if(WERBUNG_FRISCHE_KEYWORDS.some(kw => s.includes(kw))) return "frische";
+  return "haltbar";
 }
 
 async function uploadWerbungPdf(){
@@ -5085,7 +5118,8 @@ async function uploadWerbungPdf(){
             ersparnis_pro_stueck: Math.max(0, wpS - wpA),
             hinweis: m[11].trim(),
             section: currentSection || null,
-            is_frische: isSectionFrische(currentSection),
+            category: categoryFromSection(currentSection),
+            is_frische: categoryFromSection(currentSection) === "frische",
             kw, year,
             uploaded_at: berlinNowForDB()
           });
@@ -5119,9 +5153,10 @@ async function uploadWerbungPdf(){
       const r = await db.from("promo_articles").insert(chunk);
       if(r.error){ msg.style.color = "#c62828"; msg.innerHTML = "Fehler beim Speichern: " + r.error.message; return; }
     }
-    const frCount = records.filter(x => x.is_frische).length;
+    const catCount = {frische:0, haltbar:0, tk:0};
+    for(const rec of records){ catCount[rec.category] = (catCount[rec.category]||0) + 1; }
     msg.style.color = "#16a34a";
-    msg.innerHTML = `${records.length} Werbeartikel gespeichert (davon ${frCount} Frische)${kw?` · KW ${kw}/${year}`:""}.`;
+    msg.innerHTML = `${records.length} Werbeartikel gespeichert (Frische ${catCount.frische} · Haltbar ${catCount.haltbar} · TK ${catCount.tk})${kw?` · KW ${kw}/${year}`:""}.`;
   }catch(e){
     msg.style.color = "#c62828";
     msg.innerHTML = "Fehler beim Lesen: " + (e && e.message ? e.message : String(e));
