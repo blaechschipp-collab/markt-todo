@@ -320,7 +320,7 @@
       <div id="werbungWeekBanner" style="background:#0c1f3c;color:#fff;padding:10px 14px;border-radius:8px;margin:8px 0 10px;font-size:14px;display:none"></div>
       <div class="small">Empfohlene Werbeartikel zum Bevorraten. Berechnung: normaler Wochenverkauf × Bevorratungs-Wochen, aufgerundet auf volle Kollis; nur Artikel mit Ersparnis über der Schwelle werden angezeigt.</div>
       <div class="control-grid" style="margin-top:14px">
-        <div><label>Markt</label><select id="werbungMarket" onchange="renderWerbung()"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
+        <div><label>Markt</label><select id="werbungMarket" onchange="onWerbungMarketChange()"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
         <div><label>Sortierung</label><select id="werbungSort" onchange="renderWerbung()"><option value="saving">Ersparnis absteigend</option><option value="skz">SKZ aufsteigend</option><option value="name">Name (A-Z)</option></select></div>
         <div><label>&nbsp;</label><button class="btn-yellow" onclick="renderWerbung()" style="width:auto">Neu berechnen</button></div>
       </div>
@@ -450,7 +450,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.28-7"; // Bevorratung: PDF-Regex kennt Barcode-Zwischenzeile, Excel-Parser robuster bei KPI-Whitespace
+const APP_VERSION = "v2026.05.28-8"; // Bevorratung: Erledigt-Häkchen (Barcode verschwindet), Excel-Debug mit Roh-Werten
 const APP_VERSION_DATE = "28.05.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -4715,6 +4715,7 @@ let werbungState = {
   sales: {},      // { sap_artnr: { market: menge_normal, ... } }
   weeksCovered: 10,
   loaded: false,
+  ticked: new Set(),  // "sap_artnr" der abgehakten Artikel (pro aktueller Markt+KW)
   settings: { threshold: 20, bevHaltbar: 4, bevFrische: 5 }
 };
 
@@ -4771,6 +4772,12 @@ async function initWerbungTab(){
   if(stored && Array.from(marketSel.options).some(o => o.value === stored)) marketSel.value = stored;
   await loadWerbungSettings();
   await loadWerbungData();
+  await loadWerbungTicked();
+  renderWerbung();
+}
+
+async function onWerbungMarketChange(){
+  await loadWerbungTicked();
   renderWerbung();
 }
 
@@ -4887,30 +4894,84 @@ function renderWerbung(){
   }
   const barcodesToRender = [];
   let html = "";
+  let doneCount = 0;
   for(const r of recs){
+    const ticked = werbungState.ticked.has(r.sap_artnr);
+    if(ticked) doneCount++;
     const bcId = `wbc_${r.sap_artnr.replace(/[^0-9A-Za-z_]/g,"_")}`;
-    barcodesToRender.push({id: bcId, value: r.sap_artnr});
+    if(!ticked) barcodesToRender.push({id: bcId, value: r.sap_artnr});
     const bpKind = r.is_frische ? "🥬" : "📦";
     const bpKindLabel = r.is_frische ? "Frische" : "Haltbar";
-    html += `<div class="box" style="background:#fff;padding:12px;margin-bottom:8px;border-left:5px solid #16a34a">
+    const cardStyle = ticked
+      ? `background:#f1f5f9;padding:12px;margin-bottom:8px;border-left:5px solid #64748b;opacity:0.7`
+      : `background:#fff;padding:12px;margin-bottom:8px;border-left:5px solid #16a34a`;
+    const nameStyle = ticked ? "text-decoration:line-through;color:#64748b" : "";
+    const tickBtn = ticked
+      ? `<button class="btn-dark" style="width:auto;padding:8px 14px;font-size:14px" onclick="toggleWerbungTick('${escapeJsStr(r.sap_artnr)}')">↺ Zurücksetzen</button>`
+      : `<button class="btn-green" style="width:auto;padding:8px 14px;font-size:14px" onclick="toggleWerbungTick('${escapeJsStr(r.sap_artnr)}')">✓ Erledigt</button>`;
+    const rightBox = ticked
+      ? `<div style="background:#dcfce7;padding:12px 16px;border-radius:8px;min-width:200px;text-align:center;color:#166534;font-weight:bold;font-size:15px">✓ Erledigt</div>`
+      : `<div style="background:#fff;padding:6px 10px;border:1px dashed #cbd5e1;border-radius:8px;min-width:200px;text-align:center"><svg id="${bcId}"></svg><div class="small" style="color:#64748b;margin-top:2px">Art.-Nr.: ${escapeHtml(r.sap_artnr)}</div></div>`;
+    html += `<div class="box" style="${cardStyle}">
       <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
         <div style="font-size:26px;line-height:1">${bpKind}</div>
         <div style="flex:1;min-width:220px">
-          <div style="font-size:15px"><strong>${escapeHtml(r.name)}</strong></div>
+          <div style="font-size:15px;${nameStyle}"><strong>${escapeHtml(r.name)}</strong></div>
           <div class="small" style="color:#475569;margin-top:2px">Art.-Nr.: <strong>${escapeHtml(r.sap_artnr)}</strong> · ${r.einh_typ} ${r.einh_menge} · SKZ ${r.skz||"—"} · ${bpKindLabel}${r.hinweis ? " · " + escapeHtml(r.hinweis) : ""}</div>
           <div class="small" style="color:#475569;margin-top:2px">Ø ${r.wochenverkauf.toFixed(1)} Stk./Woche → <strong>${r.kartons} Karton${r.kartons>1?"s":""}</strong> (${r.stueckEmpf} St.) · Ersparnis: <strong style="color:#16a34a">${r.ersparnisGes.toFixed(2)} €</strong></div>
         </div>
-        <div style="background:#fff;padding:6px 10px;border:1px dashed #cbd5e1;border-radius:8px;min-width:200px;text-align:center">
-          <svg id="${bcId}"></svg>
-          <div class="small" style="color:#64748b;margin-top:2px">Art.-Nr.: ${escapeHtml(r.sap_artnr)}</div>
-        </div>
+        ${rightBox}
+        <div>${tickBtn}</div>
       </div>
     </div>`;
+  }
+  if(doneCount > 0){
+    summary.innerHTML += ` · <span style="color:#16a34a">${doneCount} erledigt</span>`;
   }
   list.innerHTML = html;
   barcodesToRender.forEach(({id, value}) => {
     try{ JsBarcode(`#${id}`, value, {format:"CODE128", displayValue:false, height:50, margin:0, width:1.6}); }catch(e){}
   });
+}
+
+function escapeJsStr(s){ return String(s == null ? "" : s).replace(/\\/g,"\\\\").replace(/'/g,"\\'"); }
+
+/* ---------- Abhaken: DB-gestuetzt pro Markt+KW ---------- */
+function currentPromoKwYear(){
+  const p = werbungState.promo.find(x => x.kw && x.year);
+  return p ? {kw: Number(p.kw), year: Number(p.year)} : null;
+}
+
+async function loadWerbungTicked(){
+  werbungState.ticked = new Set();
+  const kwy = currentPromoKwYear();
+  const market = document.getElementById("werbungMarket").value;
+  if(!kwy || !market) return;
+  const r = await db.from("promo_ticked").select("sap_artnr").eq("market", market).eq("kw", kwy.kw).eq("year", kwy.year);
+  if(r.error) return;
+  for(const row of (r.data || [])){ werbungState.ticked.add(row.sap_artnr); }
+}
+
+async function toggleWerbungTick(sapArtnr){
+  const kwy = currentPromoKwYear();
+  const market = document.getElementById("werbungMarket").value;
+  if(!kwy || !market) return;
+  if(werbungState.ticked.has(sapArtnr)){
+    // Aus DB entfernen
+    const r = await db.from("promo_ticked").delete()
+      .eq("market", market).eq("sap_artnr", sapArtnr).eq("kw", kwy.kw).eq("year", kwy.year);
+    if(r.error){ alert("Fehler: " + r.error.message); return; }
+    werbungState.ticked.delete(sapArtnr);
+  } else {
+    const r = await db.from("promo_ticked").insert({
+      market, sap_artnr: sapArtnr, kw: kwy.kw, year: kwy.year, ticked_at: berlinNowForDB()
+    });
+    if(r.error && !String(r.error.message).toLowerCase().includes("duplicate")){
+      alert("Fehler: " + r.error.message); return;
+    }
+    werbungState.ticked.add(sapArtnr);
+  }
+  renderWerbung();
 }
 
 /* ---------- Werbe-PDF Parser ---------- */
@@ -5149,6 +5210,7 @@ async function uploadWerbungUmsatz(){
     }
     let stat = {rows: 0, artOk: 0, artFail: 0, sumMenge: 0};
     let sampleArtFails = [];
+    let sampleValues = [];  // erste Datenzeilen mit Roh-Werten fuer Debug
     for(let r = 2; r < rows.length; r++){
       const row = rows[r] || [];
       stat.rows++;
@@ -5161,12 +5223,20 @@ async function uploadWerbungUmsatz(){
       }
       stat.artOk++;
       const name = String(row[1] == null ? "" : row[1]).trim();
+      let firstMkt = null;
       for(const [mkt, cols] of Object.entries(marketMap)){
         if(cols.menge < 0) continue;
-        const menge = parseNum(row[cols.menge]);
-        const aktion = cols.aktion >= 0 ? parseNum(row[cols.aktion]) : 0;
+        const rawMenge = row[cols.menge];
+        const rawAktion = cols.aktion >= 0 ? row[cols.aktion] : null;
+        const menge = parseNum(rawMenge);
+        const aktion = parseNum(rawAktion);
         const normal = Math.max(0, menge - aktion);
         stat.sumMenge += normal;
+        // Debug: erste 3 Beispiele mit vollen Roh-Werten sammeln
+        if(sampleValues.length < 3 && firstMkt === null){
+          firstMkt = mkt;
+          sampleValues.push(`Z${r+1} ArtNr ${artNr}: ${mkt} rawMenge="${String(rawMenge)}" typ=${typeof rawMenge} → parsed ${menge}; rawAktion="${String(rawAktion)}" → ${aktion}; normal=${normal}`);
+        }
         if(normal <= 0) continue;
         records.push({
           sap_artnr: artNr,
@@ -5181,8 +5251,11 @@ async function uploadWerbungUmsatz(){
     if(!records.length){
       msg.style.color="#c62828";
       let dbg = `Keine gültigen Datenzeilen erkannt.<br>Gelesen: ${stat.rows} Zeilen · ${stat.artOk} mit gültiger ArtNr · ${stat.artFail} ohne · Summe-Menge: ${stat.sumMenge.toFixed(0)}<br>Spalten-Zuordnung: ${escapeHtml(mapDbg)}.`;
+      if(sampleValues.length){
+        dbg += "<br><br>Beispiel-Werte (fuer Debug):<br>" + sampleValues.map(x => `<code style="background:#f8fafc;padding:2px 4px;font-size:11px;display:block;white-space:pre-wrap">${escapeHtml(x)}</code>`).join("");
+      }
       if(sampleArtFails.length){
-        dbg += "<br><br>Beispiel-Zeilen ohne gültige ArtNr:<br>" + sampleArtFails.map(x => `<code style="background:#f8fafc;padding:2px 4px;font-size:11px">${escapeHtml(x)}</code>`).join("<br>");
+        dbg += "<br>Beispiel-Zeilen ohne gültige ArtNr:<br>" + sampleArtFails.map(x => `<code style="background:#f8fafc;padding:2px 4px;font-size:11px">${escapeHtml(x)}</code>`).join("<br>");
       }
       msg.innerHTML = dbg;
       return;
