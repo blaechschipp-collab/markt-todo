@@ -480,8 +480,8 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.15-4"; // Werbe-Parser: SKZ darf ein Buchstabe sein (S = Sonderartikel, Z = Zweitplatzierung)
-const APP_VERSION_DATE = "15.08.2026";
+const APP_VERSION = "v2026.08.16-1"; // Dispo-Parser erkennt Dateien mit Ablage-Praefix (2026-08-15_2234_...)
+const APP_VERSION_DATE = "16.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
 function reloadApp(){
@@ -3885,8 +3885,15 @@ const DISPO_COOLDOWN_UPLOADS = 2;
 let dispoState = { items: [], filteredOpen: 0, filteredDone: 0, filteredCooldown: 0 };
 
 function dispoParseFilename(name){
+  // Ablage-Praefix des Mail-Holers abstreifen: "2026-08-15_2234_<Originalname>"
+  // Das Datum daraus dient als Ersatz, wenn im Originalnamen keines steckt.
+  let rest = String(name || "");
+  let ablageDatum = null;
+  const praefix = rest.match(/^(\d{4}-\d{2}-\d{2})_\d{3,4}_(.+)$/);
+  if(praefix){ ablageDatum = praefix[1]; rest = praefix[2]; }
+
   // FEA: 20260511_046206_FEA_<rest>.pdf
-  let m = name.match(/^(\d{8})_(\d{6})_(FEA_[^.]+?)(?:\s*\(\d+\))?\.pdf$/i);
+  let m = rest.match(/^(\d{8})_(\d{6})_(FEA_[^.]+?)(?:\s*\(\d+\))?\.pdf$/i);
   if(m){
     const dateStr = m[1]; // YYYYMMDD
     const marketNo = m[2];
@@ -3896,11 +3903,11 @@ function dispoParseFilename(name){
     return {market, listType, upload_date, marketNo};
   }
   // Marktnummer-PDFs: 043028_<Listentyp>.pdf
-  m = name.match(/^(\d{6})_([^.]+?)(?:\s*\(\d+\))?\.pdf$/i);
+  m = rest.match(/^(\d{6})_([^.]+?)(?:\s*\(\d+\))?\.pdf$/i);
   if(m){
     const marketNo = m[1];
     const listType = m[2];
-    const upload_date = todayISO();
+    const upload_date = ablageDatum || todayISO();
     const market = DISPO_MARKET_BY_NUMBER[marketNo] || marketNo;
     return {market, listType, upload_date, marketNo};
   }
