@@ -344,10 +344,18 @@
       <div style="background:#0c1f3c;color:#fff;padding:8px 12px;border-radius:6px;margin:12px 0;font-size:13px">
         🔖 App-Version: <strong><span id="adminVersionInfoNumber"></span></strong> · <span id="adminVersionInfoDate"></span>
       </div>
-      <div class="control-grid">
-        <div><label>PIN</label><input id="adminPinInput" type="password" placeholder="Admin-PIN" onkeydown="if(event.key==='Enter') loginAdmin()"></div>
-        <div><label>&nbsp;</label><button class="btn-yellow" onclick="loginAdmin()">Admin öffnen</button></div>
-      </div>
+      <form id="adminLoginForm" onsubmit="event.preventDefault(); loginAdmin(); return false;" autocomplete="on">
+        <input type="text" name="username" value="admin" autocomplete="username" style="display:none" readonly>
+        <div class="control-grid">
+          <div><label>PIN</label><input id="adminPinInput" name="password" type="password" placeholder="Admin-PIN" autocomplete="current-password"></div>
+          <div><label>&nbsp;</label><button class="btn-yellow" type="submit">Admin öffnen</button></div>
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:13px;cursor:pointer">
+          <input type="checkbox" id="adminMerken" style="width:auto;margin:0">
+          Auf diesem Gerät angemeldet bleiben
+        </label>
+        <div class="small" style="color:#64748b;margin-top:4px">Nur am Büro-PC setzen – auf den Tablets im Markt käme sonst jeder in den Adminbereich.</div>
+      </form>
       <div id="adminLoginMsg" class="small" style="margin-top:8px;color:#c62828"></div>
     </div>
     <div id="adminContent" style="display:none">
@@ -358,6 +366,7 @@
     <div class="sub-tabs">
       <button id="adminSubTabTodo" class="sub-tab active" onclick="showAdminSubTab('todopflege')">📋 ToDo-Pflege</button>
       <button id="adminSubTabUploads" class="sub-tab" onclick="showAdminSubTab('uploads')">📥 Uploads</button>
+      <button class="sub-tab" onclick="adminAbmelden()" style="margin-left:auto">🔓 Abmelden</button>
     </div>
     <div class="box admin admin-todopflege"><h2>Adminbereich – Aufgabe anlegen</h2><div class="control-grid"><div><label>Markt</label><select id="adminMarket" onchange="handleAdminMarketChange()"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="adminArea" onchange="toggleAdminPeriodFields()"></select><input id="adminCustomArea" placeholder="Neue Abteilung / Bereich" style="margin-top:8px"></div><div><label>Wichtigkeit</label><select id="adminPriority"><option>hoch</option><option>mittel</option><option>niedrig</option></select></div><div><label>Bezeichnung</label><input id="adminCustomTitle" placeholder="Aufgabe eingeben"></div><div><label>Art</label><select id="adminTaskMode" onchange="toggleAdminPeriodFields()"><option value="recurring">Wiederholend</option><option value="single">Einmalig / Zeitraum</option></select></div></div>
       <div id="adminDaysBox" style="margin-top:16px"><label>Tage</label><div class="days"><button type="button" class="btn-yellow" onclick="selectAllAdminDays()" style="width:auto;margin-bottom:8px">Täglich Mo–Sa</button><br><label><input type="checkbox" class="adminDay" value="Montag"> Montag</label><label><input type="checkbox" class="adminDay" value="Dienstag"> Dienstag</label><label><input type="checkbox" class="adminDay" value="Mittwoch"> Mittwoch</label><label><input type="checkbox" class="adminDay" value="Donnerstag"> Donnerstag</label><label><input type="checkbox" class="adminDay" value="Freitag"> Freitag</label><label><input type="checkbox" class="adminDay" value="Samstag"> Samstag</label></div></div>
@@ -471,7 +480,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.15-2"; // Ein Upload für alle Dateien: Erkennung am Inhalt, Verteilung auf die vorhandenen Bereiche
+const APP_VERSION = "v2026.08.15-3"; // Admin-Login als echtes Formular (Passwortmanager) + "auf diesem Gerät angemeldet bleiben"
 const APP_VERSION_DATE = "15.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -512,6 +521,8 @@ if(typeof document !== "undefined"){
     const d = document.getElementById("versionInfoDate");
     if(n) n.textContent = APP_VERSION;
     if(d) d.textContent = APP_VERSION_DATE;
+    // Angemeldet-bleiben-Merker dieses Geraets pruefen (ergaenzt 15.08.2026)
+    if(typeof adminGeraetPruefen === "function") adminGeraetPruefen();
   });
 }
 
@@ -1467,6 +1478,17 @@ async function loginAdmin(){
     return;
   }
   adminUnlocked = true;
+
+  // "Auf diesem Gerät angemeldet bleiben" - ohne Ablauf, ergaenzt 15.08.2026.
+  // Gespeichert wird NICHT die PIN, sondern ein daraus abgeleiteter Wert. Wird
+  // die PIN in app_settings geaendert, passt der Merker nicht mehr und das
+  // Geraet muss sich neu anmelden.
+  const merken = document.getElementById("adminMerken");
+  if(merken && merken.checked){
+    try{ localStorage.setItem("markt_admin_geraet", await adminMerkerVon(currentPin)); }
+    catch(e){ /* privater Modus - dann eben nicht */ }
+  }
+
   pinInput.value = "";
   msg.innerHTML = "";
   // Sicht umschalten
@@ -1474,6 +1496,45 @@ async function loginAdmin(){
   document.getElementById("adminContent").style.display = "block";
   // Erste Sub-Tab anzeigen
   showAdminSubTab("todopflege");
+}
+
+/* Merker fuer "auf diesem Geraet angemeldet bleiben".
+   Die PIN selbst steht nirgends - nur ihr Fingerabdruck. */
+async function adminMerkerVon(pin){
+  const roh = new TextEncoder().encode("markt-todo-admin:" + String(pin));
+  const hash = await crypto.subtle.digest("SHA-256", roh);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+/* Beim Start pruefen, ob dieses Geraet angemeldet bleiben soll. Der Merker
+   wird gegen die aktuelle PIN geprueft - nicht blind uebernommen. */
+async function adminGeraetPruefen(){
+  let merker = null;
+  try{ merker = localStorage.getItem("markt_admin_geraet"); }catch(e){ return; }
+  if(!merker) return;
+  try{
+    const {data, error} = await db.from("app_settings").select("value").eq("key","admin_pin").maybeSingle();
+    if(error || !data || !data.value) return;
+    if(merker === await adminMerkerVon(data.value)){
+      adminUnlocked = true;
+    } else {
+      // PIN wurde geaendert - Merker ist wertlos und kommt weg
+      try{ localStorage.removeItem("markt_admin_geraet"); }catch(e){}
+    }
+  }catch(e){ /* Datenbank nicht erreichbar - dann bleibt der Adminbereich zu */ }
+}
+
+/* Abmelden und den Merker loeschen - erreichbar ueber den Knopf im Adminbereich. */
+function adminAbmelden(){
+  adminUnlocked = false;
+  try{ localStorage.removeItem("markt_admin_geraet"); }catch(e){}
+  const loginBox = document.getElementById("adminLoginBox");
+  const content = document.getElementById("adminContent");
+  if(loginBox) loginBox.style.display = "block";
+  if(content) content.style.display = "none";
+  const m = document.getElementById("adminMerken");
+  if(m) m.checked = false;
+  alert("Abgemeldet. Dieses Gerät fragt beim nächsten Mal wieder nach der PIN.");
 }
 function handleAreaChange(){const area=document.getElementById("areaFilter").value,isHaus=area==="Hausmeister",marketSelect=document.getElementById("marketFilter");document.getElementById("dayControl").style.display=isHaus?"none":"block";document.getElementById("monthControl").style.display=isHaus?"block":"none";marketSelect.options[0].style.display=isHaus?"block":"none";if(!isHaus&&marketSelect.value==="ALLE")marketSelect.value="Freckenfeld";localStorage.setItem("selectedArea",area);localStorage.setItem("selectedMarket",marketSelect.value);loadTasks()}
 function toggleAdminPeriodFields(){const area=(document.getElementById("adminCustomArea").value.trim()||document.getElementById("adminArea").value),mode=document.getElementById("adminTaskMode").value,isHaus=area==="Hausmeister",isSingle=mode==="single";document.getElementById("adminDaysBox").style.display=(!isHaus&&!isSingle)?"block":"none";document.getElementById("adminMonthBox").style.display=isHaus?"block":"none";document.getElementById("adminDateRangeBox").style.display=(!isHaus&&isSingle)?"block":"none"}
