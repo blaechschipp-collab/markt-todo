@@ -459,8 +459,8 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.05.30-3"; // MHD-Baustein wieder entfernt
-const APP_VERSION_DATE = "30.05.2026";
+const APP_VERSION = "v2026.08.15-1"; // Bevorratung: Artikelumsatz je Kalenderwoche statt Komplettersatz
+const APP_VERSION_DATE = "15.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
 function reloadApp(){
@@ -4837,25 +4837,30 @@ async function loadWerbungData(){
   list.innerHTML = `<div class="small" style="color:#64748b">Lade Werbedaten …</div>`;
   const [pRes, sRes] = await Promise.all([
     db.from("promo_articles").select("*"),
-    fetchAllPaged(()=>db.from("article_sales").select("sap_artnr,market,weeks_covered,menge_normal,name,abteilung"))
+    fetchAllPaged(()=>db.from("article_sales_schnitt").select("sap_artnr,market,wochen_erfasst,menge_pro_woche,name,abteilung"))
   ]);
   if(pRes.error){ list.innerHTML = `<div style="color:#c62828">Fehler Werbeartikel: ${escapeHtml(pRes.error.message)}</div>`; return; }
   werbungState.promo = pRes.data || [];
   werbungState.sales = {};
-  let maxWeeks = 10;
+  // Geaendert 15.08.2026: Gelesen wird aus der Sicht article_sales_schnitt.
+  // Sie liefert je Artikel und Markt bereits die Menge PRO WOCHE - frueher
+  // stand hier die Gesamtmenge, die erst durch weeks_covered geteilt werden
+  // musste. Mit woechentlichen Uploads haetten Artikel unterschiedlich viele
+  // Wochen, ein gemeinsamer Teiler waere dann falsch gewesen.
+  let maxWeeks = 0;
   for(const row of (sRes || [])){
-    if(!werbungState.sales[row.sap_artnr]) werbungState.sales[row.sap_artnr] = {name: row.name || "", byMarket: {}, abteilung: row.abteilung || null};
-    werbungState.sales[row.sap_artnr].byMarket[row.market] = Number(row.menge_normal) || 0;
+    if(!werbungState.sales[row.sap_artnr]) werbungState.sales[row.sap_artnr] = {name: row.name || "", byMarket: {}, wochenByMarket: {}, abteilung: row.abteilung || null};
+    werbungState.sales[row.sap_artnr].byMarket[row.market] = Number(row.menge_pro_woche) || 0;
+    werbungState.sales[row.sap_artnr].wochenByMarket[row.market] = Number(row.wochen_erfasst) || 0;
     if(row.abteilung && !werbungState.sales[row.sap_artnr].abteilung) werbungState.sales[row.sap_artnr].abteilung = row.abteilung;
-    if(row.weeks_covered && row.weeks_covered > 0) maxWeeks = row.weeks_covered;
+    if(row.wochen_erfasst && row.wochen_erfasst > maxWeeks) maxWeeks = row.wochen_erfasst;
   }
-  werbungState.weeksCovered = maxWeeks;
+  werbungState.weeksCovered = maxWeeks || 1;
   werbungState.loaded = true;
 }
 
 function evalWerbungArticle(p, market, thresholdEur, bevWochen, bevWochenFrische){
   // Liefert Details fuer einen einzelnen Werbeartikel (auch wenn er nicht empfohlen wird)
-  const weeks = werbungState.weeksCovered || 10;
   const ersp = Number(p.ersparnis_pro_stueck) || 0;
   const einh = Number(p.einh_menge) || 1;
   const s = werbungState.sales[p.sap_artnr];
@@ -4864,8 +4869,11 @@ function evalWerbungArticle(p, market, thresholdEur, bevWochen, bevWochenFrische
   const isManualFrische = werbungState.frischeOverrides.has(p.sap_artnr);
   const isFrische = isFrischeAbt || isManualFrische;
   const effektiveWochen = isFrische ? bevWochenFrische : bevWochen;
-  const normalMenge = (s && s.byMarket[market]) ? s.byMarket[market] : 0;
-  const wochenverkauf = normalMenge / weeks;
+  // byMarket enthaelt seit 15.08.2026 bereits die Menge PRO WOCHE.
+  // Nicht mehr durch weeks teilen - das waere eine zweite Division.
+  const wochenverkauf = (s && s.byMarket[market]) ? s.byMarket[market] : 0;
+  const normalMenge = wochenverkauf;
+  const wochenBasis = (s && s.wochenByMarket && s.wochenByMarket[market]) ? s.wochenByMarket[market] : 0;
   const bedarfStueck = wochenverkauf * effektiveWochen;
   const kartons = Math.ceil(bedarfStueck / einh);
   const stueckEmpf = kartons * einh;
@@ -4892,6 +4900,7 @@ function evalWerbungArticle(p, market, thresholdEur, bevWochen, bevWochenFrische
     effektiveWochen,
     normalMenge,
     wochenverkauf,
+    wochenBasis,
     kartons,
     stueckEmpf,
     ersparnisGes,
@@ -4972,7 +4981,7 @@ function renderWerbung(){
   const abtBreakdown = Object.entries(byAbt).sort((a,b)=>b[1]-a[1]).map(([a,n]) => `${escapeHtml(a)}: <strong>${n}</strong>`).join(" · ");
   const abtInfo = abtBreakdown ? `<div class="small" style="color:#475569;margin-top:4px">Nach Abteilung: ${abtBreakdown}</div>` : "";
   const dbgInfo = d.total ? `<div class="small" style="color:#94a3b8;margin-top:4px">Von ${d.total} Werbeartikeln: ${d.noSales} ohne Absatz in ${market}, ${d.belowThr} unter ${thr} € Schwelle${d.noErsp?`, ${d.noErsp} ohne Preisvorteil`:""}.</div>` : "";
-  summary.innerHTML = `<strong>${recs.length}</strong> Artikel · <strong>${totalKartons}</strong> Kartons gesamt · Gesamt-Ersparnis <strong>${totalSaving.toFixed(2)} €</strong> · Basis: ${werbungState.weeksCovered} Wochen Normalverkauf${abtInfo}${dbgInfo}`;
+  summary.innerHTML = `<strong>${recs.length}</strong> Artikel · <strong>${totalKartons}</strong> Kartons gesamt · Gesamt-Ersparnis <strong>${totalSaving.toFixed(2)} €</strong> · Basis: ${werbungState.weeksCovered} Wochen Normalverkauf${werbungState.weeksCovered < 4 ? " <span style='color:#b45309;font-weight:600'>(schmale Basis)</span>" : ""}${abtInfo}${dbgInfo}`;
   if(!recs.length){
     list.innerHTML = `<div class="small" style="color:#64748b">Keine Empfehlungen bei aktueller Schwelle. Schwelle senken oder Bev-Wochen erhöhen.</div>`;
     return;
@@ -5072,7 +5081,7 @@ function renderWerbungDebug(){
       let html = `<div class="small" style="color:#b45309">Kein Werbeartikel gefunden. Aber in Umsatz-Daten:</div>`;
       for(const [artnr, sales] of salesMatches){
         const mktMenge = sales.byMarket[market] || 0;
-        html += `<div style="background:#fef3c7;padding:8px 10px;border-radius:6px;margin-top:4px;font-size:12px"><strong>${escapeHtml(sales.name || "?")}</strong> · ArtNr <strong>${escapeHtml(artnr)}</strong> · ${escapeHtml(sales.abteilung||"—")} · Normalabsatz ${market}: <strong>${mktMenge}</strong> St. (${werbungState.weeksCovered} Wochen) — <em>nicht in KW-Werbung</em></div>`;
+        html += `<div style="background:#fef3c7;padding:8px 10px;border-radius:6px;margin-top:4px;font-size:12px"><strong>${escapeHtml(sales.name || "?")}</strong> · ArtNr <strong>${escapeHtml(artnr)}</strong> · ${escapeHtml(sales.abteilung||"—")} · Normalabsatz ${market}: <strong>${mktMenge}</strong> St./Woche (${werbungState.weeksCovered} Wochen erfasst) — <em>nicht in KW-Werbung</em></div>`;
       }
       el.innerHTML = html;
       return;
@@ -5307,7 +5316,7 @@ async function uploadWerbungPdf(){
       const chunk = 500;
       for(let i = 0; i < artNrs.length; i += chunk){
         const slice = artNrs.slice(i, i + chunk);
-        const r = await db.from("article_sales").select("sap_artnr,abteilung").in("sap_artnr", slice);
+        const r = await db.from("article_sales_schnitt").select("sap_artnr,abteilung").in("sap_artnr", slice);
         if(!r.error){
           for(const row of (r.data || [])){
             if(!abtMap.has(row.sap_artnr) && row.abteilung) abtMap.set(row.sap_artnr, row.abteilung);
@@ -5420,34 +5429,93 @@ async function uploadWerbungUmsatz(){
     }
     // Diagnose: zeige welche Spalten-Zuordnungen gefunden wurden
     const mapDbg = Object.entries(marketMap).map(([m,c]) => `${m}: Menge=Spalte ${c.menge+1}, Aktion=Spalte ${c.aktion+1}`).join(" · ");
-    // Zeitraum aus Metadaten-Sheet auslesen -> weeks_covered
-    let weeksCovered = 10;
-    const metaSheet = wb.SheetNames.find(n => n.toLowerCase().includes("metadaten"));
-    if(metaSheet){
-      const meta = XLSX.utils.sheet_to_json(wb.Sheets[metaSheet], {header:1, defval:null, raw:false});
-      let vonISO = null, bisISO = null;
-      for(const r of meta){
+    // ---- Zeitraum ermitteln -> Jahr und Kalenderwoche -----------------
+    //
+    // Geaendert 15.08.2026: Der Bericht kommt jetzt woechentlich statt
+    // quartalsweise, und je Markt einzeln. Gespeichert wird deshalb pro
+    // Kalenderwoche in article_sales_weekly - vorher ersetzte jeder Upload
+    // den gesamten Bestand, was bei vier Markt-Dateien nur den letzten
+    // Markt uebrig gelassen haette.
+    //
+    // Zwei Blattformate kommen vor:
+    //   "Filter"    - neu, enthaelt "AJ: 03.08.2026 - 09.08.2026"
+    //   "Metadaten" - aelter, mit "Letzter Arbeitstag (von)/(bis)"
+    let vonISO = null, bisISO = null, zeitraumQuelle = "";
+
+    const filterSheet = wb.SheetNames.find(n => n.toLowerCase().includes("filter"));
+    if(filterSheet){
+      const zeilen = XLSX.utils.sheet_to_json(wb.Sheets[filterSheet], {header:1, defval:null, raw:false});
+      for(const r of zeilen){
         for(const cell of (r || [])){
-          const cs = String(cell || "");
-          if(cs.toLowerCase().includes("letzter arbeitstag (von)")){
-            for(const c2 of r){
-              const m = String(c2 || "").match(/(\d{2})[.\-\/](\d{2})[.\-\/](\d{4})/);
-              if(m){ vonISO = `${m[3]}-${m[2]}-${m[1]}`; break; }
-            }
+          const m = String(cell || "").match(/AJ:\s*(\d{2})\.(\d{2})\.(\d{4})\s*-\s*(\d{2})\.(\d{2})\.(\d{4})/);
+          if(m){
+            vonISO = `${m[3]}-${m[2]}-${m[1]}`;
+            bisISO = `${m[6]}-${m[5]}-${m[4]}`;
+            zeitraumQuelle = "Blatt „Filter“";
+            break;
           }
-          if(cs.toLowerCase().includes("letzter arbeitstag (bis)")){
-            for(const c2 of r){
-              const m = String(c2 || "").match(/(\d{2})[.\-\/](\d{2})[.\-\/](\d{4})/);
-              if(m){ bisISO = `${m[3]}-${m[2]}-${m[1]}`; break; }
+        }
+        if(vonISO) break;
+      }
+    }
+
+    if(!vonISO){
+      const metaSheet = wb.SheetNames.find(n => n.toLowerCase().includes("metadaten"));
+      if(metaSheet){
+        const meta = XLSX.utils.sheet_to_json(wb.Sheets[metaSheet], {header:1, defval:null, raw:false});
+        for(const r of meta){
+          for(const cell of (r || [])){
+            const cs = String(cell || "").toLowerCase();
+            if(cs.includes("letzter arbeitstag (von)")){
+              for(const c2 of r){
+                const m = String(c2 || "").match(/(\d{2})[.\-\/](\d{2})[.\-\/](\d{4})/);
+                if(m){ vonISO = `${m[3]}-${m[2]}-${m[1]}`; break; }
+              }
+            }
+            if(cs.includes("letzter arbeitstag (bis)")){
+              for(const c2 of r){
+                const m = String(c2 || "").match(/(\d{2})[.\-\/](\d{2})[.\-\/](\d{4})/);
+                if(m){ bisISO = `${m[3]}-${m[2]}-${m[1]}`; break; }
+              }
             }
           }
         }
+        if(vonISO && bisISO) zeitraumQuelle = "Blatt „Metadaten“";
       }
-      if(vonISO && bisISO){
-        const von = new Date(vonISO), bis = new Date(bisISO);
-        const days = Math.round((bis - von) / (1000*60*60*24)) + 1;
-        weeksCovered = Math.max(1, Math.round(days / 7));
-      }
+    }
+
+    if(!vonISO || !bisISO){
+      msg.style.color = "#c62828";
+      msg.innerHTML = "Der Zeitraum liess sich nicht ermitteln.<br>"
+        + "Erwartet wird ein Blatt „Filter“ mit einer Zeile wie <code>AJ: 03.08.2026 - 09.08.2026</code> "
+        + "oder ein Blatt „Metadaten“ mit „Letzter Arbeitstag (von)/(bis)“.<br>"
+        + "Gefundene Blätter: " + escapeHtml(wb.SheetNames.join(", "));
+      return;
+    }
+
+    const vonDat = new Date(vonISO), bisDat = new Date(bisISO);
+    const tage = Math.round((bisDat - vonDat) / (1000*60*60*24)) + 1;
+
+    // Kalenderwoche nach ISO 8601 - dieselbe Zaehlung, die auch im BO-Bericht
+    // in der Zeile "Woche" steht.
+    function isoWoche(d){
+      const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+      const tag = t.getUTCDay() || 7;              // Mo = 1 ... So = 7
+      t.setUTCDate(t.getUTCDate() + 4 - tag);      // auf den Donnerstag der Woche
+      const jahresStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+      return { jahr: t.getUTCFullYear(), kw: Math.ceil((((t - jahresStart) / 86400000) + 1) / 7) };
+    }
+    const { jahr: bezugJahr, kw: bezugKw } = isoWoche(vonDat);
+
+    // Mehr als eine Woche laesst sich keiner Kalenderwoche zuordnen. Ein
+    // Quartalsexport wuerde sonst als eine einzelne Woche gezaehlt und die
+    // Bevorratung um das Dreizehnfache verrechnen.
+    if(tage > 8){
+      msg.style.color = "#c62828";
+      msg.innerHTML = `Dieser Bericht deckt <strong>${tage} Tage</strong> ab (${vonISO} bis ${bisISO}), erkannt aus ${zeitraumQuelle}.<br>`
+        + "Der Upload speichert je <strong>Kalenderwoche</strong> und braucht deshalb genau eine Woche.<br>"
+        + "Bitte den Bericht im BO auf eine Woche einstellen und erneut senden.";
+      return;
     }
     // Zeilen: ab Zeile 2, Spalte 0 = SAP-Art-Nr, Spalte 1 = Name (falls vorhanden)
     // Manche Datei hat schon in Zeile 2 "Gesamtergebnis" – ueberspringen
@@ -5528,7 +5596,8 @@ async function uploadWerbungUmsatz(){
         records.push({
           sap_artnr: artNr,
           market: mkt,
-          weeks_covered: weeksCovered,
+          jahr: bezugJahr,
+          kw: bezugKw,
           menge_normal: normal,
           name,
           abteilung,
@@ -5553,23 +5622,39 @@ async function uploadWerbungUmsatz(){
     // wird der letzte Wert genommen, um PK-Konflikte zu vermeiden.
     const dedupMap = new Map();
     for(const rec of records){
-      const key = rec.sap_artnr + "|" + rec.market;
+      const key = rec.sap_artnr + "|" + rec.market + "|" + rec.jahr + "|" + rec.kw;
       dedupMap.set(key, rec);
     }
     const uniqueRecords = Array.from(dedupMap.values());
     const dupCount = records.length - uniqueRecords.length;
-    // Alten Bestand komplett ersetzen (quartalsweise Upload)
-    const del = await db.from("article_sales").delete().gte("updated_at", "1900-01-01");
-    if(del.error){ msg.style.color="#c62828"; msg.innerHTML="Fehler beim Löschen: " + del.error.message; return; }
+
+    // KEIN Loeschen mehr. Bis 15.08.2026 stand hier ein delete ueber den
+    // gesamten Bestand - richtig, solange eine Datei alle Maerkte und ein
+    // Quartal enthielt. Bei vier Markt-Dateien haette die zweite geloescht,
+    // was die erste geschrieben hat. Stattdessen: upsert je Kalenderwoche.
+    // Ein erneuter Upload derselben Woche ueberschreibt nur diese Woche.
     const bs = 1000;
     for(let i = 0; i < uniqueRecords.length; i += bs){
       const chunk = uniqueRecords.slice(i, i + bs);
-      const r = await db.from("article_sales").upsert(chunk, {onConflict: "sap_artnr,market"});
+      const r = await db.from("article_sales_weekly").upsert(chunk, {onConflict: "sap_artnr,market,jahr,kw"});
       if(r.error){ msg.style.color="#c62828"; msg.innerHTML="Fehler beim Speichern (Zeile "+i+"): " + r.error.message; return; }
     }
+
+    // Wie viele Wochen liegen jetzt insgesamt vor?
+    let wochenGesamt = "?";
+    try{
+      const w = await db.from("article_sales_weekly").select("jahr,kw").neq("jahr", 0);
+      if(!w.error) wochenGesamt = new Set((w.data||[]).map(x => x.jahr + "-" + x.kw)).size;
+    }catch(e){ /* nur Anzeige */ }
+
+    const maerkteHier = Object.keys(marketMap).join(", ");
     msg.style.color = "#16a34a";
-    msg.innerHTML = `${uniqueRecords.length} Verkaufs-Zeilen gespeichert (${Object.keys(marketMap).length} Märkte · ${weeksCovered} Wochen)${dupCount ? ` · ${dupCount} Duplikate zusammengefasst` : ""}.`;
-    document.getElementById("werbungUmsatzStats").innerHTML = `Zeitraum: ${weeksCovered} Wochen.`;
+    msg.innerHTML = `${uniqueRecords.length} Artikelzeilen für <strong>KW ${bezugKw}/${bezugJahr}</strong> gespeichert `
+      + `(${maerkteHier})${dupCount ? ` · ${dupCount} Duplikate zusammengefasst` : ""}.<br>`
+      + `Zeitraum ${vonISO} bis ${bisISO}, erkannt aus ${zeitraumQuelle}. `
+      + `Echte Wochen in der Datenbank: <strong>${wochenGesamt}</strong>.`;
+    document.getElementById("werbungUmsatzStats").innerHTML =
+      `Zuletzt: KW ${bezugKw}/${bezugJahr} · ${maerkteHier} · ${uniqueRecords.length} Zeilen`;
   }catch(e){
     msg.style.color="#c62828"; msg.innerHTML="Fehler: " + (e && e.message ? e.message : String(e));
   }
@@ -5577,10 +5662,10 @@ async function uploadWerbungUmsatz(){
 
 async function clearWerbungUmsatz(){
   if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
-  if(!confirm("Alle gespeicherten Absätze löschen?")) return;
-  const r = await db.from("article_sales").delete().gte("updated_at", "1900-01-01");
+  if(!confirm("Alle erfassten Wochen löschen?\n\nDer übernommene Altbestand (Jahr 0) bleibt erhalten – er lässt sich nicht wiederherstellen, weil der alte Quartalsexport am SAP-Zellenlimit scheitert.")) return;
+  const r = await db.from("article_sales_weekly").delete().neq("jahr", 0);
   if(r.error){ alert("Fehler: " + r.error.message); return; }
-  document.getElementById("werbungUmsatzMsg").innerHTML = "Alle Absätze gelöscht.";
+  document.getElementById("werbungUmsatzMsg").innerHTML = "Alle erfassten Wochen gelöscht. Der Altbestand ist unberührt.";
 }
 
 
