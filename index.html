@@ -480,7 +480,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.15-3"; // Admin-Login als echtes Formular (Passwortmanager) + "auf diesem Gerät angemeldet bleiben"
+const APP_VERSION = "v2026.08.15-4"; // Werbe-Parser: SKZ darf ein Buchstabe sein (S = Sonderartikel, Z = Zweitplatzierung)
 const APP_VERSION_DATE = "15.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -5220,7 +5220,18 @@ async function toggleWerbungTick(sapArtnr){
 // Zeilenformat: NAME EINH_TYP EINH_MENGE SKZ SAP_ARTNR [*SAP_ARTNR* optional] WP UVP WP_A UVP_A ABSCHLAG% [Hinweis]
 // Der Barcode-Klartext "*NUMMER*" kann in derselben Zeile stehen, wenn pdf.js
 // die Zeilen aggressiv zusammengruppiert. Deshalb ist er optional.
-const WERBUNG_LINE_RE = /^(.+?)\s+([A-Z]{1,3})\s+(\d+)\s+(\d+)\s+(\d{6,12})(?:\s+\*\d{6,12}\*)?\s+(\d+[,.]?\d*)\s+(\d+[,.]?\d*)\s+(\d+[,.]?\d*)\s+(\d+[,.]?\d*)\s+(-?\d+[,.]?\d*)(.*)$/;
+// Die SKZ ist meist eine Ziffer, kann aber auch ein Buchstabe sein:
+//   S = Sonderartikel, Z = Zweitplatzierung
+// Bis zum 15.08.2026 stand hier (\d+) - dadurch fielen im Ordersatz der KW 35
+// 51 Artikel durchs Raster, darunter die komplette HARIBO-Aktion mit 33 %
+// Preisabschlag. Sie tauchten in der Bevorratung schlicht nicht auf.
+const WERBUNG_LINE_RE = /^(.+?)\s+([A-Z]{1,3})\s+(\d+)\s+([\dA-Za-z]{1,3})\s+(\d{6,12})(?:\s+\*\d{6,12}\*)?\s+(\d+[,.]?\d*)\s+(\d+[,.]?\d*)\s+(\d+[,.]?\d*)\s+(\d+[,.]?\d*)\s+(-?\d+[,.]?\d*)(.*)$/;
+
+// Buchstaben-SKZ in Klartext. Die Spalte skz in der Datenbank ist eine Zahl und
+// wird zum Sortieren verwendet - Buchstaben werden deshalb NICHT dort abgelegt,
+// sondern als Vermerk gefuehrt. So bleibt die Sortierung heil und die Angabe
+// erhalten.
+const WERBUNG_SKZ_TEXT = { S: "Sonderartikel", Z: "Zweitplatzierung" };
 
 // Heuristik: Bereich aus PDF-Sektions-Header ableiten.
 // TK-Erkennung erfolgt zusaetzlich anhand des ARTIKELNAMENS (Eis, Pizza etc.),
@@ -5339,11 +5350,11 @@ async function uploadWerbungPdf(){
             name: m[1].trim(),
             einh_typ: m[2],
             einh_menge: parseInt(m[3], 10),
-            skz: parseInt(m[4], 10),
+            skz: /^\d+$/.test(m[4]) ? parseInt(m[4], 10) : null,
             wp_sortiment: wpS,
             wp_aktion: wpA,
             ersparnis_pro_stueck: Math.max(0, wpS - wpA),
-            hinweis: m[11].trim(),
+            hinweis: [( /^\d+$/.test(m[4]) ? "" : (WERBUNG_SKZ_TEXT[m[4].toUpperCase()] || ("SKZ " + m[4])) ), m[11].trim()].filter(Boolean).join(" · "),
             section: currentSection || null,
             category: categoryFromSectionAndName(currentSection, m[1].trim()),
             is_frische: categoryFromSectionAndName(currentSection, m[1].trim()) === "frische",
