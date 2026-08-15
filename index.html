@@ -5386,8 +5386,41 @@ async function uploadWerbungUmsatz(){
     // erste Aktions-Spalte nicht).
     const rows = expandMergedCells(ws, XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:false}));
     if(rows.length < 3){ msg.style.color="#c62828"; msg.innerHTML="Datei hat zu wenig Zeilen."; return; }
-    const marketRow = rows[0] || [];
-    const kpiRow = rows[1] || [];
+
+    // ---- Kopfzeilen SUCHEN statt annehmen -----------------------------
+    //
+    // Bis 15.08.2026 stand hier fest rows[0] und rows[1]. Das galt fuer den
+    // alten Quartalsexport, der ohne Vorspann begann. Die woechentlichen
+    // Berichte haben oben drei Titelzeilen ("Umsatz", zwei leere), die
+    // Marktnamen stehen in Zeile 4 und die Kennzahlen in Zeile 5 - der
+    // Upload brach deshalb mit "Keine Markt-Spalten erkannt" ab.
+    //
+    // Gesucht wird jetzt die Zeile, die sowohl eine Mengen- als auch eine
+    // Artikel-Spalte nennt. Die Marktnamen stehen immer direkt darueber.
+    function kopfNorm(s){
+      return String(s == null ? "" : s).replace(/[ ​ ]/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+    }
+    let kpiIdx = -1;
+    for(let r = 0; r < Math.min(rows.length, 15); r++){
+      const zeile = (rows[r] || []).map(kopfNorm);
+      const hatMenge   = zeile.some(v => v === "menge" || v.startsWith("menge ") || v === "verkaufsmenge");
+      const hatArtikel = zeile.some(v => v === "artikel" || v === "gtin" || v === "abteilung");
+      if(hatMenge && hatArtikel){ kpiIdx = r; break; }
+    }
+    if(kpiIdx < 1){
+      msg.style.color = "#c62828";
+      let vorschau = "";
+      for(let r = 0; r < Math.min(rows.length, 8); r++){
+        const t = (rows[r] || []).slice(0, 9).map(c => String(c == null ? "" : c).slice(0, 18)).join(" | ");
+        vorschau += `<code style="display:block;background:#f8fafc;font-size:11px;padding:2px 4px">Zeile ${r+1}: ${escapeHtml(t)}</code>`;
+      }
+      msg.innerHTML = "Die Kopfzeile wurde nicht gefunden.<br>"
+        + "Gesucht wird eine Zeile mit <strong>„Menge“</strong> und zugleich <strong>„Artikel“, „GTIN“ oder „Abteilung“</strong>; "
+        + "die Marktnamen müssen in der Zeile direkt darüber stehen.<br><br>Die ersten Zeilen der Datei:" + vorschau;
+      return;
+    }
+    const marketRow = rows[kpiIdx - 1] || [];
+    const kpiRow = rows[kpiIdx] || [];
     // Spalten dynamisch anhand der KPI-Zeile finden:
     //   "Abteilung" (optional, neuer BO-Export), "Artikel", "GTIN"
     function findCol(pattern){
@@ -5561,7 +5594,10 @@ async function uploadWerbungUmsatz(){
     // Fallback wenn kein Artikel-Header gefunden: klassisch Spalte 0
     const artCol = colArtikel >= 0 ? colArtikel : 0;
     const nameCol = colArtikel >= 0 ? colArtikel + 1 : 1;
-    for(let r = 2; r < rows.length; r++){
+    // Daten beginnen direkt unter der gefundenen Kopfzeile - frueher stand
+    // hier fest die 2, was bei Dateien mit Titelvorspann die Kopfzeilen
+    // selbst als Datenzeilen gelesen haette.
+    for(let r = kpiIdx + 1; r < rows.length; r++){
       const row = rows[r] || [];
       stat.rows++;
       // Abteilung
