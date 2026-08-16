@@ -480,7 +480,7 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.16-1"; // Dispo-Parser erkennt Dateien mit Ablage-Praefix (2026-08-15_2234_...)
+const APP_VERSION = "v2026.08.16-3"; // Ordersatz: uploaded_at wird immer geschrieben, Bestellempfehlung nutzt nur den jüngsten Stand
 const APP_VERSION_DATE = "16.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -2604,6 +2604,15 @@ async function uploadOrdersatzPdf(){
     uniqueBlocks.forEach(b => { const c = b.color || "—"; colorStats[c] = (colorStats[c] || 0) + 1; });
     const colorSummary = Object.keys(colorStats).map(c => `${c}:${colorStats[c]}`).join(", ");
     msg.innerHTML = `Speichere ${uniqueBlocks.length} Bestellartikel${droppedDuplicates > 0 ? " (" + droppedDuplicates + " Duplikate übersprungen)" : ""} ... <span class="small">(Farben: ${colorSummary})</span>`;
+    // uploaded_at MUSS mitgeschrieben werden. Der Upsert legt nur bei neuen
+    // Artikeln einen Zeitstempel an; bei bereits vorhandenen blieb der alte
+    // stehen. Am 16.08.2026 trugen nach einem frischen Upload 7 von 116 Zeilen
+    // das aktuelle Datum, 106 weiterhin den 15.05. - obwohl ihre Preise gerade
+    // aktualisiert worden waren. Zwei Folgen: Die Altersueberwachung in der
+    // Morgenmail liest max(uploaded_at) und haette bei einem unveraenderten
+    // Sortiment jeden Morgen falschen Alarm geschlagen. Und ausgelistete
+    // Artikel liessen sich nicht von aktuellen unterscheiden.
+    const hochgeladenAm = new Date().toISOString();
     const rowsBase = uniqueBlocks.map(b => ({
       ean: b.ean,
       artno: b.artno,
@@ -2613,7 +2622,8 @@ async function uploadOrdersatzPdf(){
       vk_carton: b.uvp_carton,
       spanne_pct: b.spanne,
       skz: b.skz || null,
-      vk_artnos: (b.children || []).map(c => c.artno)
+      vk_artnos: (b.children || []).map(c => c.artno),
+      uploaded_at: hochgeladenAm
     }));
     const rowsWithColor = uniqueBlocks.map((b, i) => ({...rowsBase[i], color: b.color || null}));
     // Upsert: erstmal MIT color versuchen; falls Spalte nicht existiert -> ohne color
@@ -2786,6 +2796,28 @@ function parseOrdersatzLines(lines, lineMeta, lookupColor, colorByArtno){
   return blocks;
 }
 
+// Nur der jüngste Ordersatz zählt. Artikel, die im aktuellen Ordersatz nicht
+// mehr stehen, bleiben in der Datenbank erhalten (nichts wird gelöscht), sind
+// aber aus der Bestellempfehlung heraus. Taucht ein Saisonartikel im nächsten
+// Ordersatz wieder auf, ist er automatisch wieder dabei.
+//
+// Anlass 16.08.2026: Nach dem Einspielen des Ordersatzes KW34-35 standen 103
+// aktuelle Artikel in der Tabelle - und 13 vom 15.05., die längst nicht mehr
+// im Ordersatz waren, aber weiterhin zur Bestellung vorgeschlagen wurden.
+// Von Benedikt Paul so entschieden: ausblenden, nicht löschen.
+//
+// Verglichen wird auf Tagesebene, nicht auf den Zeitstempel genau: Ein Upload
+// läuft in mehreren Blöcken, deren Zeitstempel um Sekunden auseinanderliegen
+// können.
+function nurAktuellenOrdersatz(zeilen){
+  const alle = zeilen || [];
+  const tage = alle.map(z => String(z.uploaded_at || "").slice(0, 10)).filter(Boolean);
+  if(!tage.length) return alle;          // ohne Zeitstempel: alles behalten
+  const juengster = tage.sort()[tage.length - 1];
+  const aktuell = alle.filter(z => String(z.uploaded_at || "").slice(0, 10) === juengster);
+  return aktuell.length ? aktuell : alle; // Sicherheitsnetz: nie alles wegfiltern
+}
+
 async function clearOrdersatz(){
   if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
   if(!confirm("Ordersatz wirklich komplett löschen?\n\nDanach gibt es bis zum nächsten PDF-Upload keine Bestellempfehlungen mehr.")) return;
@@ -2813,7 +2845,7 @@ async function loadBestellung(){
     try{
       // select("*") ist robust gegen Schema-Veraenderungen
       const data = await fetchAllPaged(()=>db.from("ordersatz_items").select("*"));
-      bestellState.ordersatz = data || [];
+      bestellState.ordersatz = nurAktuellenOrdersatz(data);
     }catch(e){
       content.innerHTML = `<div class="box">Fehler beim Laden des Ordersatzes: ${e.message || e}<br><span class="small">Bitte im Admin-Bereich den Ordersatz-PDF neu hochladen.</span></div>`;
       return;
@@ -3401,12 +3433,12 @@ async function fetchBackshopOrdersatzMap(){
     if(!bestellState.ordersatz || !bestellState.ordersatz.length){
       let data = null;
       try{
-        data = await fetchAllPaged(()=>db.from("ordersatz_items").select("artno,name,vk_artnos,skz,color"));
+        data = await fetchAllPaged(()=>db.from("ordersatz_items").select("artno,name,vk_artnos,skz,color,uploaded_at"));
       }catch(e){
         // color-Spalte existiert vielleicht noch nicht -> ohne color
-        data = await fetchAllPaged(()=>db.from("ordersatz_items").select("artno,name,vk_artnos,skz"));
+        data = await fetchAllPaged(()=>db.from("ordersatz_items").select("artno,name,vk_artnos,skz,uploaded_at"));
       }
-      bestellState.ordersatz = data || [];
+      bestellState.ordersatz = nurAktuellenOrdersatz(data);
     }
     const map = {};
     // Basis aus vk_artnos: skz, parent-Name, color (vom EK)
