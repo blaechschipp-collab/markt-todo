@@ -524,7 +524,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.17-10"; // Umsatz nur prozentual, Daumen an der Ueberschrift, Abspruenge ueberall, Umsatzverlauf als SVG
+const APP_VERSION = "v2026.08.17-11"; // Feedback-Knopf, dezente Abspruenge mit Verlaeufen, Artikelzeile repariert
 const APP_VERSION_DATE = "17.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -6385,7 +6385,7 @@ function mepZeichnen(){
   const z=document.getElementById("mepKacheln"); if(!z) return;
   z.innerHTML = mepIstHausmeister()
     ? mepKachelAufgaben()+mepKachelBefunde()
-    : mepKachelKennzahlen()+mepKachelVerlauf()+mepKachelSpannen()+mepKachelBefunde()
+    : mepKachelKennzahlen()+mepKachelSpannen()+mepKachelBefunde()
       +mepKachelArtikel()+mepKachelAufgaben()+mepKachelDispo();
   mepBarcodes();
 }
@@ -6397,66 +6397,56 @@ function mepModal(titel, inhalt){
   document.getElementById("mepModalInhalt").innerHTML=inhalt;
   document.getElementById("mepModal").style.display="block";
 }
-const mepAbsprung=(fn,text)=>`<button onclick="${fn}" style="border:1px solid #cfe0f3;background:#f4f9ff;
-  color:#004f9e;border-radius:12px;padding:3px 10px;font-size:11.5px;font-weight:bold;cursor:pointer;
-  float:right;margin-left:8px">${text} ›</button>`;
+/* Dezent: ein Textlink, kein Kasten, kein float. Ein float im h2 hat vorher
+   das Artikel-Raster zerschossen. */
+const mepAbsprung=(fn,text)=>`<a href="#" onclick="${fn};return false"
+  style="font-size:12.5px;font-weight:normal;color:#004f9e;text-decoration:none;margin-left:10px">${text} ›</a>`;
 
 function mepZeigeKennzahlen(){
-  const reihen=[["2026-08-10","Letzte Woche",false],["2026-01-01","Aufgelaufen",true]];
-  let h=`<table style="width:100%;border-collapse:collapse;font-size:13.5px">
-    <thead><tr style="text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">
-    <th style="padding:8px">Zeitraum</th><th style="text-align:right">Umsatz</th>
-    <th style="text-align:right">Vorjahr</th><th style="text-align:right">Abw.</th>
-    <th style="text-align:right">Kunden</th><th style="text-align:right">Vorjahr</th>
-    <th style="text-align:right">Abw.</th><th style="text-align:right">Ø Bon</th></tr></thead><tbody>`;
-  reihen.forEach(([p,name,skal])=>{
-    const w=mepWerte(p,skal), a=skal?mepJahresanteil():1;
-    h+=`<tr style="border-top:1px solid #eef3f9"><td style="padding:8px"><b>${name}</b></td>
-      <td style="text-align:right">${mepEur(w.u)}</td>
-      <td style="text-align:right;color:#64748b">${w.uv==null?"–":mepEur(w.uv*a)}</td>
-      <td style="text-align:right"><b>${w.uA==null?"–":(w.uA>0?"+":"")+w.uA.toFixed(1)+" %"}</b></td>
-      <td style="text-align:right">${mepZahl(w.kd)}</td>
-      <td style="text-align:right;color:#64748b">${w.kdv==null?"–":mepZahl(w.kdv*a)}</td>
-      <td style="text-align:right"><b>${w.kA==null?"–":(w.kA>0?"+":"")+w.kA.toFixed(1)+" %"}</b></td>
-      <td style="text-align:right">${w.bon==null?"–":w.bon.toFixed(2).replace(".",",")+" €"}</td></tr>`;
-  });
-  h+=`</tbody></table><div class="small" style="margin-top:10px">Beim aufgelaufenen Zeitraum ist der
-    Vorjahreswert auf gleiche Zeitraumlänge gerechnet – der Bericht filtert das ganze Jahr, enthält
-    aber nur Daten bis zum Exporttag.</div>`;
-  mepModal(`Kennzahlen · ${mepMk()}${mepBl()?" · "+mepBl():""}`, h);
+  /* Im Absprung stehen Verlaeufe, keine Euro-Tabellen (Vorgabe 17.08.).
+     Der Wert einer Zeitreihe ist die Richtung, nicht der Einzelbetrag. */
+  const r=mepVerlaufsreihe();
+  if(r.length<3){ mepModal("Verlauf","<div class=\"small\">Zu wenige Wochen für einen Verlauf.</div>"); return; }
+  const proz = r.map((x,i)=> i ? (r[i-1].umsatz? 100*(x.umsatz-r[i-1].umsatz)/r[i-1].umsatz : 0) : 0);
+  mepModal(`Verläufe · ${mepMk()}${mepBl()?" · "+mepBl():""}`,
+    `<div class="small" style="margin-bottom:12px">${r.length} Kalenderwochen.
+       Der Umsatz ist auf die erste Woche bezogen (100 %), damit die Entwicklung sichtbar wird
+       und nicht die Höhe.</div>
+     ${mepLinie(r.map(x=>x.umsatz), r.map(x=>"KW "+x.kw), "Umsatzentwicklung, erste Woche = 100 %", true)}
+     <div style="height:18px"></div>
+     ${mepLinie(proz, r.map(x=>"KW "+x.kw), "Veränderung zur Vorwoche in Prozent", false)}`);
 }
 
-/* ---------- Verlauf ueber die Wochen, als SVG ----------
-   Bewusst kein Diagramm-Baukasten von einem fremden Server: die App soll
-   eine Datei bleiben und ohne Nachladen funktionieren. */
-function mepKachelVerlauf(){
-  const r=mepVerlaufsreihe();
-  if(r.length<3) return "";
-  const max=Math.max(...r.map(x=>x.umsatz)), min=Math.min(...r.map(x=>x.umsatz));
-  const spanne=(max-min)||1, B=760, H=150, pad=28;
-  const px=i=>pad+i*(B-2*pad)/(r.length-1);
-  const py=v=>H-pad-((v-min)/spanne)*(H-2*pad);
-  const linie=r.map((x,i)=>`${i?"L":"M"}${px(i).toFixed(1)},${py(x.umsatz).toFixed(1)}`).join(" ");
-  const flaeche=`${linie} L${px(r.length-1).toFixed(1)},${H-pad} L${px(0).toFixed(1)},${H-pad} Z`;
-  const letzte=r[r.length-1], vorletzte=r[r.length-2];
-  const trend=vorletzte.umsatz?100*(letzte.umsatz-vorletzte.umsatz)/vorletzte.umsatz:null;
-  return `<div class="box"><h2>Verlauf
-    ${mepAbsprung("mepZeigeVerlauf()","alle Wochen")}</h2>
-    <div class="small">Umsatz je Kalenderwoche, ${r.length} Wochen.
-      Letzte Woche ${trend==null?"–":(trend>0?"+":"")+trend.toFixed(1)+" %"} gegenüber der Vorwoche.</div>
-    <svg viewBox="0 0 ${B} ${H}" style="width:100%;height:auto;margin-top:10px" role="img"
-         aria-label="Umsatzverlauf über ${r.length} Wochen">
-      <path d="${flaeche}" fill="rgba(0,79,158,.10)"/>
-      <path d="${linie}" fill="none" stroke="#004f9e" stroke-width="2.5"/>
-      ${r.map((x,i)=>`<circle cx="${px(i).toFixed(1)}" cy="${py(x.umsatz).toFixed(1)}" r="${
-        i===r.length-1?4.5:2.5}" fill="${i===r.length-1?"#ffdd00":"#004f9e"}"
-        stroke="${i===r.length-1?"#004f9e":"none"}" stroke-width="2"><title>KW ${x.kw}: ${
-        mepEur(x.umsatz)}</title></circle>`).join("")}
-      ${r.map((x,i)=> (i%3===0||i===r.length-1)
-        ? `<text x="${px(i).toFixed(1)}" y="${H-8}" font-size="10" fill="#94a3b8"
-             text-anchor="middle">KW ${x.kw}</text>` : "").join("")}
-    </svg></div>`;
+/* Schlanke Liniengrafik als SVG. Bewusst ohne Diagramm-Bibliothek von einem
+   fremden Server - die App soll eine Datei bleiben und ohne Nachladen laufen.
+   indexiert=true rechnet auf die erste Woche als 100 Prozent um. */
+function mepLinie(werte, beschriftung, titel, indexiert){
+  const w = indexiert && werte[0] ? werte.map(v=>100*v/werte[0]) : werte.slice();
+  const max=Math.max(...w), min=Math.min(...w), sp=(max-min)||1;
+  const B=860,H=180,pl=44,pr=12,pt=26,pb=26;
+  const px=i=>pl+i*(B-pl-pr)/(w.length-1);
+  const py=v=>H-pb-((v-min)/sp)*(H-pt-pb);
+  const linie=w.map((v,i)=>`${i?"L":"M"}${px(i).toFixed(1)},${py(v).toFixed(1)}`).join(" ");
+  const null_=(!indexiert&&min<0&&max>0)?py(0):null;
+  const einheit=indexiert?"":" %";
+  return `<div style="font-size:12px;color:#64748b;margin-bottom:4px">${titel}</div>
+  <svg viewBox="0 0 ${B} ${H}" style="width:100%;height:auto;background:#fbfdff;border-radius:8px" role="img" aria-label="${titel}">
+    ${null_!=null?`<line x1="${pl}" y1="${null_.toFixed(1)}" x2="${B-pr}" y2="${null_.toFixed(1)}"
+        stroke="#cbd5e1" stroke-width="1" stroke-dasharray="3 3"/>`:""}
+    ${indexiert?`<line x1="${pl}" y1="${py(100).toFixed(1)}" x2="${B-pr}" y2="${py(100).toFixed(1)}"
+        stroke="#cbd5e1" stroke-width="1" stroke-dasharray="3 3"/>`:""}
+    <text x="6" y="${py(max).toFixed(1)}" font-size="10" fill="#94a3b8">${max.toFixed(0)}${einheit}</text>
+    <text x="6" y="${py(min).toFixed(1)}" font-size="10" fill="#94a3b8">${min.toFixed(0)}${einheit}</text>
+    <path d="${linie}" fill="none" stroke="#004f9e" stroke-width="2.5" stroke-linejoin="round"/>
+    ${w.map((v,i)=>`<circle cx="${px(i).toFixed(1)}" cy="${py(v).toFixed(1)}" r="${i===w.length-1?4.5:2.5}"
+      fill="${i===w.length-1?"#ffdd00":"#004f9e"}" stroke="${i===w.length-1?"#004f9e":"none"}" stroke-width="2">
+      <title>${beschriftung[i]}: ${v.toFixed(1)}${einheit}</title></circle>`).join("")}
+    ${w.map((v,i)=> (i%3===0||i===w.length-1)
+      ? `<text x="${px(i).toFixed(1)}" y="${H-8}" font-size="10" fill="#94a3b8" text-anchor="middle">${beschriftung[i]}</text>`
+      : "").join("")}
+  </svg>`;
 }
+
 /* Wochenreihe aus metrics - dort liegen die Wochenstaende seit KW 19. */
 function mepVerlaufsreihe(){
   const abt=new Set(mepAbteilungen());
@@ -6471,23 +6461,6 @@ function mepVerlaufsreihe(){
     const kw=1+Math.round(((dt-s)/86400000-3+((s.getDay()||7)-1))/7);
     return {datum:d,kw,umsatz:u};
   });
-}
-function mepZeigeVerlauf(){
-  const r=mepVerlaufsreihe();
-  let h=`<table style="width:100%;border-collapse:collapse;font-size:13.5px">
-    <thead><tr style="text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">
-    <th style="padding:8px">Woche</th><th>Stichtag</th><th style="text-align:right">Umsatz</th>
-    <th style="text-align:right">zur Vorwoche</th></tr></thead><tbody>`;
-  r.forEach((x,i)=>{
-    const v=i?r[i-1].umsatz:null;
-    const d=v?100*(x.umsatz-v)/v:null;
-    h+=`<tr style="border-top:1px solid #eef3f9"><td style="padding:8px"><b>KW ${x.kw}</b></td>
-      <td style="color:#64748b">${x.datum.split("-").reverse().join(".")}</td>
-      <td style="text-align:right">${mepEur(x.umsatz)}</td>
-      <td style="text-align:right;color:${d==null?"#64748b":(d>0?"#15803d":"#b91c1c")}">${
-        d==null?"–":(d>0?"+":"")+d.toFixed(1)+" %"}</td></tr>`;
-  });
-  mepModal(`Umsatzverlauf · ${mepMk()}${mepBl()?" · "+mepBl():""}`, h+`</tbody></table>`);
 }
 
 /* Kennzahlen fuer einen Zeitraum. periode: "jahr" oder "woche".
@@ -6575,7 +6548,7 @@ function mepKachelKennzahlen(){
     ? ` Der Markt insgesamt liegt bei ${pz(mJahr.uA)} – dieser Bereich ${
         jahr.uA>mJahr.uA?"läuft besser":jahr.uA<mJahr.uA?"läuft schlechter":"läuft gleich"}.` : "";
   return `<div class="box"><h2>Kennzahlen · ${mepEsc(B||"Ganzer Markt")}
-    ${mepAbsprung("mepZeigeKennzahlen()","genaue Werte")}</h2>
+    ${mepAbsprung("mepZeigeKennzahlen()","Verläufe")}</h2>
     <div class="small">Grün heißt: besser als der Markt insgesamt. Rot: schlechter.
       ${B?"":"Ohne Bereichsauswahl ist der Vorjahresvergleich selbst der Maßstab."}</div>
 
@@ -6640,7 +6613,7 @@ function mepKachelSpannen(){
       ?`<span style="color:#c62828">${mepEur(v)} ✕${Math.abs(i/v).toFixed(1)}</span>`
       :`<span style="color:#94a3b8">${mepEur(v)}</span>`;
   return `<div class="box"><h2>Spannenanalyse · wohin die Spanne geht
-    ${mepAbsprung("mepZeigeSpannen()","alle Abteilungen")}</h2>
+    ${mepAbsprung("mepZeigeSpannen()","mehr")}</h2>
     <div class="small">${per} · Beträge zu <b>Einstands</b>preisen.
       Abschriften heißt: Ware wurde entwertet, ist aber erfasst.
       Inventur heißt: Ware ist nicht mehr da – Fehlbuchung, unbelegte Umlagerung,
@@ -6696,7 +6669,7 @@ function mepKachelArtikel(){
     background:${aktiv?"#004f9e":"#fff"};color:${aktiv?"#fff":"#64748b"};
     border-radius:13px;padding:4px 12px;font-size:12px;cursor:pointer;font-weight:bold">${text}</button>`;
   return `<div class="box"><h2>${top?"Top":"Flop"}-Artikel
-    ${mepAbsprung("mepZeigeArtikel()","alle Artikel")}</h2>
+    ${mepAbsprung("mepZeigeArtikel()","mehr")}</h2>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;align-items:center">
       ${G.map(([k,t])=>knopf(mepSort===k,`mepSetzeSort('${k}')`,t)).join("")}
       <span style="width:14px"></span>
@@ -6706,16 +6679,13 @@ function mepKachelArtikel(){
     <div class="small">${erkl}</div>
     ${l.length?l.map(x=>{
       const dp=mepDispo.find(d=>d.artikelnr===String(x.sap_artnr));
-      return `<div style="display:grid;grid-template-columns:34px 120px 1fr auto;gap:12px;
-        align-items:center;padding:9px 0;border-bottom:1px solid #f1f5f9">
-      <div>${dp?`<input type="checkbox" onchange="mepDispoAbhaken('${mepEsc(dp.id)}',this.checked)"
-           title="Offene Dispo-Position dieses Artikels abhaken">`:""}</div>
-      <svg class="mepbc" data-code="${mepEsc(x.sap_artnr)}" style="width:120px;height:44px"></svg>
-      <div style="font-size:13.5px;line-height:1.35;word-break:break-word">${mepEsc(x.bezeichnung)}
+      return `<div style="display:flex;gap:12px;align-items:center;padding:9px 0;
+        border-bottom:1px solid #f1f5f9;flex-wrap:wrap">
+      <svg class="mepbc" data-code="${mepEsc(x.sap_artnr)}" style="width:112px;height:40px;flex:none"></svg>
+      <div style="flex:1 1 220px;min-width:0;font-size:13.5px;line-height:1.35">${mepEsc(x.bezeichnung)}
         <span style="display:block;font-size:10.5px;color:#94a3b8;margin-top:2px">${mepEsc(x.abteilung)} ·
-          Art.-Nr. ${mepEsc(x.sap_artnr)} · Umsatz ${mepEur(x.umsatz)} · Spanne ${mepPrz(x.nettoertragssp)}${
-        dp?` · <b style="color:#b45309">offene Dispo: ${mepEsc(dp.anmerkung||dp.rolle||"zu prüfen")}</b>`:""}</span></div>
-      <div style="font-weight:bold;text-align:right;font-size:14px;white-space:nowrap">${w(x)}</div></div>`;}).join("")
+          Art.-Nr. ${mepEsc(x.sap_artnr)}${dp?` · <b style="color:#b45309">offene Dispo</b>`:""}</span></div>
+      <div style="font-weight:bold;text-align:right;font-size:14px;white-space:nowrap;flex:none">${w(x)}</div></div>`;}).join("")
       :`<div class="small" style="padding:10px 0;font-style:italic">Keine Artikeldaten für diese Auswahl.</div>`}
     <div class="small" style="margin-top:9px">Quartalswerte, täglich mit Stand Vortag.
       Barcode: Code 128 auf der Artikelnummer.</div></div>`;
@@ -6727,7 +6697,7 @@ function mepKachelAufgaben(){
   const zg={}; a.forEach(x=>{const k=mepBereichsMap[x.area]||x.area||"ohne Bereich";(zg[k]=zg[k]||[]).push(x);});
   const l=a.slice().sort((x,y)=>(x.sort_order??999)-(y.sort_order??999)).slice(0,12);
   return `<div class="box"><h2>Aufgaben${b?" · "+mepEsc(b):""} <span style="font-weight:normal;font-size:14px;color:#64748b">${a.length} offen</span>
-    ${mepAbsprung("mepZeigeAufgaben()","alle Aufgaben")}</h2>
+    ${mepAbsprung("mepZeigeAufgaben()","mehr")}</h2>
     ${!b&&a.length?`<div class="small">${Object.entries(zg).sort((x,y)=>y[1].length-x[1].length)
       .map(([k,v])=>`<b>${mepEsc(k)}</b> ${v.length}`).join(" · ")}</div>`:""}
     ${a.length?`<table style="width:100%;border-collapse:collapse;font-size:13.5px;margin-top:10px">
@@ -6757,7 +6727,7 @@ function mepKachelDispo(){
   const ein=d.filter(x=>x.rolle==="Folge"||x.rolle==="Ersatz");
   const zeig=[...aus,...ein].slice(0,10);
   return `<div class="box"><h2>Dispo, Ein- und Auslistungen
-    ${mepAbsprung("mepZeigeDispo()","alle Positionen")}</h2>
+    ${mepAbsprung("mepZeigeDispo()","mehr")}</h2>
     <div class="control-grid" style="margin-top:12px">
       <div><label>Offen</label><div style="font-size:26px;font-weight:900">${mepZahl(d.length)}</div>
         <div class="small">davon ${mepZahl(neu.length)} aus den letzten 7 Tagen</div></div>
@@ -6910,26 +6880,39 @@ function mepKachelBefunde(){
             ${fb?`<span style="font-size:10.5px;background:#eef3f9;color:#64748b;padding:2px 8px;border-radius:9px;margin-left:6px">${
               mepEsc({hilfreich:"hilfreich",kannte_ich:"bekannt",falsch:"als falsch gemeldet",erledigt:"erledigt"}[fb.bewertung]||fb.bewertung)}</span>`:""}</div>
           <div style="display:flex;gap:4px;align-items:center;flex:none">
-            <span style="font-size:11px;color:#94a3b8;margin-right:2px">Feedback geben</span>
-            ${dm("hilfreich","\u{1F44D}","hilfreich")}${dm("falsch","\u{1F44E}","falsch - wird kuenftig nicht mehr gezeigt")}
+            ${dm("hilfreich","\u{1F44D}","hilfreich")}${dm("falsch","\u{1F44E}","falsch \u2013 wird kuenftig nicht mehr gezeigt")}
+            <button onclick="mepFeedbackFeld('${f.schluessel}')" style="border:1px solid #e2e8f0;
+              background:transparent;color:#64748b;border-radius:8px;padding:4px 10px;
+              font-size:11.5px;cursor:pointer">Feedback geben</button>
           </div></div>
         <div style="font-size:13px;line-height:1.55">${mepEsc(f.text)}</div>
         ${f.beleg?`<div style="font-size:11.5px;color:#64748b;margin-top:7px;font-family:monospace;line-height:1.5">${mepEsc(f.beleg)}</div>`:""}
         ${f.vorschlag?`<div style="font-size:13.5px;margin-top:10px;padding:11px 13px;
             background:#fff;border:2px solid #15803d;border-radius:8px;line-height:1.5">
-            <b style="color:#15803d;display:block;margin-bottom:3px">➜ Das wäre zu tun</b>
+            <b style="color:#15803d;display:block;margin-bottom:3px">\u279C Das w\u00e4re zu tun</b>
             ${mepEsc(f.vorschlag)}</div>`:""}
-        <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;
+        <div id="mepfb-${mepEsc(f.schluessel)}" style="display:none;margin-top:10px;
              border-top:1px solid rgba(0,0,0,.06);padding-top:8px">
-          ${dm("kannte_ich","kannte ich","bleibt weiter sichtbar")}${dm("erledigt","erledigt","")}
-          <input id="mepkom-${mepEsc(f.schluessel)}" placeholder="Anmerkung …"
-            onkeydown="if(event.key==='Enter')mepMelden('${f.schluessel}',null)"
-            style="flex:1;min-width:160px;padding:4px 9px;border:1px solid #e2e8f0;border-radius:8px;font-size:11.5px"></div>
+          <textarea id="mepkom-${mepEsc(f.schluessel)}" rows="2" placeholder="Was stimmt nicht, oder was fehlt?"
+            style="width:100%;padding:7px 9px;border:1px solid #e2e8f0;border-radius:8px;
+            font-size:12.5px;font-family:inherit;resize:vertical"></textarea>
+          <div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end">
+            <button onclick="mepFeedbackFeld('${f.schluessel}')" style="border:1px solid #e2e8f0;
+              background:transparent;color:#64748b;border-radius:8px;padding:4px 12px;font-size:12px;cursor:pointer">Abbrechen</button>
+            <button class="btn-yellow" style="width:auto;padding:5px 16px;font-size:12px"
+              onclick="mepMelden('${f.schluessel}',null)">Absenden</button>
+          </div></div>
       </div>`;}).join("")
      :`<div class="small" style="padding:10px 0;font-style:italic">Keine Befunde für diese Auswahl.</div>`}
     </div>`;
 }
 
+function mepFeedbackFeld(schluessel){
+  const e=document.getElementById("mepfb-"+schluessel);
+  if(!e) return;
+  e.style.display = e.style.display==="none" ? "block" : "none";
+  if(e.style.display==="block"){ const f=document.getElementById("mepkom-"+schluessel); if(f) f.focus(); }
+}
 async function mepMelden(schluessel,bewertung){
   const feld=document.getElementById("mepkom-"+schluessel);
   const kommentar=feld?feld.value.trim():"";
