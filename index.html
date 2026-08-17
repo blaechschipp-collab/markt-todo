@@ -511,7 +511,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.17-8"; // Neuer Push nach der GitHub-Stoerung bei Vercel
+const APP_VERSION = "v2026.08.17-9"; // Vorzeichen der Spannenminderung korrigiert, Vorjahr klar beschriftet, Top-Flop-Umschaltung, Dispo-Karten, Feedback zurueckgenommen
 const APP_VERSION_DATE = "17.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -6383,10 +6383,11 @@ function mepWerte(periodeVon, skalieren){
   const S=k=>{const t=z.filter(x=>x.kennzahl===k&&x.wert!=null);
     return t.length?t.reduce((s,x)=>s+Number(x.wert),0):null;};
   const u=S("Umsatz"), uv=S("Umsatz Vj"), kd=S("Kunden"), kdv=S("Kunden Vj");
-  return {u,kd,
+  return {u,kd,uv,kdv,
     uA:(u!=null&&uv)?100*(u-uv*a)/(uv*a):null,
     kA:(kd!=null&&kdv)?100*(kd-kdv*a)/(kdv*a):null,
-    bon:(u&&kd)?u/kd:null};
+    bon:(u&&kd)?u/kd:null,
+    bonVj:(uv&&kdv)?uv/kdv:null};
 }
 /* Marktwerte als Vergleichsmassstab - die Faerbung richtet sich danach,
    ob der Bereich BESSER oder SCHLECHTER laeuft als der Markt (Vorgabe 17.08.). */
@@ -6418,21 +6419,35 @@ function mepKachelKennzahlen(){
   const sp=mepSpanne.filter(x=>x.markt===mepMk());
   const ges=sp.find(x=>x.abteilung==="Gesamtergebnis");
   const teil=B?sp.filter(x=>mepAbteilungen().includes(x.abteilung)):null;
-  let usp=null,nsp=null,uspVj=null,verl=null,verlEur=null;
-  if(!B && ges){ usp=ges.umsatzsp; nsp=ges.nettoertragssp; uspVj=ges.umsatzsp_vj;
-    verl=(usp!=null&&nsp!=null)?usp-nsp:null;
+  /* Vorzeichen (Korrektur 17.08.):
+     Umsatzspanne      = Spanne aller verkauften Artikel
+     Nettoertragsspanne= Umsatzspanne GEMINDERT um Abschriften, Inventur,
+                         Rechnungspruefung
+     Die Minderung ist also nettoertragssp MINUS umsatzsp und damit negativ.
+     Vorher stand hier usp-nsp, was eine Minderung als Zugewinn aussehen liess. */
+  let usp=null,nsp=null,uspVj=null,nspVj=null,minderung=null,verlEur=null;
+  if(!B && ges){ usp=ges.umsatzsp; nsp=ges.nettoertragssp;
+    uspVj=ges.umsatzsp_vj; nspVj=ges.nettoertragssp_vj;
+    minderung=(usp!=null&&nsp!=null)?nsp-usp:null;
     verlEur=(ges.abschr_ek||0)+(ges.inventur_ek||0); }
   else if(teil&&teil.length){
     verlEur=teil.reduce((s,x)=>s+(x.abschr_ek||0)+(x.inventur_ek||0),0);
     // Bei genau einer Abteilung laesst sich die Spanne direkt zeigen
     if(teil.length===1){ usp=teil[0].umsatzsp; nsp=teil[0].nettoertragssp;
-      uspVj=teil[0].umsatzsp_vj; verl=(usp!=null&&nsp!=null)?usp-nsp:null; }
+      uspVj=teil[0].umsatzsp_vj; nspVj=teil[0].nettoertragssp_vj;
+      minderung=(usp!=null&&nsp!=null)?nsp-usp:null; }
   }
   const spTrend=(usp!=null&&uspVj!=null)?usp-uspVj:null;
-  const kachel=(titel,wert,farbe,unten)=>
+  const nspTrend=(nsp!=null&&nspVj!=null)?nsp-nspVj:null;
+  /* Kachel mit klarer Trennung: oben der aktuelle Wert, darunter ausdruecklich
+     beschriftet "Vorjahr" - vorher war nicht auf einen Blick erkennbar, was
+     welche Zahl ist. */
+  const kachel=(titel,wert,farbe,vorjahr,zusatz)=>
     `<div><label>${titel}</label>
-     <div style="font-size:25px;font-weight:900;color:${farbe}">${wert}</div>
-     <div class="small">${unten}</div></div>`;
+     <div style="font-size:25px;font-weight:900;color:${farbe};line-height:1.1">${wert}</div>
+     ${vorjahr?`<div style="font-size:12.5px;color:#64748b;margin-top:3px">
+        <span style="display:inline-block;min-width:52px">Vorjahr</span><b>${vorjahr}</b></div>`:""}
+     ${zusatz?`<div class="small" style="margin-top:2px">${zusatz}</div>`:""}</div>`;
   const pz=v=>v==null?"–":(v>0?"+":"")+v.toFixed(1)+" %";
   const satz = jahr.uA==null ? "Kein Vorjahresvergleich möglich."
     : (jahr.uA>0&&jahr.kA>0) ? `Umsatz und Kundenzahl liegen über Vorjahr – das Wachstum kommt aus Frequenz.`
@@ -6447,43 +6462,54 @@ function mepKachelKennzahlen(){
       ${B?"":"Ohne Bereichsauswahl ist der Vorjahresvergleich selbst der Maßstab."}</div>
 
     <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b;margin:14px 0 6px">
-      Letzte Woche (10.08.–16.08.)</div>
+      Letzte Woche · 10.08.–16.08.2026 <span style="text-transform:none;letter-spacing:0">(Vorjahr: 11.08.–17.08.2025)</span></div>
     <div class="control-grid">
-      ${kachel("Umsatz",pz(woche.uA),mepFarbe(woche.uA,B?mWoche.uA:0),
-        `${mepEur(woche.u)}${B&&mWoche.uA!=null?` · Markt ${pz(mWoche.uA)}`:""}`)}
-      ${kachel("Kunden",pz(woche.kA),mepFarbe(woche.kA,B?mWoche.kA:0),
-        `${mepZahl(woche.kd)}${B&&mWoche.kA!=null?` · Markt ${pz(mWoche.kA)}`:""}`)}
-      ${kachel("Ø Bon",woche.bon==null?"–":woche.bon.toFixed(2).replace(".",",")+" €","#08213f","in der Woche")}
+      ${kachel("Umsatz",mepEur(woche.u),mepFarbe(woche.uA,B?mWoche.uA:0),
+        woche.uv!=null?mepEur(woche.uv):null,
+        `<b>${pz(woche.uA)}</b> gegenüber Vorjahr${B&&mWoche.uA!=null?` · Markt ${pz(mWoche.uA)}`:""}`)}
+      ${kachel("Kunden",mepZahl(woche.kd),mepFarbe(woche.kA,B?mWoche.kA:0),
+        woche.kdv!=null?mepZahl(woche.kdv):null,
+        `<b>${pz(woche.kA)}</b> gegenüber Vorjahr${B&&mWoche.kA!=null?` · Markt ${pz(mWoche.kA)}`:""}`)}
+      ${kachel("Ø Bon",woche.bon==null?"–":woche.bon.toFixed(2).replace(".",",")+" €","#08213f",
+        woche.bonVj==null?null:woche.bonVj.toFixed(2).replace(".",",")+" €",null)}
     </div>
 
     <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b;margin:16px 0 6px">
-      Aufgelaufen seit 01.01.${mepStand?" bis "+mepStand.split("-").reverse().join("."):""}</div>
+      Aufgelaufen · 01.01.${mepStand?"–"+mepStand.split("-").reverse().join("."):""}
+      <span style="text-transform:none;letter-spacing:0">(Vorjahr auf gleiche Zeitraumlänge gerechnet)</span></div>
     <div class="control-grid">
-      ${kachel("Umsatz",pz(jahr.uA),mepFarbe(jahr.uA,B?mJahr.uA:0),
-        `${mepEur(jahr.u)}${B&&mJahr.uA!=null?` · Markt ${pz(mJahr.uA)}`:""}`)}
-      ${kachel("Kunden",pz(jahr.kA),mepFarbe(jahr.kA,B?mJahr.kA:0),
-        `${mepZahl(jahr.kd)}${B&&mJahr.kA!=null?` · Markt ${pz(mJahr.kA)}`:""}`)}
-      ${kachel("Ø Bon",jahr.bon==null?"–":jahr.bon.toFixed(2).replace(".",",")+" €","#08213f","aufgelaufen")}
+      ${kachel("Umsatz",mepEur(jahr.u),mepFarbe(jahr.uA,B?mJahr.uA:0),
+        jahr.uv!=null?mepEur(jahr.uv*mepJahresanteil()):null,
+        `<b>${pz(jahr.uA)}</b> gegenüber Vorjahr${B&&mJahr.uA!=null?` · Markt ${pz(mJahr.uA)}`:""}`)}
+      ${kachel("Kunden",mepZahl(jahr.kd),mepFarbe(jahr.kA,B?mJahr.kA:0),
+        jahr.kdv!=null?mepZahl(jahr.kdv*mepJahresanteil()):null,
+        `<b>${pz(jahr.kA)}</b> gegenüber Vorjahr${B&&mJahr.kA!=null?` · Markt ${pz(mJahr.kA)}`:""}`)}
+      ${kachel("Ø Bon",jahr.bon==null?"–":jahr.bon.toFixed(2).replace(".",",")+" €","#08213f",
+        jahr.bonVj==null?null:jahr.bonVj.toFixed(2).replace(".",",")+" €",null)}
     </div>
 
     <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b;margin:16px 0 6px">
-      Spanne (Woche der Spannenanalyse)</div>
+      Spanne · Woche der Spannenanalyse</div>
     <div class="control-grid">
       ${kachel("Umsatzspanne",mepPrz(usp),
         spTrend==null?"#08213f":(spTrend>0.1?"#15803d":spTrend<-0.1?"#b91c1c":"#08213f"),
-        uspVj!=null?`Vorjahr ${mepPrz(uspVj)} · ${mepPP(spTrend)}`:"kein Vorjahreswert")}
+        uspVj!=null?mepPrz(uspVj):null,
+        spTrend!=null?`<b>${mepPP(spTrend)}</b> gegenüber Vorjahr · Spanne aller verkauften Artikel`:"Spanne aller verkauften Artikel")}
       ${kachel("Nettoertragsspanne",mepPrz(nsp),
-        nsp==null?"#08213f":(verl!=null&&verl<1?"#15803d":verl>2?"#b91c1c":"#08213f"),
-        verl!=null?`${mepPP(verl)} unter der Umsatzspanne`:"")}
-      ${kachel("Verlust in Euro",mepEur(verlEur),
-        verlEur==null?"#08213f":(verlEur<-300?"#b91c1c":verlEur<0?"#08213f":"#15803d"),
-        "Abschriften und Inventur zusammen")}
+        nspTrend==null?"#08213f":(nspTrend>0.1?"#15803d":nspTrend<-0.1?"#b91c1c":"#08213f"),
+        nspVj!=null?mepPrz(nspVj):null,
+        nspTrend!=null?`<b>${mepPP(nspTrend)}</b> gegenüber Vorjahr · nach Abschriften und Inventur`:"nach Abschriften und Inventur")}
+      ${kachel("Minderung",minderung==null?"–":mepPP(minderung),
+        minderung==null?"#08213f":(minderung<-2?"#b91c1c":minderung<-0.5?"#b45309":"#15803d"),
+        null,
+        `${mepEur(verlEur)} durch Abschriften und Inventur`)}
     </div>
 
     <div class="small" style="margin-top:14px;padding:9px 11px;background:#f4f9ff;border-left:3px solid #004f9e;border-radius:0 7px 7px 0">
-      ${satz}${vgl}${verl!=null?` Zwischen Umsatz- und Nettoertragsspanne liegen ${mepPP(verl)} –
-      der Verlust durch Abschriften, Inventur und Rechnungsprüfung.`:``}
-      ${verl==null&&verlEur!=null?` Über mehrere Abteilungen wird bewusst keine gemeinsame Spanne
+      ${satz}${vgl}${minderung!=null?` Die Nettoertragsspanne liegt ${mepPP(minderung)} unter der
+      Umsatzspanne – das ist die Minderung durch Abschriften, Inventur und Rechnungsprüfung,
+      in Euro ${mepEur(Math.abs(verlEur))}.`:``}
+      ${minderung==null&&verlEur!=null?` Über mehrere Abteilungen wird bewusst keine gemeinsame Spanne
       ausgewiesen: Prozentwerte lassen sich nicht mitteln, Euro-Beträge dagegen schon.
       Die Spannen je Abteilung stehen in der Tabelle darunter.`:``}
     </div></div>`;
@@ -6514,7 +6540,9 @@ function mepKachelSpannen(){
       <td style="padding:8px">${mepEsc(x.abteilung)}</td>
       <td style="text-align:right">${mepPrz(x.umsatzsp)}</td>
       <td style="text-align:right">${mepPrz(x.nettoertragssp)}</td>
-      <td style="text-align:right"><b>${mepPP(x.umsatzsp!=null&&x.nettoertragssp!=null?x.umsatzsp-x.nettoertragssp:null)}</b></td>
+      <td style="text-align:right"><b style="color:${
+        (x.umsatzsp!=null&&x.nettoertragssp!=null&&(x.nettoertragssp-x.umsatzsp)<-2)?"#b91c1c":"inherit"}">${
+        mepPP(x.umsatzsp!=null&&x.nettoertragssp!=null?x.nettoertragssp-x.umsatzsp:null)}</b></td>
       <td style="text-align:right">${mepEur(x.abschr_ek)}</td>
       <td style="text-align:right">${vgl(x.abschr_ek,x.abschr_ek_vj)}</td>
       <td style="text-align:right">${mepEur(x.inventur_ek)}</td>
@@ -6524,25 +6552,41 @@ function mepKachelSpannen(){
       enthalten – aussagekräftig wird es erst, wenn es sich über mehrere Wochen hält.</div></div>`;
 }
 
+let mepRichtung="top";   // "top" = die Besten oben, "flop" = die Schlechtesten oben
+function mepSetzeRichtung(r){ mepRichtung=r; mepZeichnen(); }
+
 function mepKachelArtikel(){
-  const G=[["umsatz","Umsatz"],["menge","Menge"],["spanne","Spanne"],["verlust","Spannenverlust"]];
+  const G=[["umsatz","Umsatz"],["menge","Menge"],["spanne","Spanne"],["verlust","Minderung"]];
   let l=mepArtikel.filter(x=>x.umsatz>0);
-  if(mepSort==="umsatz") l.sort((a,b)=>b.umsatz-a.umsatz);
-  else if(mepSort==="menge") l.sort((a,b)=>(b.menge||0)-(a.menge||0));
-  else if(mepSort==="spanne") l.sort((a,b)=>(a.nettoertragssp??999)-(b.nettoertragssp??999));
-  else l.sort((a,b)=>((b.umsatzsp||0)-(b.nettoertragssp||0))-((a.umsatzsp||0)-(a.nettoertragssp||0)));
+  // "gut" heisst je Groesse etwas anderes: viel Umsatz ist gut, viel Minderung schlecht
+  const wertVon=x=>mepSort==="umsatz"?(x.umsatz||0)
+    :mepSort==="menge"?(x.menge||0)
+    :mepSort==="spanne"?(x.nettoertragssp??-999)
+    :((x.nettoertragssp||0)-(x.umsatzsp||0));   // Minderung: negativ = schlecht
+  l.sort((a,b)=> mepRichtung==="top" ? wertVon(b)-wertVon(a) : wertVon(a)-wertVon(b));
   l=l.slice(0,10);
-  const erkl={umsatz:"Die zehn umsatzstärksten Artikel.",
-    menge:"Nach Stückzahl – über mehrere Abteilungen dominiert, was mengenmäßig groß ist.",
-    spanne:"Die zehn Artikel mit der <b>niedrigsten</b> Nettoertragsspanne.",
-    verlust:"Größte Differenz zwischen Umsatz- und Nettoertragsspanne."}[mepSort];
+  const top=mepRichtung==="top";
+  const erkl={
+    umsatz: top?"Die zehn umsatzstärksten Artikel.":"Die zehn Artikel mit dem geringsten Umsatz.",
+    menge:  top?"Die zehn meistverkauften Artikel nach Stückzahl. Über mehrere Abteilungen dominiert, was mengenmäßig groß ist."
+               :"Die zehn Artikel mit der geringsten Stückzahl.",
+    spanne: top?"Die zehn Artikel mit der <b>höchsten</b> Nettoertragsspanne."
+               :"Die zehn Artikel mit der <b>niedrigsten</b> Nettoertragsspanne – dort bleibt am wenigsten übrig.",
+    verlust:top?"Die zehn Artikel mit der geringsten Minderung – dort kommt an, was kalkuliert wurde."
+               :"Die zehn Artikel mit der größten Minderung zwischen Umsatz- und Nettoertragsspanne."
+  }[mepSort];
   const w=x=>mepSort==="menge"?mepZahl(x.menge)+" St":mepSort==="umsatz"?mepEur(x.umsatz)
-    :mepSort==="spanne"?mepPrz(x.nettoertragssp):mepPP((x.umsatzsp||0)-(x.nettoertragssp||0));
-  return `<div class="box"><h2>Artikel</h2>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">${
-      G.map(([k,t])=>`<button onclick="mepSetzeSort('${k}')" style="border:1px solid #d8e2ef;
-        background:${mepSort===k?"#004f9e":"#fff"};color:${mepSort===k?"#fff":"#64748b"};
-        border-radius:13px;padding:4px 12px;font-size:12px;cursor:pointer;font-weight:bold">${t}</button>`).join("")}</div>
+    :mepSort==="spanne"?mepPrz(x.nettoertragssp):mepPP((x.nettoertragssp||0)-(x.umsatzsp||0));
+  const knopf=(aktiv,klick,text)=>`<button onclick="${klick}" style="border:1px solid #d8e2ef;
+    background:${aktiv?"#004f9e":"#fff"};color:${aktiv?"#fff":"#64748b"};
+    border-radius:13px;padding:4px 12px;font-size:12px;cursor:pointer;font-weight:bold">${text}</button>`;
+  return `<div class="box"><h2>${top?"Top":"Flop"}-Artikel</h2>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;align-items:center">
+      ${G.map(([k,t])=>knopf(mepSort===k,`mepSetzeSort('${k}')`,t)).join("")}
+      <span style="width:14px"></span>
+      ${knopf(top,"mepSetzeRichtung('top')","▲ Top")}
+      ${knopf(!top,"mepSetzeRichtung('flop')","▼ Flop")}
+    </div>
     <div class="small">${erkl}</div>
     ${l.length?l.map(x=>{
       const dp=mepDispo.find(d=>d.artikelnr===String(x.sap_artnr));
@@ -6609,26 +6653,39 @@ function mepKachelDispo(){
       dadurch beide. <b>Eine feste Paarung wird bewusst nicht angezeigt:</b> in den Daten gibt es kein Feld,
       das beide verbindet, und die ursprüngliche Zeilenreihenfolge ist nicht erhalten.</div>
     ${mepPdfLeiste()}
-    <table style="width:100%;border-collapse:collapse;font-size:13.5px;margin-top:4px">
-      <thead><tr style="text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">
-        <th style="padding:8px">Erledigt</th><th>Artikel</th><th>Abteilung</th><th>Rolle</th>
-        <th>Regal</th><th>zu tun</th></tr></thead><tbody>
-      ${zeig.map(x=>`<tr style="border-top:1px solid #eef3f9">
-        <td style="padding:8px"><input type="checkbox"
-            onchange="mepDispoAbhaken('${mepEsc(x.id)}',this.checked)" title="Als erledigt markieren"></td>
-        <td>${mepEsc(x.bezeichnung)}<span style="display:block;font-size:10.5px;color:#94a3b8">
-          Art.-Nr. ${mepEsc(x.artikelnr)}${x.ean&&x.ean!==x.artikelnr?" · EAN "+mepEsc(x.ean):""}</span></td>
-        <td style="color:#64748b">${mepEsc(x.abteilung||"–")}</td>
-        <td>${(x.rolle==="Ursprung"||x.rolle==="Ordersatz")
-          ?`<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:9px;font-size:11px">Auslistung</span>`
-          :`<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:9px;font-size:11px">Einlistung</span>`}</td>
-        <td style="color:#64748b">${mepEsc(x.regal_nr&&x.regal_nr!=="0"
-            ?x.regal_nr+(x.regal_platz&&x.regal_platz!=="0"?"/"+x.regal_platz:""):"–")}</td>
-        <td style="font-size:12.5px">${mepEsc(x.anmerkung||"–")}</td></tr>`).join("")}
-      </tbody></table>
+    ${zeig.map(x=>mepDispoKarte(x)).join("")}
       ${(aus.length+ein.length)>10?`<div class="small" style="margin-top:8px">Angezeigt sind die ersten 10 von
         ${mepZahl(aus.length+ein.length)}. Die vollständige Liste steht im Reiter Dispo.</div>`:""}`:""}
     </div>`;
+}
+
+/* Dieselbe Kartendarstellung wie im Dispo-Reiter - gleiche CSS-Klassen,
+   gleicher Aufbau, gleicher Erledigt-Haken. Wer beides benutzt, soll nicht
+   umdenken muessen (Vorgabe 17.08.). */
+function mepDispoKarte(x){
+  const auslistung = (x.rolle==="Ursprung"||x.rolle==="Ordersatz");
+  const rolleKlasse = x.rolle ? `role-${x.rolle}` : "";
+  const bcId = `mepbc_${x.id}`;
+  const code = x.ean || x.artikelnr;
+  return `<div class="dispo-card ${rolleKlasse}">
+    <div class="d-head"><div>
+      <div class="d-name">${mepEsc(x.bezeichnung||"(ohne Bezeichnung)")}
+        ${x.rolle?`<span class="pill" style="background:${auslistung?"#b91c1c":"#15803d"}">${
+          auslistung?"Auslistung":"Einlistung"} · ${mepEsc(x.rolle)}</span>`:""}</div>
+      <div class="d-meta">Art.-Nr. ${mepEsc(x.artikelnr||"–")}${
+        x.abteilung?" · "+mepEsc(x.abteilung):""}${
+        x.ean&&x.ean!==x.artikelnr?" · EAN "+mepEsc(x.ean):""}</div>
+    </div></div>
+    ${(x.regal_nr&&x.regal_nr!=="0")||(x.regal_platz&&x.regal_platz!=="0")
+      ?`<div class="d-row"><span class="lbl">Regal</span><span class="val">Nr. ${
+        mepEsc(x.regal_nr||"–")} / Platz ${mepEsc(x.regal_platz||"–")}</span></div>`:""}
+    ${x.anmerkung?`<div class="d-anm">${mepEsc(x.anmerkung)}</div>`:""}
+    ${code?`<div class="d-barcode"><svg class="mepbc" data-code="${mepEsc(code)}"></svg></div>`:""}
+    <div class="d-actions">
+      <input type="checkbox" class="d-check" onchange="mepDispoAbhaken('${mepEsc(x.id)}', this.checked)">
+      <label class="d-check-label">Erledigt</label>
+    </div>
+  </div>`;
 }
 
 /* Die vier Dispo-Unterlagen je Markt: Dashboard und WE-Prognose als Kolli,
@@ -6719,9 +6776,15 @@ function mepKachelBefunde(){
       Problem bleibt sichtbar, bis es behoben ist. Nur „falsch" unterdrückt einen Befund.</div>
     ${l.length?l.map(f=>{
       const fb=mepFeedback[f.schluessel];
-      const kn=(w,t)=>`<button onclick="mepMelden('${f.schluessel}','${w}')" style="border:1px solid #d8e2ef;
-        background:${fb&&fb.bewertung===w?"#004f9e":"#fff"};color:${fb&&fb.bewertung===w?"#fff":"#64748b"};
-        border-radius:14px;padding:4px 11px;font-size:11.5px;cursor:pointer">${t}</button>`;
+      /* Rueckmeldung bewusst zurueckhaltend: kleine Daumen am rechten Rand,
+         damit der Befund und vor allem der LOESUNGSVORSCHLAG im Vordergrund
+         stehen. Vorher nahmen vier gleich grosse Knoepfe mehr Platz ein als
+         der eigentliche Inhalt. */
+      const dm=(w,zeichen,titel)=>`<button onclick="mepMelden('${f.schluessel}','${w}')"
+        title="${titel}" style="border:1px solid ${fb&&fb.bewertung===w?"#004f9e":"#e2e8f0"};
+        background:${fb&&fb.bewertung===w?"#004f9e":"transparent"};
+        color:${fb&&fb.bewertung===w?"#fff":"#94a3b8"};border-radius:8px;padding:3px 8px;
+        font-size:14px;cursor:pointer;line-height:1.2">${zeichen}</button>`;
       return `<div style="border-left:5px solid ${farbe[f.schwere]||"#d8e2ef"};background:${hg[f.schwere]||"#fbfdff"};
         border-radius:8px;padding:12px 14px;margin-top:10px">
         <div style="font-weight:bold;font-size:14.5px;margin-bottom:5px">${mepEsc(f.titel)}
@@ -6729,12 +6792,18 @@ function mepKachelBefunde(){
             mepEsc({hilfreich:"hilfreich",kannte_ich:"bekannt",falsch:"als falsch gemeldet",erledigt:"erledigt"}[fb.bewertung]||fb.bewertung)}</span>`:""}</div>
         <div style="font-size:13px;line-height:1.55">${mepEsc(f.text)}</div>
         ${f.beleg?`<div style="font-size:11.5px;color:#64748b;margin-top:7px;font-family:monospace;line-height:1.5">${mepEsc(f.beleg)}</div>`:""}
-        ${f.vorschlag?`<div style="font-size:12.5px;margin-top:8px;padding:7px 10px;background:rgba(0,79,158,.06);border-radius:6px"><b>Vorschlag:</b> ${mepEsc(f.vorschlag)}</div>`:""}
-        <div style="margin-top:9px;display:flex;gap:5px;flex-wrap:wrap;align-items:center">
-          ${kn("hilfreich","hilfreich")}${kn("kannte_ich","kannte ich")}${kn("erledigt","erledigt")}${kn("falsch","falsch")}
-          <input id="mepkom-${mepEsc(f.schluessel)}" placeholder="Anmerkung"
+        ${f.vorschlag?`<div style="font-size:13.5px;margin-top:10px;padding:11px 13px;
+            background:#fff;border:2px solid #15803d;border-radius:8px;line-height:1.5">
+            <b style="color:#15803d;display:block;margin-bottom:3px">➜ Das wäre zu tun</b>
+            ${mepEsc(f.vorschlag)}</div>`:""}
+        <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;
+             justify-content:flex-end;border-top:1px solid rgba(0,0,0,.06);padding-top:8px">
+          <span style="font-size:11.5px;color:#94a3b8;margin-right:auto">Feedback geben</span>
+          ${dm("hilfreich","👍","hilfreich")}${dm("falsch","👎","falsch – wird künftig nicht mehr gezeigt")}
+          ${dm("kannte_ich","✓","kannte ich – bleibt sichtbar")}${dm("erledigt","✔","erledigt")}
+          <input id="mepkom-${mepEsc(f.schluessel)}" placeholder="Anmerkung …"
             onkeydown="if(event.key==='Enter')mepMelden('${f.schluessel}',null)"
-            style="flex:1;min-width:170px;padding:5px 9px;border:1px solid #d8e2ef;border-radius:13px;font-size:11.5px"></div>
+            style="width:190px;padding:4px 9px;border:1px solid #e2e8f0;border-radius:8px;font-size:11.5px"></div>
       </div>`;}).join("")
      :`<div class="small" style="padding:10px 0;font-style:italic">Keine Befunde für diese Auswahl.</div>`}
     </div>`;
