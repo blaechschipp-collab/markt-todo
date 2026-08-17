@@ -511,7 +511,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.17-3"; // Mein EDEKA Paul als Reiter, keine eigene Seite
+const APP_VERSION = "v2026.08.17-4"; // Mein EDEKA Paul: 1000-Zeilen-Limit behoben, Befunde marktbezogen, Umlistungen bearbeitbar, CSV-Download
 const APP_VERSION_DATE = "17.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -6192,7 +6192,7 @@ const MEP_MAERKTE={
   "Verwaltung":          ["Alle Märkte"]
 };
 let mepZugang={markt:null,bereich:null}, mepGeladen=false;
-let mepKz=[], mepSpanne=[], mepBefunde=[], mepFeedback={}, mepBereichsMap={};
+let mepKz=[], mepSpanne=[], mepBefunde=[], mepFeedback={}, mepBereichsMap={}, mepBereiche=[];
 let mepArtikel=[], mepDispo=[], mepAufgaben=[], mepStand=null, mepSort="umsatz";
 
 const mepEur=n=>n==null?"–":Math.round(n).toLocaleString("de-DE")+" €";
@@ -6254,24 +6254,29 @@ async function mepOeffnen(){
   ziel.style.display="block";
   if(mepGeladen){ mepZeichnen(); return; }
   ziel.innerHTML=`<div class="box"><div class="small">Daten werden geladen …</div></div>`;
-  const [a,b,c,d,e]=await Promise.all([
-    db.from("kennzahlen").select("markt,bereich,abteilung,wochentag,kennzahl,wert,stand,periode_von"),
+  /* WICHTIG: Supabase liefert ohne Zutun nur 1000 Zeilen. "kennzahlen" hat
+     17.251 - beim ersten Versuch am 17.08. kamen deshalb ausschliesslich
+     Zeilen eines einzigen Marktes an, die Auswahl blieb leer und alle Kacheln
+     waren ohne Zahlen. Deshalb: die kleinen Stammtabellen hier laden, die
+     grossen erst gefiltert je Markt in mepNeuLaden(). */
+  const [b,c,d,e,f]=await Promise.all([
     db.from("spannenanalyse").select("*"),
     db.from("befunde").select("*").eq("aktiv",true),
     db.from("befund_feedback").select("schluessel,bewertung,kommentar").order("wann",{ascending:false}),
-    db.from("aufgabenbereich_bereich").select("*")
+    db.from("aufgabenbereich_bereich").select("*"),
+    db.from("bereiche").select("markt,bereich,hat_bereiche")
   ]);
-  if(a.error){ ziel.innerHTML=`<div class="box"><b>Datenbank nicht erreichbar:</b> ${mepEsc(a.error.message)}</div>`; return; }
-  mepKz=a.data||[]; mepSpanne=b.data||[]; mepBefunde=c.data||[];
+  if(b.error){ ziel.innerHTML=`<div class="box"><b>Datenbank nicht erreichbar:</b> ${mepEsc(b.error.message)}</div>`; return; }
+  mepSpanne=b.data||[]; mepBefunde=c.data||[]; mepBereiche=f.data||[];
   (d.data||[]).forEach(x=>{if(!mepFeedback[x.schluessel])mepFeedback[x.schluessel]=x;});
   (e.data||[]).forEach(x=>mepBereichsMap[x.aufgabenbereich]=x.bereich);
-  const jahr=mepKz.filter(x=>x.periode_von==="2026-01-01");
-  if(jahr.length) mepStand=jahr[0].stand;
   mepGeladen=true;
   mepAufbauen();
 }
 function mepAufbauen(){
-  const alle=[...new Set(mepKz.map(z=>z.markt))].filter(x=>x!=="Gesamt").sort();
+  // Maerkte kommen aus "bereiche" (104 Zeilen), nicht aus "kennzahlen" -
+  // dort waeren sie vom 1000-Zeilen-Limit abgeschnitten.
+  const alle=[...new Set(mepBereiche.map(z=>z.markt))].sort();
   const maerkte = mepZugang.markt==="Verwaltung" ? alle : alle.filter(m=>m===mepZugang.markt);
   const offen = !mepZugang.bereich || mepZugang.bereich==="Alle Bereiche" || mepZugang.bereich==="Alle Märkte";
   document.getElementById("mepInhalt").innerHTML=
@@ -6286,7 +6291,7 @@ function mepAufbauen(){
 }
 function mepMarktGewechselt(){
   const sb=document.getElementById("mepBereich");
-  const b=[...new Set(mepKz.filter(z=>z.markt===mepMk()&&z.bereich!=="Gesamt").map(z=>z.bereich))].sort();
+  const b=[...new Set(mepBereiche.filter(z=>z.markt===mepMk()).map(z=>z.bereich))].sort();
   const offen = !mepZugang.bereich || mepZugang.bereich==="Alle Bereiche" || mepZugang.bereich==="Alle Märkte";
   sb.innerHTML = offen
     ? `<option value="">Ganzer Markt</option>`+b.map(x=>`<option>${mepEsc(x)}</option>`).join("")
@@ -6295,28 +6300,41 @@ function mepMarktGewechselt(){
   mepNeuLaden();
 }
 function mepAuswahl(){
-  return mepKz.filter(z=>z.markt===mepMk() && (mepBl()?z.bereich===mepBl():z.bereich!=="Gesamt")
+  return mepKz.filter(z=>(mepBl()?z.bereich===mepBl():z.bereich!=="Gesamt")
     && z.periode_von==="2026-01-01");
 }
 function mepAbteilungen(){
-  return [...new Set(mepAuswahl().map(x=>x.abteilung))].filter(a=>a!=="Gesamtergebnis");
+  // Aus der Bereichszuordnung, nicht aus den Kennzahlen - so steht die Liste
+  // auch dann, wenn fuer eine Abteilung noch keine Zahlen vorliegen.
+  const b=mepBl();
+  return [...new Set(mepBereiche.filter(z=>z.markt===mepMk()&&(!b||z.bereich===b))
+    .map(z=>z.abteilung))].filter(Boolean);
 }
 async function mepNeuLaden(){
-  mepZeichnen();
+  const ziel=document.getElementById("mepKacheln");
+  if(ziel) ziel.innerHTML=`<div class="box"><div class="small">Zahlen werden geladen …</div></div>`;
   const abt=mepAbteilungen();
-  const [ar,dz,auf]=await Promise.all([
+  /* Alles gefiltert je Markt laden. fetchAllPaged umgeht das 1000-Zeilen-Limit
+     von Supabase - ohne das kamen die Kacheln leer heraus. */
+  const [kzD,ar,dz,auf]=await Promise.all([
+    fetchAllPaged(()=>db.from("kennzahlen")
+      .select("markt,bereich,abteilung,wochentag,kennzahl,wert,stand,periode_von")
+      .eq("markt",mepMk())),
     (abt.length && !mepIstHausmeister())
-      ? db.from("artikel_kennzahlen")
+      ? fetchAllPaged(()=>db.from("artikel_kennzahlen")
           .select("sap_artnr,bezeichnung,abteilung,umsatz,menge,umsatzsp,nettoertragssp,warenrohgewinn")
-          .eq("markt",mepMk()).in("abteilung",abt).limit(3000)
-      : Promise.resolve({data:[]}),
-    db.from("dispo_zuordnung")
-      .select("id,bereich,abteilung,artikelnr,bezeichnung,rolle,upload_date,regal_nr,anmerkung")
-      .eq("markt",mepMk()).is("done_date",null).limit(4000),
-    db.from("tasks").select("id,title,area,day,priority,task_type,sort_order")
-      .eq("market",mepMk()).eq("done",false).limit(600)
+          .eq("markt",mepMk()).in("abteilung",abt))
+      : Promise.resolve([]),
+    mepIstHausmeister() ? Promise.resolve([])
+      : fetchAllPaged(()=>db.from("dispo_zuordnung")
+          .select("id,bereich,abteilung,artikelnr,ean,bezeichnung,rolle,listenart,upload_date,regal_nr,regal_platz,anmerkung")
+          .eq("markt",mepMk()).is("done_date",null)),
+    fetchAllPaged(()=>db.from("tasks").select("id,title,area,day,priority,task_type,sort_order")
+      .eq("market",mepMk()).eq("done",false))
   ]);
-  mepArtikel=ar.data||[]; mepDispo=dz.data||[]; mepAufgaben=auf.data||[];
+  mepKz=kzD||[]; mepArtikel=ar||[]; mepDispo=dz||[]; mepAufgaben=auf||[];
+  const jahr=mepKz.filter(x=>x.periode_von==="2026-01-01");
+  if(jahr.length) mepStand=jahr[0].stand;
   mepZeichnen();
 }
 function mepSetzeSort(s){ mepSort=s; mepZeichnen(); }
@@ -6490,25 +6508,86 @@ function mepKachelDispo(){
       eigenen Sortiments – liegen Ursprungs- und Nachfolgeartikel in verschiedenen Bereichen, sehen ihn
       dadurch beide. <b>Eine feste Paarung wird bewusst nicht angezeigt:</b> in den Daten gibt es kein Feld,
       das beide verbindet, und die ursprüngliche Zeilenreihenfolge ist nicht erhalten.</div>
-    <table style="width:100%;border-collapse:collapse;font-size:13.5px;margin-top:10px">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">
+      <button class="btn-yellow" onclick="mepDownload('umlistungen')">Umlistungen als CSV</button>
+      <button class="btn-yellow" onclick="mepDownload('dispo')">ganze Dispo als CSV</button>
+      <button class="btn-yellow" onclick="mepDownload('artikel')">Artikel als CSV</button>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:13.5px;margin-top:4px">
       <thead><tr style="text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">
-        <th style="padding:8px">Artikel</th><th>Abteilung</th><th>Rolle</th><th>Regal</th><th>zu tun</th></tr></thead><tbody>
-      ${zeig.map(x=>`<tr style="border-top:1px solid #eef3f9">
-        <td style="padding:8px">${mepEsc(x.bezeichnung)}<span style="display:block;font-size:10.5px;color:#94a3b8">
-          Art.-Nr. ${mepEsc(x.artikelnr)}</span></td>
+        <th style="padding:8px">Erledigt</th><th>Artikel</th><th>Abteilung</th><th>Rolle</th>
+        <th>Regal</th><th>zu tun</th></tr></thead><tbody>
+      ${zeig.map(x=>`<tr style="border-top:1px solid #eef3f9" id="mepz-${mepEsc(x.id)}">
+        <td style="padding:8px"><input type="checkbox" onchange="mepErledigt('${mepEsc(x.id)}',this)"
+            title="Als erledigt markieren"></td>
+        <td>${mepEsc(x.bezeichnung)}<span style="display:block;font-size:10.5px;color:#94a3b8">
+          Art.-Nr. ${mepEsc(x.artikelnr)}${x.ean&&x.ean!==x.artikelnr?" · EAN "+mepEsc(x.ean):""}</span></td>
         <td style="color:#64748b">${mepEsc(x.abteilung||"–")}</td>
         <td>${(x.rolle==="Ursprung"||x.rolle==="Ordersatz")
           ?`<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:9px;font-size:11px">Auslistung</span>`
           :`<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:9px;font-size:11px">Einlistung</span>`}</td>
-        <td style="color:#64748b">${mepEsc(x.regal_nr&&x.regal_nr!=="0"?x.regal_nr:"–")}</td>
+        <td style="color:#64748b">${mepEsc(x.regal_nr&&x.regal_nr!=="0"
+            ?x.regal_nr+(x.regal_platz&&x.regal_platz!=="0"?"/"+x.regal_platz:""):"–")}</td>
         <td style="font-size:12.5px">${mepEsc(x.anmerkung||"–")}</td></tr>`).join("")}
-      </tbody></table>`:""}
+      </tbody></table>
+      ${(aus.length+ein.length)>10?`<div class="small" style="margin-top:8px">Angezeigt sind die ersten 10 von
+        ${mepZahl(aus.length+ein.length)}. Die vollständige Liste steht im CSV-Download.</div>`:""}`:""}
     </div>`;
+}
+
+/* Erledigt-Haken schreibt in dieselbe Spalte, die auch der Dispo-Reiter nutzt.
+   done_by kommt aus dem Namensfeld oben - so ist nachvollziehbar, wer es war. */
+async function mepErledigt(id,el){
+  const name=(document.getElementById("name")||{}).value||"";
+  if(!name.trim()){ alert("Bitte oben zuerst den Namen eintragen."); el.checked=false; return; }
+  el.disabled=true;
+  const heute=new Date().toISOString().slice(0,10);
+  const {error}=await db.from("dispo_items")
+    .update({done_date:heute, done_by:name.trim()}).eq("id",id);
+  if(error){ alert("Nicht gespeichert: "+error.message); el.checked=false; el.disabled=false; return; }
+  const tr=document.getElementById("mepz-"+id);
+  if(tr){ tr.style.opacity=".45"; tr.style.textDecoration="line-through"; }
+  mepDispo=mepDispo.filter(x=>x.id!==id);
+}
+
+/* CSV mit Semikolon und BOM - so oeffnet Excel es ohne Nachfrage richtig. */
+function mepDownload(art){
+  const b=mepBl();
+  const d=b?mepDispo.filter(x=>x.bereich===b):mepDispo;
+  let kopf,zeilen,name;
+  if(art==="artikel"){
+    kopf=["Artikelnummer","Bezeichnung","Abteilung","Umsatz","Menge","Umsatzspanne","Nettoertragsspanne","Warenrohgewinn"];
+    zeilen=mepArtikel.map(x=>[x.sap_artnr,x.bezeichnung,x.abteilung,x.umsatz,x.menge,x.umsatzsp,x.nettoertragssp,x.warenrohgewinn]);
+    name="artikel";
+  } else {
+    const q = art==="umlistungen"
+      ? d.filter(x=>["Ursprung","Ordersatz","Folge","Ersatz"].includes(x.rolle))
+      : d;
+    kopf=["Artikelnummer","EAN","Bezeichnung","Abteilung","Bereich","Rolle","Liste","Regal","Platz","Anmerkung","Eingang"];
+    zeilen=q.map(x=>[x.artikelnr,x.ean,x.bezeichnung,x.abteilung,x.bereich,
+      (x.rolle==="Ursprung"||x.rolle==="Ordersatz")?"Auslistung":(x.rolle?"Einlistung":""),
+      x.listenart,x.regal_nr,x.regal_platz,x.anmerkung,(x.upload_date||"").slice(0,10)]);
+    name=art;
+  }
+  const esc=v=>{const s=String(v==null?"":v); return /[";\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s;};
+  const csv="﻿"+[kopf.join(";"),...zeilen.map(r=>r.map(esc).join(";"))].join("\r\n");
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
+  a.download=`${name}_${mepMk().replace(/[^A-Za-zÄÖÜäöü-]/g,"")}${b?"_"+b.replace(/[^A-Za-zÄÖÜäöü]/g,""):""}_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
 }
 
 function mepKachelBefunde(){
   const m=mepMk(), b=mepBl();
-  const passt=f=>(!f.markt||f.markt===m)&&(!b||!f.bereich||f.bereich===b);
+  /* Ein Befund gilt fuer DIESEN Markt und DIESE Abteilung (Vorgabe 17.08.).
+     Systembefunde stehen auf ebene='verwaltung' und erscheinen nur dort. */
+  const verwaltung = mepZugang.markt==="Verwaltung";
+  const passt=f=>{
+    if(f.ebene==="verwaltung") return verwaltung;
+    if(f.markt && f.markt!==m) return false;
+    if(b && f.bereich && f.bereich!==b) return false;
+    return true;
+  };
   const rang={alarm:0,warnung:1,hinweis:2,gut:3};
   const l=mepBefunde.filter(passt).sort((x,y)=>
     (rang[x.schwere]-rang[y.schwere])||(Math.abs(y.wert||0)-Math.abs(x.wert||0)));
