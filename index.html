@@ -524,7 +524,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.17-12"; // Kachel Werbung mit Downloads, Kennzahlen als Tabelle, Aufgaben nach Tag, Spannen nach Abweichung
+const APP_VERSION = "v2026.08.17-15"; // Hausmeister ueber alle Maerkte, Uebersicht "was ist wo offen", Verwaltungskachel im Hausnetz, Werbung fuer Dorflaeden
 const APP_VERSION_DATE = "17.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -6222,7 +6222,7 @@ const MEP_VOLLSORTIMENT=["Billigheim-Ingenheim","Steinfeld"];
 let mepZugang={markt:null,bereich:null}, mepGeladen=false;
 let mepKz=[], mepSpanne=[], mepBefunde=[], mepFeedback={}, mepBereichsMap={}, mepBereiche=[], mepDokumente=[];
 let mepArtikel=[], mepDispo=[], mepAufgaben=[], mepMetrics=[], mepStand=null, mepSort="umsatz";
-let mepWerbung=[], mepWerbungErledigt={}, mepWerbungKW=null, mepWerbungDateien=[];
+let mepWerbung=[], mepWerbungErledigt={}, mepWerbungKW=null, mepWerbungDateien=[], mepWerbungWochen=[];
 
 const mepEur=n=>n==null?"–":Math.round(n).toLocaleString("de-DE")+" €";
 const mepZahl=n=>n==null?"–":Math.round(n).toLocaleString("de-DE");
@@ -6232,6 +6232,15 @@ const mepEsc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":
 const mepMk=()=>document.getElementById("mepMarkt")?document.getElementById("mepMarkt").value:mepZugang.markt;
 const mepBl=()=>document.getElementById("mepBereich")?document.getElementById("mepBereich").value:"";
 const mepIstHausmeister=()=>mepBl()==="Hausmeister";
+/* "Alle Märkte" ist eine Auswahl im Marktfeld, kein Markt in den Daten.
+   Steht sie, wird ueberall mit .in() statt .eq() gefiltert. */
+const MEP_ALLE="Alle Märkte";
+const mepAlleMaerkte=()=>mepMk()===MEP_ALLE;
+const mepMarktListe=()=>[...new Set(mepBereiche.map(z=>z.markt))].sort();
+/* Kleine Bruecke fuer die Abfragen: entweder ein Markt oder alle. */
+const mepFiltMarkt=(q,spalte)=>mepAlleMaerkte()
+  ? q.in(spalte, mepMarktListe())
+  : q.eq(spalte, mepMk());
 function mepHash(s){let h=5381;for(let i=0;i<s.length;i++)h=((h*33)^s.charCodeAt(i))>>>0;return h.toString(16);}
 
 function mepTorBereiche(){
@@ -6307,7 +6316,15 @@ function mepAufbauen(){
   // Maerkte kommen aus "bereiche" (104 Zeilen), nicht aus "kennzahlen" -
   // dort waeren sie vom 1000-Zeilen-Limit abgeschnitten.
   const alle=[...new Set(mepBereiche.map(z=>z.markt))].sort();
-  const maerkte = mepZugang.markt==="Verwaltung" ? alle : alle.filter(m=>m===mepZugang.markt);
+  /* Hausmeister und Verwaltung sehen alle Maerkte und koennen zusaetzlich
+     "Alle Märkte" waehlen. Der Hausmeister arbeitet ohnehin ueber alle vier
+     Haeuser - ihn auf einen Markt festzunageln hiesse, dass er viermal
+     umschalten muss, um seinen Tag zu ueberblicken
+     (Vorgabe Benedikt Paul 17.08.2026). */
+  const uebergreifend = mepZugang.markt==="Verwaltung" || mepZugang.bereich==="Hausmeister";
+  const maerkte = uebergreifend
+    ? [MEP_ALLE, ...alle]
+    : alle.filter(m=>m===mepZugang.markt);
   const offen = !mepZugang.bereich || mepZugang.bereich==="Alle Bereiche" || mepZugang.bereich==="Alle Märkte";
   document.getElementById("mepInhalt").innerHTML=
     `<div class="box"><div class="control-grid">
@@ -6321,7 +6338,7 @@ function mepAufbauen(){
 }
 function mepMarktGewechselt(){
   const sb=document.getElementById("mepBereich");
-  const b=[...new Set(mepBereiche.filter(z=>z.markt===mepMk()).map(z=>z.bereich))].sort();
+  const b=[...new Set(mepBereiche.filter(z=>mepAlleMaerkte()||z.markt===mepMk()).map(z=>z.bereich))].sort();
   const offen = !mepZugang.bereich || mepZugang.bereich==="Alle Bereiche" || mepZugang.bereich==="Alle Märkte";
   sb.innerHTML = offen
     ? `<option value="">Ganzer Markt</option>`+b.map(x=>`<option>${mepEsc(x)}</option>`).join("")
@@ -6352,36 +6369,40 @@ async function mepNeuLaden(){
      fehlen - die Gesamtzahl stimmt trotzdem. Gemessen am 17.08.2026 fuer
      Billigheim: ohne Sortierung kamen 24 von 86 Zeilen eines Bereichs an und
      21 statt 27 Abteilungen, bei identischen 4.606 Zeilen insgesamt. */
+  /* Bei "Alle Märkte" werden Zahlen und Artikel NICHT geladen: Umsatz und
+     Spanne ueber vier Haeuser zusammenzuwerfen ergibt keinen brauchbaren Wert,
+     und Spannen darf man ohnehin nicht mitteln. Uebergreifend sinnvoll sind
+     Aufgaben und Dispo - genau die kommen. */
+  const alleM=mepAlleMaerkte();
   const [kzD,ar,dz,auf,met]=await Promise.all([
-    fetchAllPaged(()=>db.from("kennzahlen")
+    alleM ? Promise.resolve([]) : fetchAllPaged(()=>db.from("kennzahlen")
       .select("markt,bereich,abteilung,wochentag,kennzahl,wert,stand,periode_von")
       .eq("markt",mepMk())
       .order("abteilung").order("kennzahl").order("wochentag").order("periode_von")),
-    // Platzhalter, damit die Reihenfolge der Rueckgabe unveraendert bleibt
-    (abt.length && !mepIstHausmeister())
+    (abt.length && !mepIstHausmeister() && !alleM)
       ? fetchAllPaged(()=>db.from("artikel_kennzahlen")
           .select("sap_artnr,bezeichnung,abteilung,umsatz,menge,umsatzsp,nettoertragssp,warenrohgewinn")
           .eq("markt",mepMk()).in("abteilung",abt)
           .order("abteilung").order("sap_artnr"))
       : Promise.resolve([]),
     mepIstHausmeister() ? Promise.resolve([])
-      : fetchAllPaged(()=>db.from("dispo_zuordnung")
-          .select("id,bereich,abteilung,artikelnr,ean,bezeichnung,rolle,listenart,upload_date,regal_nr,regal_platz,anmerkung")
-          .eq("markt",mepMk()).is("done_date",null).order("id")),
+      : fetchAllPaged(()=>mepFiltMarkt(db.from("dispo_zuordnung")
+          .select("markt,id,bereich,abteilung,artikelnr,ean,bezeichnung,rolle,listenart,upload_date,regal_nr,regal_platz,anmerkung"),"markt")
+          .is("done_date",null).order("id")),
     /* Aufgaben: ALLE des Marktes, nicht nur die offenen. Welche gelten,
        entscheidet taskApplies je Datum - genau wie im Reiter ToDo. Der Filter
        auf done=false war falsch: wiederkehrende Aufgaben stehen dort dauerhaft
        auf false und wurden dadurch auch fuer uebermorgen angezeigt. */
-    fetchAllPaged(()=>db.from("tasks")
-      .select("id,title,area,day,month,priority,task_type,sort_order,start_date,end_date")
-      .eq("market",mepMk()).order("id")),
+    fetchAllPaged(()=>mepFiltMarkt(db.from("tasks")
+      .select("market,id,title,area,day,month,priority,task_type,sort_order,start_date,end_date"),"market")
+      .order("id")),
     // Wochenreihe fuer den Verlauf - nur Umsatz, sonst wird es zu viel
-    fetchAllPaged(()=>db.from("metrics").select("area,metric_name,metric_value,metric_date")
+    alleM ? Promise.resolve([]) : fetchAllPaged(()=>db.from("metrics").select("area,metric_name,metric_value,metric_date")
       .eq("market",mepMk()).eq("metric_name","Umsatz").gte("metric_date","2026-01-01")
       .order("metric_date").order("area"))
   ]);
   mepKz=kzD||[]; mepArtikel=ar||[]; mepDispo=dz||[]; mepAufgaben=auf||[]; mepMetrics=met||[];
-  await Promise.all([mepWerbungLaden(), mepLogsLaden()]);
+  await Promise.all([mepWerbungLaden(), mepLogsLaden(), mepVerwaltungLaden()]);
   const jahr=mepKz.filter(x=>x.periode_von==="2026-01-01");
   if(jahr.length) mepStand=jahr[0].stand;
   mepZeichnen();
@@ -6391,13 +6412,41 @@ async function mepNeuLaden(){
    rechnerisch aktuelle. Kommt der Wochencheck einmal spaeter als Mittwoch,
    steht so weiter der letzte da statt einer leeren Kachel. */
 async function mepWerbungLaden(){
-  mepWerbung=[]; mepWerbungErledigt={}; mepWerbungKW=null;
-  if(!mepIstVollsortiment()) return;
+  mepWerbung=[]; mepWerbungErledigt={}; mepWerbungDateien=[];
+  if(mepAlleMaerkte()) return;
+  /* Dorflaeden: kein Wochencheck, aber die Werbebilder aus ihrem Flip-Kanal.
+     Michaela Paul stellt dort woechentlich ein, welche Artikel in der Werbung
+     sind - fuer den Dorfladen ist das die ganze Werbung. */
+  if(!mepIstVollsortiment()){
+    try{
+      const {data:w}=await db.from("werbung_dateien").select("jahr,kw")
+        .eq("zielgruppe","dorfladen").order("jahr",{ascending:false}).order("kw",{ascending:false}).limit(1);
+      if(!w||!w.length) return;
+      mepWerbungKW=w[0];
+      const {data:f}=await db.from("werbung_dateien")
+        .select("art,titel,pfad,groesse_mb,original_name,ist_bild,reihenfolge")
+        .eq("zielgruppe","dorfladen").eq("jahr",w[0].jahr).eq("kw",w[0].kw)
+        .order("reihenfolge");
+      mepWerbungDateien=f||[];
+    }catch(err){ console.warn("Werbung Dorfladen:",err); }
+    return;
+  }
   try{
-    const {data:neueste}=await db.from("werbung_wochencheck")
-      .select("jahr,kw").order("jahr",{ascending:false}).order("kw",{ascending:false}).limit(1);
-    if(!neueste||!neueste.length) return;
-    mepWerbungKW=neueste[0];
+    /* Auswaehlbar sind nur die aktuelle Woche und die Vorwoche. Unterlagen der
+       Vorwoche sind noch im Umlauf - Zweitplatzierungen laufen aus, Fristen
+       reichen hinueber. Alles davor ist erledigt und wuerde die Auswahl nur
+       zumuellen (Vorgabe Benedikt Paul 17.08.2026). Die Daten bleiben in der
+       Tabelle stehen, sie werden hier nur nicht mehr angeboten. */
+    const {data:wochen}=await db.from("werbung_wochencheck")
+      .select("jahr,kw").order("jahr",{ascending:false}).order("kw",{ascending:false});
+    if(!wochen||!wochen.length){ mepWerbungKW=null; mepWerbungWochen=[]; return; }
+    const gesehen=new Set(); mepWerbungWochen=[];
+    for(const w of wochen){ const s=w.jahr+"-"+w.kw;
+      if(!gesehen.has(s)){ gesehen.add(s); mepWerbungWochen.push(w); } }
+    mepWerbungWochen=mepWerbungWochen.slice(0,2);
+    // Gewaehlte Woche beibehalten, solange sie noch angeboten wird
+    if(!mepWerbungKW||!mepWerbungWochen.some(w=>w.jahr===mepWerbungKW.jahr&&w.kw===mepWerbungKW.kw))
+      mepWerbungKW=mepWerbungWochen[0];
     const p=await fetchAllPaged(()=>db.from("werbung_wochencheck")
       .select("id,jahr,kw,bereich,thema,hinweis,art,frist,quelle,nur_vollsortiment")
       .eq("jahr",mepWerbungKW.jahr).eq("kw",mepWerbungKW.kw)
@@ -6433,6 +6482,11 @@ function mepWerbungDownloads(){
     </div></div>`;
 }
 const mepIstVollsortiment=()=>MEP_VOLLSORTIMENT.includes(mepMk());
+async function mepSetzeWerbungKW(jahr,kw){
+  mepWerbungKW={jahr:Number(jahr),kw:Number(kw)};
+  await mepWerbungLaden();
+  mepZeichnen();
+}
 
 async function mepWerbungAbhaken(id,checked){
   try{
@@ -6458,17 +6512,25 @@ function mepWerbungAuswahl(){
   return mepWerbung.filter(x=>x.bereich===b||x.bereich==="Gesamtmarkt");
 }
 
+/* Der Haken links war als blasses Kaestchen kaum als Bedienelement erkennbar.
+   Jetzt ist es eine beschriftete Flaeche, die den ganzen Punkt umschaltet -
+   im erledigten Zustand gruen mit Haken (Rueckmeldung Benedikt Paul 17.08.2026). */
 function mepWerbungZeile(x,mitHinweis){
   const erl=!!mepWerbungErledigt[x.id];
   const heute=new Date(); heute.setHours(0,0,0,0);
   const frist=x.frist?new Date(x.frist+"T00:00:00"):null;
   const tage=frist?Math.round((frist-heute)/86400000):null;
   const farbe={Aktion:"#004f9e",Platzierung:"#7c3aed",Bestellung:"#b45309",Frist:"#b91c1c",Hinweis:"#64748b"}[x.art]||"#64748b";
-  return `<div style="border-top:1px solid #eef3f9;padding:10px 0;${erl?"opacity:.45":""}">
-    <div style="display:flex;gap:10px;align-items:flex-start">
-      <input type="checkbox" style="width:auto;margin-top:3px" ${erl?"checked":""}
-             onchange="mepWerbungAbhaken('${mepEsc(x.id)}',this.checked)">
-      <div style="flex:1">
+  return `<div style="border-top:1px solid #eef3f9;padding:11px 0">
+    <div style="display:flex;gap:12px;align-items:flex-start">
+      <label style="flex:none;display:inline-flex;align-items:center;gap:7px;cursor:pointer;
+        border:1.5px solid ${erl?"#15803d":"#cfe0f3"};background:${erl?"#e8f5ec":"#fff"};
+        color:${erl?"#15803d":"#334155"};border-radius:8px;padding:7px 11px;font-size:12.5px;
+        font-weight:700;white-space:nowrap;user-select:none">
+        <input type="checkbox" style="width:17px;height:17px;margin:0;accent-color:#15803d;cursor:pointer"
+               ${erl?"checked":""} onchange="mepWerbungAbhaken('${mepEsc(x.id)}',this.checked)">
+        ${erl?"erledigt":"abhaken"}</label>
+      <div style="flex:1;${erl?"opacity:.5":""}">
         <div style="font-weight:600;${erl?"text-decoration:line-through":""}">${mepEsc(x.thema)}</div>
         <div class="small" style="margin-top:2px">
           <span style="color:${farbe};font-weight:600">${mepEsc(x.art)}</span>
@@ -6481,9 +6543,34 @@ function mepWerbungZeile(x,mitHinweis){
     </div></div>`;
 }
 
+/* Dorfladen-Fassung: nur die Bilder aus dem Flip-Kanal, kein Wochencheck.
+   Ein Klick oeffnet das Bild in voller Groesse - am Handy im Laden ist das
+   der einzige Weg, die Preise zu lesen. */
+function mepKachelWerbungDorfladen(){
+  const bilder=mepWerbungDateien.filter(x=>x.ist_bild);
+  if(!bilder.length){
+    return `<div class="box"><h2>Werbung</h2>
+      <div class="small" style="padding:10px 0;font-style:italic">Für diese Woche liegt noch keine
+      Werbung vor. Sie kommt über den Flip-Kanal des Dorfladens.</div></div>`;
+  }
+  return `<div class="box"><h2>Werbung · KW ${mepWerbungKW?mepWerbungKW.kw:""}
+    <span style="font-weight:normal;font-size:14px;color:#64748b">${bilder.length} Blatt</span></h2>
+    <div class="small">Welche Artikel diese Woche in der Werbung sind. Ein Klick öffnet das Blatt groß.
+      Der Wochencheck der Vollsortimenter kommt hier bewusst nicht – er passt nicht zum Dorfladen.</div>
+    <div style="display:flex;gap:11px;flex-wrap:wrap;margin-top:12px">
+      ${bilder.map(f=>`<a href="${mepWerbungUrl(f.pfad)}" target="_blank"
+        style="display:block;border:1px solid #e6eef8;border-radius:10px;padding:6px;background:#fff;
+        text-decoration:none;max-width:260px">
+        <img src="${mepWerbungUrl(f.pfad)}" alt="${mepEsc(f.titel)}"
+             style="width:100%;height:auto;border-radius:6px;display:block">
+        <div class="small" style="margin-top:5px;color:#004f9e">${mepEsc(f.titel)} ›</div></a>`).join("")}
+    </div>
+    <div class="small" style="margin-top:9px">Quelle: Flip-Kanal des Dorfladens,
+      eingestellt von Michaela Paul.</div></div>`;
+}
 function mepKachelWerbung(){
-  // Dorflaeden und Hausmeister bekommen die Kachel gar nicht erst zu sehen.
-  if(!mepIstVollsortiment()||mepIstHausmeister()) return "";
+  if(mepIstHausmeister()||mepAlleMaerkte()) return "";
+  if(!mepIstVollsortiment()) return mepKachelWerbungDorfladen();
   const b=mepBl();
   if(!mepWerbung.length){
     return `<div class="box"><h2>Werbung</h2>
@@ -6499,10 +6586,19 @@ function mepKachelWerbung(){
     const r={Frist:0,Aktion:1,Platzierung:2,Bestellung:3,Hinweis:4};
     return (r[x.art]??9)-(r[y.art]??9);
   }).slice(0,6);
+  const wKnopf=w=>{const an=mepWerbungKW.jahr===w.jahr&&mepWerbungKW.kw===w.kw;
+    const aktuell=mepWerbungWochen[0]&&mepWerbungWochen[0].jahr===w.jahr&&mepWerbungWochen[0].kw===w.kw;
+    return `<button onclick="mepSetzeWerbungKW(${w.jahr},${w.kw})"
+      style="border:1px solid ${an?"#004f9e":"#dbe6f3"};background:${an?"#004f9e":"#fff"};
+      color:${an?"#fff":"#334155"};border-radius:7px;padding:5px 12px;font-size:12.5px;
+      font-weight:${an?"700":"500"};cursor:pointer">KW ${w.kw}${aktuell?"":" (Vorwoche)"}</button>`;};
   return `<div class="box"><h2>Werbung · KW ${mepWerbungKW.kw}${b?" · "+mepEsc(b):""}
     <span style="font-weight:normal;font-size:14px;color:#64748b">${offen.length} von ${a.length} offen</span>
     ${mepAbsprung("mepZeigeWerbung()","mehr")}</h2>
-    ${!b?`<div class="small">${Object.entries(zg).sort((x,y)=>y[1].length-x[1].length)
+    ${mepWerbungWochen.length>1?`<div style="display:flex;gap:7px;align-items:center;margin-top:10px;flex-wrap:wrap">
+      ${mepWerbungWochen.map(wKnopf).join("")}
+      <span class="small" style="margin-left:4px">Weiter zurück als eine Woche wird nichts angeboten.</span></div>`:""}
+    ${!b?`<div class="small" style="margin-top:8px">${Object.entries(zg).sort((x,y)=>y[1].length-x[1].length)
       .map(([k,v])=>`<b>${mepEsc(k)}</b> ${v.length}`).join(" · ")}</div>`:""}
     ${mepWerbungDownloads()}
     ${fristen.length?`<div class="small" style="margin-top:10px;padding:8px 10px;background:#fff7ed;
@@ -6536,6 +6632,155 @@ function mepZeigeWerbung(){
       Vollsortimenter. Freckenfeld und Gossersweiler-Stein bekommen ihn bewusst nicht.</div>`);
 }
 
+/* ---------- Verwaltung: Bewerbungen und Liquidität ----------
+   Diese Kachel erscheint NUR im Hausnetz. Die Zahlen kommen von n8n auf
+   192.168.176.120 - von aussen ist die Adresse nicht erreichbar, der Abruf
+   laeuft ins Leere und die Kachel bleibt weg. Es liegt also nichts davon in
+   der Datenbank und nichts auf dem Webserver.
+
+   Herausgegeben werden ausschliesslich Anzahlen und eine Ampel: wie viele
+   Bewerbungen warten, wie viele ungelesen sind, ob heute ein Termin ansteht,
+   und ob das Geld sieben Tage reicht. Keine Namen, keine Betraege, keine
+   Kontostaende (Vorgabe Benedikt Paul 17.08.2026).
+
+   Ehrlich dazugesagt: Das ist kein Zugriffsschutz, sondern eine Frage der
+   Erreichbarkeit. Wer im Hausnetz sitzt, kann die Adresse auch von Hand
+   aufrufen. Deshalb steht dort auch nur, was unbedenklich ist. */
+const MEP_HAUSNETZ="https://192.168.176.120:5678/webhook";
+let mepVerwaltung=null, mepVerwaltungGeprueft=false;
+async function mepVerwaltungLaden(){
+  if(mepVerwaltungGeprueft) return;
+  mepVerwaltungGeprueft=true;
+  try{
+    const abbruch=new AbortController();
+    const uhr=setTimeout(()=>abbruch.abort(),2500);   // ausserhalb nicht ewig warten
+    const r=await fetch(`${MEP_HAUSNETZ}/verwaltung-status`,{signal:abbruch.signal});
+    clearTimeout(uhr);
+    if(!r.ok) return;
+    const d=await r.json();
+    mepVerwaltung=Array.isArray(d)?d[0]:d;
+  }catch(err){ mepVerwaltung=null; }   // nicht im Hausnetz - dann eben ohne
+}
+function mepKachelVerwaltung(){
+  // Nur für die Verwaltung, und nur wenn der Hausnetz-Abruf geklappt hat.
+  if(mepZugang.markt!=="Verwaltung"||!mepVerwaltung) return "";
+  const b=mepVerwaltung.bewerbungen||{}, l=mepVerwaltung.liquiditaet||{};
+  const ampelFarbe={gruen:"#15803d",gelb:"#b45309",rot:"#b91c1c"}[l.ampel]||"#64748b";
+  const ampelText={
+    gruen:"Das Geld reicht die nächsten 7 Tage – die Puffergrenze bleibt gewahrt.",
+    gelb:"Es wird knapp: in den nächsten 7 Tagen wird die Puffergrenze unterschritten.",
+    rot:"Achtung: in den nächsten 7 Tagen rutscht der Saldo ins Minus."
+  }[l.ampel]||"Keine Aussage möglich.";
+  const feld=(titel,wert,farbe,zusatz,absprung)=>
+    `<div style="flex:1 1 190px;border:1px solid #e6eef8;border-radius:10px;padding:12px 14px;background:#fff">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b">${titel}</div>
+      <div style="font-size:27px;font-weight:900;color:${farbe||"#08213f"};line-height:1.15;margin-top:3px">${wert}</div>
+      <div class="small" style="margin-top:2px">${zusatz||""}</div>
+      ${absprung||""}</div>`;
+  const link=(ziel,text)=>`<div style="margin-top:7px"><a href="${MEP_HAUSNETZ}/${ziel}" target="_blank"
+      style="font-size:12.5px;color:#004f9e;text-decoration:none">${text} ›</a></div>`;
+  const t=Number(b.termine_heute||0);
+  return `<div class="box" style="border-left:4px solid #004f9e">
+    <h2>Verwaltung <span style="font-weight:normal;font-size:14px;color:#64748b">nur im Hausnetz</span></h2>
+    <div class="small">Zahlen aus dem Bewerber- und dem Liquiditäts-Dashboard. Sie liegen nicht in der
+      Datenbank dieser App und sind von außerhalb des Hausnetzes nicht abrufbar.</div>
+    <div style="display:flex;gap:11px;flex-wrap:wrap;margin-top:12px">
+      ${feld("Bewerbungen warten",mepZahl(b.wartend),Number(b.wartend)>0?"#b45309":"#15803d",
+        "noch nicht abgeschlossen",link("bewerber","Bewerber-Dashboard"))}
+      ${feld("Ungelesen",mepZahl(b.ungelesen),Number(b.ungelesen)>0?"#b91c1c":"#15803d",
+        "neu eingegangen, noch nicht geöffnet","")}
+      ${feld("Termine heute",t?mepZahl(t):"keine",t?"#004f9e":"#64748b",
+        t?"Gespräch, Probetag oder Eintritt":"nichts eingetragen","")}
+      ${feld("Liquidität 7 Tage",
+        l.ampel==="gruen"?"reicht":l.ampel==="gelb"?"knapp":l.ampel==="rot"?"reicht nicht":"–",
+        ampelFarbe, ampelText, link("liqui","Liquiditäts-Dashboard"))}
+    </div>
+    <div class="small" style="margin-top:10px">${l.tiefster_tag
+      ? `Tiefster Punkt am ${formatDateDE(l.tiefster_tag)}, gerechnet über ${mepZahl(l.konten_gezaehlt)} Konten.`
+      : ""}
+      ${l.saldo_stand?` Kontostände vom ${formatDateDE(l.saldo_stand)}.`:""}
+      Beträge stehen bewusst nur im Liquiditäts-Dashboard selbst.</div>
+    </div>`;
+}
+
+/* ---------- Was ist wo offen ----------
+   Fuer Marktleitung und Verwaltung: eine Zeile je Bereich mit allem, was
+   dort liegen geblieben ist. Gedacht als erster Blick am Morgen - wo muss ich
+   heute hinschauen (Vorgabe Benedikt Paul 17.08.2026).
+   Bewusst nur Anzahlen, keine Bewertung: was viel ist, weiss die Marktleitung
+   selbst besser als eine fest verdrahtete Schwelle. */
+function mepKachelOffen(){
+  // Nur sinnvoll ohne Bereichsauswahl - wer in einem Bereich steckt, sieht ihn
+  // ohnehin vollstaendig in den Kacheln darunter.
+  if(mepBl()||mepIstHausmeister()) return "";
+  const iso=mepTagISO(), tag=dayNameFromISO(iso);
+  const bereichVon=x=>mepBereichsMap[x.area]||x.area||"ohne Bereich";
+  const zeilen={};
+  const hol=k=>zeilen[k]=zeilen[k]||{aufgaben:0,erledigt:0,dispo:0,dispoNeu:0,werbung:0};
+  (mepAufgaben||[]).filter(x=>taskApplies(x,iso,tag)).forEach(x=>{
+    const r=hol(bereichVon(x)); r.aufgaben++; if(mepErledigtHeute.has(x.id)) r.erledigt++;
+  });
+  const frisch=Date.now()-7*864e5;
+  (mepDispo||[]).forEach(x=>{
+    const r=hol(x.bereich||"ohne Bereich"); r.dispo++;
+    if(x.upload_date&&new Date(x.upload_date)>=frisch) r.dispoNeu++;
+  });
+  (mepWerbung||[]).filter(x=>!mepWerbungErledigt[x.id]).forEach(x=>{
+    hol(x.bereich).werbung++;
+  });
+  const keys=Object.keys(zeilen).sort((a,b)=>{
+    const s=z=>zeilen[z].aufgaben-zeilen[z].erledigt+zeilen[z].dispo+zeilen[z].werbung;
+    return s(b)-s(a);
+  });
+  if(!keys.length) return "";
+  const summe=k=>keys.reduce((s,x)=>s+zeilen[x][k],0);
+  const zahl=(n,farbe)=>n?`<b style="color:${farbe||"#08213f"}">${mepZahl(n)}</b>`:`<span style="color:#cbd5e1">–</span>`;
+  return `<div class="box"><h2>Was ist wo offen${mepAlleMaerkte()?" · alle Märkte":""}
+    <span style="font-weight:normal;font-size:14px;color:#64748b">Stand ${formatDateDE(iso)}</span></h2>
+    <div class="small">Aufgaben zählen für den gewählten Tag, Dispo und Werbung sind Bestände.
+      Ein Klick auf den Bereich wechselt dorthin.</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13.5px;margin-top:12px">
+      <thead><tr style="text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">
+        <th style="padding:8px">Bereich</th>
+        <th style="text-align:right;padding:8px">Aufgaben offen</th>
+        <th style="text-align:right;padding:8px">davon erledigt</th>
+        <th style="text-align:right;padding:8px">Dispo offen</th>
+        <th style="text-align:right;padding:8px">davon neu</th>
+        <th style="text-align:right;padding:8px">Werbung offen</th></tr></thead>
+      <tbody>
+      ${keys.map(k=>{const r=zeilen[k]; const off=r.aufgaben-r.erledigt;
+        const bekannt=mepBereiche.some(z=>z.bereich===k);
+        return `<tr style="border-top:1px solid #eef3f9">
+        <td style="padding:8px">${bekannt
+          ? `<a href="#" onclick="mepSpringeBereich('${mepEsc(k)}');return false"
+               style="color:#004f9e;text-decoration:none;font-weight:600">${mepEsc(k)}</a>`
+          : `<span style="font-weight:600">${mepEsc(k)}</span>`}</td>
+        <td style="text-align:right;padding:8px">${zahl(off, off>0?"#b45309":"#08213f")}</td>
+        <td style="text-align:right;padding:8px;color:#64748b">${r.erledigt?mepZahl(r.erledigt):"–"}</td>
+        <td style="text-align:right;padding:8px">${zahl(r.dispo)}</td>
+        <td style="text-align:right;padding:8px;color:#64748b">${r.dispoNeu?mepZahl(r.dispoNeu):"–"}</td>
+        <td style="text-align:right;padding:8px">${zahl(r.werbung)}</td></tr>`;}).join("")}
+      <tr style="border-top:2px solid #dbe6f3;font-weight:700">
+        <td style="padding:8px">Zusammen</td>
+        <td style="text-align:right;padding:8px">${mepZahl(summe("aufgaben")-summe("erledigt"))}</td>
+        <td style="text-align:right;padding:8px;color:#64748b">${mepZahl(summe("erledigt"))}</td>
+        <td style="text-align:right;padding:8px">${mepZahl(summe("dispo"))}</td>
+        <td style="text-align:right;padding:8px;color:#64748b">${mepZahl(summe("dispoNeu"))}</td>
+        <td style="text-align:right;padding:8px">${mepZahl(summe("werbung"))}</td></tr>
+      </tbody></table>
+    ${mepAlleMaerkte()?`<div class="small" style="margin-top:9px">Über alle vier Märkte zusammengezählt.
+      Umsatz und Spanne fehlen hier bewusst: über mehrere Häuser addiert wären sie irreführend,
+      und Spannen lassen sich nicht mitteln.</div>`:""}
+    </div>`;
+}
+function mepSpringeBereich(b){
+  const sel=document.getElementById("mepBereich");
+  if(!sel) return;
+  if(![...sel.options].some(o=>o.value===b||o.text===b)) return;
+  sel.value=b; mepNeuLaden();
+  document.getElementById("mepKacheln").scrollIntoView({behavior:"smooth",block:"start"});
+}
+
 function mepSetzeSort(s){ mepSort=s; mepZeichnen(); }
 function mepSummeK(z,k){const t=z.filter(x=>x.kennzahl===k&&x.wert!=null);
   return t.length?t.reduce((s,x)=>s+Number(x.wert),0):null;}
@@ -6549,8 +6794,10 @@ function mepZeichnen(){
   const z=document.getElementById("mepKacheln"); if(!z) return;
   z.innerHTML = mepIstHausmeister()
     ? mepKachelAufgaben()+mepKachelBefunde()
-    : mepKachelKennzahlen()+mepKachelSpannen()+mepKachelBefunde()
-      +mepKachelWerbung()+mepKachelArtikel()+mepKachelAufgaben()+mepKachelDispo();
+    : mepAlleMaerkte()
+      ? mepKachelVerwaltung()+mepKachelOffen()+mepKachelAufgaben()+mepKachelDispo()+mepKachelBefunde()
+      : mepKachelVerwaltung()+mepKachelKennzahlen()+mepKachelOffen()+mepKachelSpannen()+mepKachelBefunde()
+        +mepKachelWerbung()+mepKachelArtikel()+mepKachelAufgaben()+mepKachelDispo();
   mepBarcodes();
 }
 
@@ -6691,17 +6938,6 @@ function mepKachelKennzahlen(){
       uspVj=teil[0].umsatzsp_vj; nspVj=teil[0].nettoertragssp_vj;
       minderung=(usp!=null&&nsp!=null)?nsp-usp:null; }
   }
-  const spTrend=(usp!=null&&uspVj!=null)?usp-uspVj:null;
-  const nspTrend=(nsp!=null&&nspVj!=null)?nsp-nspVj:null;
-  /* Kachel mit klarer Trennung: oben der aktuelle Wert, darunter ausdruecklich
-     beschriftet "Vorjahr" - vorher war nicht auf einen Blick erkennbar, was
-     welche Zahl ist. */
-  const kachel=(titel,wert,farbe,vorjahr,zusatz)=>
-    `<div><label>${titel}</label>
-     <div style="font-size:25px;font-weight:900;color:${farbe};line-height:1.1">${wert}</div>
-     ${vorjahr?`<div style="font-size:12.5px;color:#64748b;margin-top:3px">
-        <span style="display:inline-block;min-width:52px">Vorjahr</span><b>${vorjahr}</b></div>`:""}
-     ${zusatz?`<div class="small" style="margin-top:2px">${zusatz}</div>`:""}</div>`;
   const pz=v=>v==null?"–":(v>0?"+":"")+v.toFixed(1)+" %";
   const eur2=v=>v==null?"–":v.toFixed(2).replace(".",",")+" €";
   /* Beim Bon ist der Vorjahreswert der Maßstab, nicht der Markt: ein hoher Bon
@@ -6757,30 +6993,16 @@ function mepKachelKennzahlen(){
          <div class="small">Vorjahr ${eur2(jahr.bonVj)}${bonAbw(jahr.bon,jahr.bonVj)}</div>`)}
       </tbody></table>
 
-    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b;margin:16px 0 6px">
-      Spanne · Woche der Spannenanalyse</div>
-    <div class="control-grid">
-      ${kachel("Umsatzspanne",mepPrz(usp),
-        spTrend==null?"#08213f":(spTrend>0.1?"#15803d":spTrend<-0.1?"#b91c1c":"#08213f"),
-        uspVj!=null?mepPrz(uspVj):null,
-        spTrend!=null?`<b>${mepPP(spTrend)}</b> gegenüber Vorjahr · Spanne aller verkauften Artikel`:"Spanne aller verkauften Artikel")}
-      ${kachel("Nettoertragsspanne",mepPrz(nsp),
-        nspTrend==null?"#08213f":(nspTrend>0.1?"#15803d":nspTrend<-0.1?"#b91c1c":"#08213f"),
-        nspVj!=null?mepPrz(nspVj):null,
-        nspTrend!=null?`<b>${mepPP(nspTrend)}</b> gegenüber Vorjahr · nach Abschriften und Inventur`:"nach Abschriften und Inventur")}
-      ${kachel("Minderung",minderung==null?"–":mepPP(minderung),
-        minderung==null?"#08213f":(minderung<-2?"#b91c1c":minderung<-0.5?"#b45309":"#15803d"),
-        null,
-        `${mepEur(verlEur)} durch Abschriften und Inventur`)}
-    </div>
-
+    <!-- Die drei Spannenwerte standen hier frueher noch einmal. Sie sind in der
+         Spannenanalyse darunter vollstaendig und je Abteilung enthalten - hier
+         waren sie nur Doppelung (Vorgabe Benedikt Paul 17.08.2026). -->
     <div class="small" style="margin-top:14px;padding:9px 11px;background:#f4f9ff;border-left:3px solid #004f9e;border-radius:0 7px 7px 0">
-      ${satz}${vgl}${minderung!=null?` Die Nettoertragsspanne liegt ${mepPP(minderung)} unter der
-      Umsatzspanne – das ist die Minderung durch Abschriften, Inventur und Rechnungsprüfung,
-      in Euro ${mepEur(Math.abs(verlEur))}.`:``}
-      ${minderung==null&&verlEur!=null?` Über mehrere Abteilungen wird bewusst keine gemeinsame Spanne
-      ausgewiesen: Prozentwerte lassen sich nicht mitteln, Euro-Beträge dagegen schon.
-      Die Spannen je Abteilung stehen in der Tabelle darunter.`:``}
+      ${satz}${vgl}${minderung!=null?` Zur Spanne: die Nettoertragsspanne liegt ${mepPP(minderung)}
+      unter der Umsatzspanne – das sind ${mepEur(Math.abs(verlEur))} durch Abschriften, Inventur und
+      Rechnungsprüfung. Die Einzelheiten je Abteilung stehen in der Spannenanalyse.`:``}
+      ${minderung==null&&verlEur!=null?` Zur Spanne: über mehrere Abteilungen wird bewusst keine
+      gemeinsame Spanne ausgewiesen – Prozentwerte lassen sich nicht mitteln, Euro-Beträge dagegen schon.
+      Die Spannen je Abteilung stehen in der Spannenanalyse darunter.`:``}
     </div></div>`;
 }
 
@@ -6938,13 +7160,15 @@ function mepKachelAufgaben(){
       .map(([k,v])=>`<b>${mepEsc(k)}</b> ${v.length}`).join(" · ")}</div>`:""}
     ${a.length?`<table style="width:100%;border-collapse:collapse;font-size:13.5px;margin-top:10px">
       <thead><tr style="text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">
-        <th style="padding:8px">Erledigt</th><th>Aufgabe</th><th>Bereich</th><th>Art</th><th>Dringlichkeit</th></tr></thead><tbody>
+        <th style="padding:8px">Erledigt</th><th>Aufgabe</th>${mepAlleMaerkte()?"<th>Markt</th>":""}
+        <th>Bereich</th><th>Art</th><th>Dringlichkeit</th></tr></thead><tbody>
       ${l.map(x=>{
         const erl=mepErledigtHeute.has(x.id);
         return `<tr style="border-top:1px solid #eef3f9;${erl?"opacity:.45":""}">
         <td style="padding:8px"><input type="checkbox" ${erl?"checked":""}
            onchange="mepTaskAbhaken('${mepEsc(x.id)}',this.checked)"></td>
         <td${erl?' style="text-decoration:line-through"':''}>${mepEsc(x.title)}</td>
+        ${mepAlleMaerkte()?`<td style="color:#64748b">${mepEsc(x.market||"–")}</td>`:""}
         <td style="color:#64748b">${mepEsc(mepBereichsMap[x.area]||x.area||"–")}</td>
         <td style="color:#64748b">${mepEsc(x.task_type==="recurring"?"täglich/wöchentlich"
           :x.task_type==="single"?"einmalig":x.task_type==="handover"?"Übergabe"
