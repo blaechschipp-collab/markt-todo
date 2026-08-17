@@ -189,7 +189,7 @@
 </div>
 <header class="header"><div class="brand" onclick="reloadApp()" title="Tippen zum Neuladen" style="cursor:pointer"><img src="logo.png" alt="EDEKA Paul Logo" class="logo" onerror="this.style.display='none';document.getElementById('fallbackBrand').style.display='block';"><div id="fallbackBrand" style="display:none"><div class="brand-title">Paul.</div><div class="brand-subtitle">Regional. Frisch. Freundlich.</div></div></div></header>
 <main class="main">
-  <div class="tabs"><button id="todoTab" class="tab active todo-tab" onclick="showTab('todo')">☑ ToDo</button><button id="dispoTab" class="tab dispo-tab" onclick="showTab('dispo')">📦 Dispo</button><button id="backshopTab" class="tab backshop-tab" onclick="showTab('backshop')">🥐 Backshop</button><button id="werbungTab" class="tab werbung-tab" onclick="showTab('werbung')">💰 Bevorratung</button><button id="analyticsTab" class="tab analytics-tab" onclick="showTab('analytics')">📊 Auswertungen</button><button id="adminTab" class="tab admin-tab" onclick="openAdminPin()">🔒 Admin</button></div>
+  <div class="tabs"><button id="todoTab" class="tab active todo-tab" onclick="showTab('todo')">☑ ToDo</button><button id="dispoTab" class="tab dispo-tab" onclick="showTab('dispo')">📦 Dispo</button><button id="backshopTab" class="tab backshop-tab" onclick="showTab('backshop')">🥐 Backshop</button><button id="werbungTab" class="tab werbung-tab" onclick="showTab('werbung')">💰 Bevorratung</button><button id="analyticsTab" class="tab analytics-tab" onclick="showTab('analytics')">📊 Auswertungen</button><button id="mepTab" class="tab mep-tab" onclick="showTab('mep')">🍏 Mein EDEKA Paul</button><button id="adminTab" class="tab admin-tab" onclick="openAdminPin()">🔒 Admin</button></div>
   <section id="todoSection">
     <div class="box"><div class="control-grid"><div><label>Dein Name</label><input id="name" placeholder="Dein Name"></div><div><label>Markt</label><select id="marketFilter" onchange="handleMarketChange()"><option value="ALLE">Alle Märkte</option><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="areaFilter" onchange="handleAreaChange()"><option value="">Alle Bereiche außer Hausmeister</option></select></div><div id="dayControl"><label>Tag</label><select id="day" onchange="loadTasks()"></select></div><div id="monthControl" style="display:none"><label>Monat</label><input id="monthFilter" type="month" onchange="loadTasks()"></div><div><label>Erledigte</label><select id="todoDoneFilter" onchange="handleDoneFilterChange()"><option value="hide">Ausblenden</option><option value="show">Anzeigen</option><option value="only">Nur erledigte</option></select></div><div><label>&nbsp;</label><button class="btn-yellow" onclick="loadTasks()">Aktualisieren</button></div></div></div>
     <div id="tasks" class="box"></div>
@@ -479,9 +479,39 @@
     <div class="box admin admin-todopflege"><h2>Kontrolle / Historie</h2><div class="small">Rückwirkende Kontrolle nach Zeitraum.</div><div class="control-grid" style="margin-top:14px"><div><label>Markt</label><select id="controlMarket" onchange="handleControlMarketChange()"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="controlArea" onchange="loadControlTasks()"><option value="">Alle Bereiche</option></select></div><div><label>Von</label><input id="controlDateFrom" type="date" onchange="loadControlTasks()"></div><div><label>Bis</label><input id="controlDateTo" type="date" onchange="loadControlTasks()"></div><div><label>Status</label><select id="controlStatus" onchange="loadControlTasks()"><option value="all">Alle</option><option value="open">Offen</option><option value="done">Erledigt</option><option value="late">Fehler: verspätet bestätigt</option></select></div></div><div id="controlTasks" style="margin-top:14px"></div></div>
     </div><!-- /adminContent -->
   </section>
+
+  <!-- ==========================================================
+       Mein EDEKA Paul
+       Bewusst als Reiter in dieser App, NICHT als eigene Seite
+       (Vorgabe Benedikt Paul 17.08.2026). Langfristig gliedert
+       sich alles in "Meine Baeckerei", "Mein EDEKA Paul" und
+       "Admin". Eine zweite Seite haette ausserdem ein eigenes
+       Vercel-Deployment gebraucht - das lief hier nicht.
+       ========================================================== -->
+  <section id="mepSection" style="display:none">
+    <div class="box" id="mepTor">
+      <h2>Mein EDEKA Paul</h2>
+      <div class="small">Bitte Markt und Bereich wählen. Der Code schützt vor
+        versehentlichem Aufrufen, er ist kein Zugriffsschutz.</div>
+      <div class="control-grid" style="margin-top:14px">
+        <div><label>Markt</label>
+          <select id="mepTorMarkt" onchange="mepTorBereiche()"></select></div>
+        <div><label>Bereich</label><select id="mepTorBereich"></select></div>
+        <div><label>Code</label>
+          <input id="mepPin" type="password" inputmode="numeric" placeholder="••"
+                 onkeydown="if(event.key==='Enter')mepPruefePin()"></div>
+        <div><label>&nbsp;</label><button class="btn-yellow" onclick="mepPruefePin()">Öffnen</button></div>
+      </div>
+      <label style="display:flex;align-items:center;gap:7px;margin-top:12px;font-size:14px;cursor:pointer">
+        <input type="checkbox" id="mepMerken" style="width:auto"> Für 7 Tage merken</label>
+      <div id="mepPinFehler" style="color:#c62828;font-weight:bold;margin-top:8px;min-height:19px"></div>
+    </div>
+    <div id="mepInhalt" style="display:none"></div>
+  </section>
+
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.17-2"; // Kennzahlen-Parser: flaches Berichtsformat, Berichte ohne Spalte "Woche", Abbruch statt Spaltenraten
+const APP_VERSION = "v2026.08.17-3"; // Mein EDEKA Paul als Reiter, keine eigene Seite
 const APP_VERSION_DATE = "17.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -1414,14 +1444,17 @@ function showTab(tab){
   document.getElementById("backshopSection").style.display=tab==="backshop"?"block":"none";
   document.getElementById("werbungSection").style.display=tab==="werbung"?"block":"none";
   document.getElementById("analyticsSection").style.display=tab==="analytics"?"block":"none";
+  document.getElementById("mepSection").style.display=tab==="mep"?"block":"none";
   document.getElementById("adminSection").style.display=tab==="admin"?"block":"none";
   document.getElementById("todoTab").classList.toggle("active",tab==="todo");
   document.getElementById("dispoTab").classList.toggle("active",tab==="dispo");
   document.getElementById("backshopTab").classList.toggle("active",tab==="backshop");
   document.getElementById("werbungTab").classList.toggle("active",tab==="werbung");
   document.getElementById("analyticsTab").classList.toggle("active",tab==="analytics");
+  document.getElementById("mepTab").classList.toggle("active",tab==="mep");
   document.getElementById("adminTab").classList.toggle("active",tab==="admin");
   if(tab==="admin"){ if(adminUnlocked) showAdminSubTab("todopflege"); }
+  else if(tab==="mep"){mepStart()}
   else if(tab==="analytics"){prepareAnalytics()}
   else if(tab==="dispo"){loadDispo()}
   else if(tab==="backshop"){loadBackshop()}
@@ -6134,6 +6167,400 @@ function escapeHtml(s){
 const nameInput=document.getElementById("name");nameInput.value=localStorage.getItem("employeeName")||"";nameInput.addEventListener("input",function(){localStorage.setItem("employeeName",this.value)});const marketInput=document.getElementById("marketFilter"),areaInput=document.getElementById("areaFilter");marketInput.value=localStorage.getItem("selectedMarket")||"Freckenfeld";marketInput.addEventListener("change",function(){localStorage.setItem("selectedMarket",this.value)});document.getElementById("monthFilter").value=todayISO().slice(0,7);document.getElementById("controlDateFrom").value=todayISO();document.getElementById("controlDateTo").value=todayISO();document.getElementById("adminStartDate").value=todayISO();document.getElementById("adminEndDate").value=todayISO();document.getElementById("metricsUploadDate").value=todayISO();populateAllowedDays();loadAreas().then(()=>{handleAreaChange()});
 // View-Modus jetzt anwenden, nachdem alle Variablen + Funktionen voll initialisiert sind
 applyAppViewMode();
+
+/* =====================================================================
+   MEIN EDEKA PAUL
+   Als Reiter dieser App, nicht als eigene Seite. Alle Namen tragen das
+   Praefix "mep", damit nichts mit dem bestehenden Code kollidiert.
+   Nutzt den vorhandenen Supabase-Client db.
+
+   Rechenregeln nach EDEKA-Analyseleitfaden, siehe KENNZAHLEN_EDEKA.md:
+   - Spannen beziehen sich auf den NETTOumsatz, "Umsatz" im Bericht ist brutto
+   - Umsatzspanne minus Nettoertragsspanne = Verlust durch Abschriften,
+     Inventur und Rechnungspruefung
+   - Aggregierte Spannen kommen aus der Tabelle spannenanalyse, nie aus
+     hochgerechneten Artikelwerten (das war am 17.08. um 10 Punkte daneben)
+   ===================================================================== */
+const MEP_PIN_HASH="5967e6";
+const MEP_MAERKTE={
+  "Billigheim-Ingenheim":["Alle Bereiche","Bäckerei","Bedienungstheke","Gekühlte Frische",
+                          "Getränke","Markt","Obst, Gemüse und Pflanzen","Hausmeister"],
+  "Steinfeld":           ["Alle Bereiche","Bäckerei","Bedienungstheke","Gekühlte Frische",
+                          "Getränke","Markt","Obst, Gemüse und Pflanzen","Hausmeister"],
+  "Freckenfeld":         ["Alle Bereiche"],
+  "Gossersweiler-Stein": ["Alle Bereiche"],
+  "Verwaltung":          ["Alle Märkte"]
+};
+let mepZugang={markt:null,bereich:null}, mepGeladen=false;
+let mepKz=[], mepSpanne=[], mepBefunde=[], mepFeedback={}, mepBereichsMap={};
+let mepArtikel=[], mepDispo=[], mepAufgaben=[], mepStand=null, mepSort="umsatz";
+
+const mepEur=n=>n==null?"–":Math.round(n).toLocaleString("de-DE")+" €";
+const mepZahl=n=>n==null?"–":Math.round(n).toLocaleString("de-DE");
+const mepPrz=n=>n==null?"–":n.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2})+" %";
+const mepPP=n=>n==null?"–":(n>0?"+":"")+n.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2})+" pp";
+const mepEsc=s=>String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const mepMk=()=>document.getElementById("mepMarkt")?document.getElementById("mepMarkt").value:mepZugang.markt;
+const mepBl=()=>document.getElementById("mepBereich")?document.getElementById("mepBereich").value:"";
+const mepIstHausmeister=()=>mepBl()==="Hausmeister";
+function mepHash(s){let h=5381;for(let i=0;i<s.length;i++)h=((h*33)^s.charCodeAt(i))>>>0;return h.toString(16);}
+
+function mepTorBereiche(){
+  const m=document.getElementById("mepTorMarkt").value;
+  document.getElementById("mepTorBereich").innerHTML=
+    (MEP_MAERKTE[m]||["Alle Bereiche"]).map(b=>`<option>${b}</option>`).join("");
+}
+function mepZugangLesen(){
+  for(const s of [localStorage,sessionStorage]){
+    try{ const w=s.getItem("mep_zugang"); if(!w) continue;
+      const o=JSON.parse(w);
+      if(o.bis && o.bis>Date.now()) return o;
+      s.removeItem("mep_zugang");
+    }catch(x){}
+  }
+  return null;
+}
+function mepPruefePin(){
+  const e=document.getElementById("mepPin");
+  if(mepHash(e.value.trim())!==MEP_PIN_HASH){
+    document.getElementById("mepPinFehler").textContent="Code stimmt nicht.";
+    e.value=""; e.focus(); return;
+  }
+  mepZugang={markt:document.getElementById("mepTorMarkt").value,
+             bereich:document.getElementById("mepTorBereich").value};
+  const tage=document.getElementById("mepMerken").checked?7:0;
+  try{ (tage>0?localStorage:sessionStorage)
+        .setItem("mep_zugang",JSON.stringify({...mepZugang,bis:Date.now()+(tage||1)*864e5})); }catch(x){}
+  mepOeffnen();
+}
+function mepAbmelden(){
+  try{ localStorage.removeItem("mep_zugang"); sessionStorage.removeItem("mep_zugang"); }catch(x){}
+  mepZugang={markt:null,bereich:null}; mepGeladen=false;
+  document.getElementById("mepTor").style.display="block";
+  document.getElementById("mepInhalt").style.display="none";
+}
+function mepStart(){
+  const t=document.getElementById("mepTorMarkt");
+  if(t && !t.options.length){
+    t.innerHTML=Object.keys(MEP_MAERKTE).map(m=>`<option>${m}</option>`).join("");
+    mepTorBereiche();
+  }
+  const o=mepZugangLesen();
+  if(o && !mepGeladen){ mepZugang={markt:o.markt,bereich:o.bereich}; mepOeffnen(); }
+}
+async function mepOeffnen(){
+  document.getElementById("mepTor").style.display="none";
+  const ziel=document.getElementById("mepInhalt");
+  ziel.style.display="block";
+  if(mepGeladen){ mepZeichnen(); return; }
+  ziel.innerHTML=`<div class="box"><div class="small">Daten werden geladen …</div></div>`;
+  const [a,b,c,d,e]=await Promise.all([
+    db.from("kennzahlen").select("markt,bereich,abteilung,wochentag,kennzahl,wert,stand,periode_von"),
+    db.from("spannenanalyse").select("*"),
+    db.from("befunde").select("*").eq("aktiv",true),
+    db.from("befund_feedback").select("schluessel,bewertung,kommentar").order("wann",{ascending:false}),
+    db.from("aufgabenbereich_bereich").select("*")
+  ]);
+  if(a.error){ ziel.innerHTML=`<div class="box"><b>Datenbank nicht erreichbar:</b> ${mepEsc(a.error.message)}</div>`; return; }
+  mepKz=a.data||[]; mepSpanne=b.data||[]; mepBefunde=c.data||[];
+  (d.data||[]).forEach(x=>{if(!mepFeedback[x.schluessel])mepFeedback[x.schluessel]=x;});
+  (e.data||[]).forEach(x=>mepBereichsMap[x.aufgabenbereich]=x.bereich);
+  const jahr=mepKz.filter(x=>x.periode_von==="2026-01-01");
+  if(jahr.length) mepStand=jahr[0].stand;
+  mepGeladen=true;
+  mepAufbauen();
+}
+function mepAufbauen(){
+  const alle=[...new Set(mepKz.map(z=>z.markt))].filter(x=>x!=="Gesamt").sort();
+  const maerkte = mepZugang.markt==="Verwaltung" ? alle : alle.filter(m=>m===mepZugang.markt);
+  const offen = !mepZugang.bereich || mepZugang.bereich==="Alle Bereiche" || mepZugang.bereich==="Alle Märkte";
+  document.getElementById("mepInhalt").innerHTML=
+    `<div class="box"><div class="control-grid">
+       <div><label>Markt</label><select id="mepMarkt" onchange="mepMarktGewechselt()"
+            ${maerkte.length<2?"disabled":""}>${maerkte.map(m=>`<option>${mepEsc(m)}</option>`).join("")}</select></div>
+       <div><label>Bereich</label><select id="mepBereich" onchange="mepNeuLaden()" ${offen?"":"disabled"}></select></div>
+       <div><label>&nbsp;</label><button class="btn-yellow" onclick="mepAbmelden()">Abmelden</button></div>
+     </div></div>
+     <div id="mepKacheln"></div>`;
+  mepMarktGewechselt();
+}
+function mepMarktGewechselt(){
+  const sb=document.getElementById("mepBereich");
+  const b=[...new Set(mepKz.filter(z=>z.markt===mepMk()&&z.bereich!=="Gesamt").map(z=>z.bereich))].sort();
+  const offen = !mepZugang.bereich || mepZugang.bereich==="Alle Bereiche" || mepZugang.bereich==="Alle Märkte";
+  sb.innerHTML = offen
+    ? `<option value="">Ganzer Markt</option>`+b.map(x=>`<option>${mepEsc(x)}</option>`).join("")
+      +`<option>Hausmeister</option>`
+    : `<option>${mepEsc(mepZugang.bereich)}</option>`;
+  mepNeuLaden();
+}
+function mepAuswahl(){
+  return mepKz.filter(z=>z.markt===mepMk() && (mepBl()?z.bereich===mepBl():z.bereich!=="Gesamt")
+    && z.periode_von==="2026-01-01");
+}
+function mepAbteilungen(){
+  return [...new Set(mepAuswahl().map(x=>x.abteilung))].filter(a=>a!=="Gesamtergebnis");
+}
+async function mepNeuLaden(){
+  mepZeichnen();
+  const abt=mepAbteilungen();
+  const [ar,dz,auf]=await Promise.all([
+    (abt.length && !mepIstHausmeister())
+      ? db.from("artikel_kennzahlen")
+          .select("sap_artnr,bezeichnung,abteilung,umsatz,menge,umsatzsp,nettoertragssp,warenrohgewinn")
+          .eq("markt",mepMk()).in("abteilung",abt).limit(3000)
+      : Promise.resolve({data:[]}),
+    db.from("dispo_zuordnung")
+      .select("id,bereich,abteilung,artikelnr,bezeichnung,rolle,upload_date,regal_nr,anmerkung")
+      .eq("markt",mepMk()).is("done_date",null).limit(4000),
+    db.from("tasks").select("id,title,area,day,priority,task_type,sort_order")
+      .eq("market",mepMk()).eq("done",false).limit(600)
+  ]);
+  mepArtikel=ar.data||[]; mepDispo=dz.data||[]; mepAufgaben=auf.data||[];
+  mepZeichnen();
+}
+function mepSetzeSort(s){ mepSort=s; mepZeichnen(); }
+function mepSummeK(z,k){const t=z.filter(x=>x.kennzahl===k&&x.wert!=null);
+  return t.length?t.reduce((s,x)=>s+Number(x.wert),0):null;}
+function mepJahresanteil(){
+  if(!mepStand) return 1;
+  const s=new Date(mepStand), j=s.getFullYear();
+  return ((s-new Date(j,0,1))/86400000+1)/(((j%4===0&&j%100!==0)||j%400===0)?366:365);
+}
+
+function mepZeichnen(){
+  const z=document.getElementById("mepKacheln"); if(!z) return;
+  z.innerHTML = mepIstHausmeister()
+    ? mepKachelAufgaben()+mepKachelBefunde()
+    : mepKachelKennzahlen()+mepKachelSpannen()+mepKachelBefunde()
+      +mepKachelArtikel()+mepKachelAufgaben()+mepKachelDispo();
+  mepBarcodes();
+}
+
+function mepKachelKennzahlen(){
+  const z=mepAuswahl().filter(x=>x.wochentag==="Ergebnis"), a=mepJahresanteil();
+  const u=mepSummeK(z,"Umsatz"), uv=mepSummeK(z,"Umsatz Vj");
+  const kd=mepSummeK(z,"Kunden"), kdv=mepSummeK(z,"Kunden Vj");
+  const uA=(u!=null&&uv)?100*(u-uv*a)/(uv*a):null, kA=(kd!=null&&kdv)?100*(kd-kdv*a)/(kdv*a):null;
+  /* Spannen aus der Spannenanalyse, nicht hochgerechnet - siehe Kopfkommentar. */
+  const sp=mepSpanne.filter(x=>x.markt===mepMk());
+  const ges=sp.find(x=>x.abteilung==="Gesamtergebnis");
+  const teil=mepBl()?sp.filter(x=>mepAbteilungen().includes(x.abteilung)):null;
+  let usp=null,nsp=null,verl=null,verlEur=null;
+  if(!mepBl() && ges){ usp=ges.umsatzsp; nsp=ges.nettoertragssp;
+    verl=(usp!=null&&nsp!=null)?usp-nsp:null;
+    verlEur=(ges.abschr_ek||0)+(ges.inventur_ek||0); }
+  else if(teil&&teil.length){ verlEur=teil.reduce((s,x)=>s+(x.abschr_ek||0)+(x.inventur_ek||0),0); }
+  const satz = uA==null ? "Kein Vorjahresvergleich möglich."
+    : (uA>0&&kA>0) ? `Umsatz und Kundenzahl liegen beide über Vorjahr – das Wachstum kommt aus Frequenz.`
+    : (uA>0) ? `Der Umsatz wächst, die Kundenzahl nicht: weniger Leute kaufen mehr.`
+    : (kA!=null&&kA<0) ? `Umsatz und Kundenzahl unter Vorjahr – ein Frequenzthema.`
+    : `Der Umsatz liegt unter Vorjahr bei stabiler Kundenzahl.`;
+  return `<div class="box"><h2>Kennzahlen · ${mepEsc(mepBl()||"Ganzer Markt")}</h2>
+    <div class="small">Jahr bis ${mepStand?mepStand.split("-").reverse().join("."):"?"},
+      Vorjahr auf gleiche Zeitraumlänge gerechnet. Spannenwerte aus der Spannenanalyse
+      (eigene Woche) – die Zeiträume sind bewusst getrennt ausgewiesen.</div>
+    <div class="control-grid" style="margin-top:14px">
+      <div><label>Umsatz</label><div style="font-size:26px;font-weight:900">${
+        uA==null?mepEur(u):(uA>0?"+":"")+uA.toFixed(1)+" %"}</div>
+        <div class="small">${mepEur(u)}</div></div>
+      <div><label>Kunden</label><div style="font-size:26px;font-weight:900">${
+        kA==null?mepZahl(kd):(kA>0?"+":"")+kA.toFixed(1)+" %"}</div>
+        <div class="small">${mepZahl(kd)} · Ø Bon ${(u&&kd)?(u/kd).toFixed(2).replace(".",",")+" €":"–"}</div></div>
+      <div><label>Spannenverlust</label><div style="font-size:26px;font-weight:900">${
+        verl!=null?mepPP(verl):mepEur(verlEur)}</div>
+        <div class="small">${verl!=null
+          ?`Umsatzsp. ${mepPrz(usp)} · Nettoertrag ${mepPrz(nsp)}`
+          :`Abschriften und Inventur zusammen`}</div></div>
+    </div>
+    <div class="small" style="margin-top:12px;padding:9px 11px;background:#f4f9ff;border-left:3px solid #004f9e;border-radius:0 7px 7px 0">
+      ${satz}${verl!=null?` Zwischen Umsatz- und Nettoertragsspanne liegen ${mepPP(verl)},
+      das sind ${mepEur(Math.abs(verlEur))} in dieser Woche – der Verlust durch Abschriften,
+      Inventur und Rechnungsprüfung.`:``}
+      ${verl==null&&verlEur!=null?` Über mehrere Abteilungen wird bewusst keine gemeinsame Spanne
+      ausgewiesen: Prozentwerte lassen sich nicht mitteln, Euro-Beträge dagegen schon.`:``}
+    </div></div>`;
+}
+
+function mepKachelSpannen(){
+  const abt=new Set(mepAbteilungen());
+  let t=mepSpanne.filter(x=>x.markt===mepMk()&&x.abteilung!=="Gesamtergebnis"&&(!mepBl()||abt.has(x.abteilung)));
+  t=t.map(x=>({...x,v:(x.abschr_ek||0)+(x.inventur_ek||0)})).sort((a,b)=>a.v-b.v).slice(0,10);
+  if(!t.length) return "";
+  const per=t[0].periode_von?`${t[0].periode_von.split("-").reverse().join(".")} bis ${t[0].periode_bis.split("-").reverse().join(".")}`:"";
+  const vgl=(i,v)=>i==null?"":v==null?`<span style="color:#94a3b8">kein Vj</span>`
+    :(Math.abs(i)>Math.abs(v)*1.5&&Math.abs(i)>100)
+      ?`<span style="color:#c62828">${mepEur(v)} ✕${Math.abs(i/v).toFixed(1)}</span>`
+      :`<span style="color:#94a3b8">${mepEur(v)}</span>`;
+  return `<div class="box"><h2>Spannenanalyse · wohin die Spanne geht</h2>
+    <div class="small">${per} · Beträge zu <b>Einstands</b>preisen.
+      Abschriften heißt: Ware wurde entwertet, ist aber erfasst.
+      Inventur heißt: Ware ist nicht mehr da – Fehlbuchung, unbelegte Umlagerung,
+      falsche Auszeichnung oder Diebstahl. Rot: mehr als das Anderthalbfache des Vorjahres.</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13.5px;margin-top:12px">
+    <thead><tr style="text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">
+      <th style="padding:8px">Abteilung</th><th style="text-align:right">Umsatzsp.</th>
+      <th style="text-align:right">Nettoertrag</th><th style="text-align:right">Differenz</th>
+      <th style="text-align:right">Abschriften</th><th style="text-align:right">Vorjahr</th>
+      <th style="text-align:right">Inventur</th><th style="text-align:right">Vorjahr</th></tr></thead><tbody>
+    ${t.map(x=>`<tr style="border-top:1px solid #eef3f9">
+      <td style="padding:8px">${mepEsc(x.abteilung)}</td>
+      <td style="text-align:right">${mepPrz(x.umsatzsp)}</td>
+      <td style="text-align:right">${mepPrz(x.nettoertragssp)}</td>
+      <td style="text-align:right"><b>${mepPP(x.umsatzsp!=null&&x.nettoertragssp!=null?x.umsatzsp-x.nettoertragssp:null)}</b></td>
+      <td style="text-align:right">${mepEur(x.abschr_ek)}</td>
+      <td style="text-align:right">${vgl(x.abschr_ek,x.abschr_ek_vj)}</td>
+      <td style="text-align:right">${mepEur(x.inventur_ek)}</td>
+      <td style="text-align:right">${vgl(x.inventur_ek,x.inventur_ek_vj)}</td></tr>`).join("")}
+    </tbody></table>
+    <div class="small" style="margin-top:9px">Ein einzelner Inventurlauf kann eine Korrekturbuchung
+      enthalten – aussagekräftig wird es erst, wenn es sich über mehrere Wochen hält.</div></div>`;
+}
+
+function mepKachelArtikel(){
+  const G=[["umsatz","Umsatz"],["menge","Menge"],["spanne","Spanne"],["verlust","Spannenverlust"]];
+  let l=mepArtikel.filter(x=>x.umsatz>0);
+  if(mepSort==="umsatz") l.sort((a,b)=>b.umsatz-a.umsatz);
+  else if(mepSort==="menge") l.sort((a,b)=>(b.menge||0)-(a.menge||0));
+  else if(mepSort==="spanne") l.sort((a,b)=>(a.nettoertragssp??999)-(b.nettoertragssp??999));
+  else l.sort((a,b)=>((b.umsatzsp||0)-(b.nettoertragssp||0))-((a.umsatzsp||0)-(a.nettoertragssp||0)));
+  l=l.slice(0,10);
+  const erkl={umsatz:"Die zehn umsatzstärksten Artikel.",
+    menge:"Nach Stückzahl – über mehrere Abteilungen dominiert, was mengenmäßig groß ist.",
+    spanne:"Die zehn Artikel mit der <b>niedrigsten</b> Nettoertragsspanne.",
+    verlust:"Größte Differenz zwischen Umsatz- und Nettoertragsspanne."}[mepSort];
+  const w=x=>mepSort==="menge"?mepZahl(x.menge)+" St":mepSort==="umsatz"?mepEur(x.umsatz)
+    :mepSort==="spanne"?mepPrz(x.nettoertragssp):mepPP((x.umsatzsp||0)-(x.nettoertragssp||0));
+  return `<div class="box"><h2>Artikel</h2>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0">${
+      G.map(([k,t])=>`<button onclick="mepSetzeSort('${k}')" style="border:1px solid #d8e2ef;
+        background:${mepSort===k?"#004f9e":"#fff"};color:${mepSort===k?"#fff":"#64748b"};
+        border-radius:13px;padding:4px 12px;font-size:12px;cursor:pointer;font-weight:bold">${t}</button>`).join("")}</div>
+    <div class="small">${erkl}</div>
+    ${l.length?l.map(x=>`<div style="display:grid;grid-template-columns:120px 1fr auto;gap:12px;
+        align-items:center;padding:9px 0;border-bottom:1px solid #f1f5f9">
+      <svg class="mepbc" data-code="${mepEsc(x.sap_artnr)}" style="width:120px;height:44px"></svg>
+      <div style="font-size:13.5px;line-height:1.35;word-break:break-word">${mepEsc(x.bezeichnung)}
+        <span style="display:block;font-size:10.5px;color:#94a3b8;margin-top:2px">${mepEsc(x.abteilung)} ·
+          Art.-Nr. ${mepEsc(x.sap_artnr)} · Umsatz ${mepEur(x.umsatz)} · Spanne ${mepPrz(x.nettoertragssp)}</span></div>
+      <div style="font-weight:bold;text-align:right;font-size:14px;white-space:nowrap">${w(x)}</div></div>`).join("")
+      :`<div class="small" style="padding:10px 0;font-style:italic">Keine Artikeldaten für diese Auswahl.</div>`}
+    <div class="small" style="margin-top:9px">Quartalswerte, täglich mit Stand Vortag.
+      Barcode: Code 128 auf der Artikelnummer.</div></div>`;
+}
+
+function mepKachelAufgaben(){
+  const b=mepBl();
+  const a=b?mepAufgaben.filter(x=>mepBereichsMap[x.area]===b||x.area===b):mepAufgaben;
+  const zg={}; a.forEach(x=>{const k=mepBereichsMap[x.area]||x.area||"ohne Bereich";(zg[k]=zg[k]||[]).push(x);});
+  const l=a.slice().sort((x,y)=>(x.sort_order??999)-(y.sort_order??999)).slice(0,12);
+  return `<div class="box"><h2>Aufgaben${b?" · "+mepEsc(b):""} <span style="font-weight:normal;font-size:14px;color:#64748b">${a.length} offen</span></h2>
+    ${!b&&a.length?`<div class="small">${Object.entries(zg).sort((x,y)=>y[1].length-x[1].length)
+      .map(([k,v])=>`<b>${mepEsc(k)}</b> ${v.length}`).join(" · ")}</div>`:""}
+    ${a.length?`<table style="width:100%;border-collapse:collapse;font-size:13.5px;margin-top:10px">
+      <thead><tr style="text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">
+        <th style="padding:8px">Aufgabe</th><th>Bereich</th><th>Tag</th><th>Dringlichkeit</th></tr></thead><tbody>
+      ${l.map(x=>`<tr style="border-top:1px solid #eef3f9"><td style="padding:8px">${mepEsc(x.title)}</td>
+        <td style="color:#64748b">${mepEsc(mepBereichsMap[x.area]||x.area||"–")}</td>
+        <td style="color:#64748b">${mepEsc(x.day||x.task_type||"–")}</td>
+        <td>${mepEsc(x.priority||"–")}</td></tr>`).join("")}</tbody></table>
+      ${a.length>12?`<div class="small" style="margin-top:8px">… und ${a.length-12} weitere.</div>`:""}`
+     :`<div class="small" style="padding:10px 0;font-style:italic">Keine offenen Aufgaben.</div>`}
+    <div class="small" style="margin-top:9px">MoPro → Gekühlte Frische · O&amp;G → Obst, Gemüse und Pflanzen ·
+      Markt → Markt · Hausmeister als eigener Bereich.</div></div>`;
+}
+
+function mepKachelDispo(){
+  const b=mepBl();
+  const d=mepIstHausmeister()?[]:(b?mepDispo.filter(x=>x.bereich===b):mepDispo);
+  const neu=d.filter(x=>x.upload_date&&new Date(x.upload_date)>=new Date(Date.now()-7*864e5));
+  const aus=d.filter(x=>x.rolle==="Ursprung"||x.rolle==="Ordersatz");
+  const ein=d.filter(x=>x.rolle==="Folge"||x.rolle==="Ersatz");
+  const zeig=[...aus,...ein].slice(0,10);
+  return `<div class="box"><h2>Dispo, Ein- und Auslistungen</h2>
+    <div class="control-grid" style="margin-top:12px">
+      <div><label>Offen</label><div style="font-size:26px;font-weight:900">${mepZahl(d.length)}</div>
+        <div class="small">davon ${mepZahl(neu.length)} aus den letzten 7 Tagen</div></div>
+      <div><label>Auslistung</label><div style="font-size:26px;font-weight:900">${mepZahl(aus.length)}</div>
+        <div class="small">Ursprungs- und Ordersatzartikel</div></div>
+      <div><label>Einlistung</label><div style="font-size:26px;font-weight:900">${mepZahl(ein.length)}</div>
+        <div class="small">Folge- und Ersatzartikel</div></div>
+    </div>
+    ${zeig.length?`<div class="small" style="margin-top:12px">Jeder Artikel erscheint im Bereich seines
+      eigenen Sortiments – liegen Ursprungs- und Nachfolgeartikel in verschiedenen Bereichen, sehen ihn
+      dadurch beide. <b>Eine feste Paarung wird bewusst nicht angezeigt:</b> in den Daten gibt es kein Feld,
+      das beide verbindet, und die ursprüngliche Zeilenreihenfolge ist nicht erhalten.</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13.5px;margin-top:10px">
+      <thead><tr style="text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">
+        <th style="padding:8px">Artikel</th><th>Abteilung</th><th>Rolle</th><th>Regal</th><th>zu tun</th></tr></thead><tbody>
+      ${zeig.map(x=>`<tr style="border-top:1px solid #eef3f9">
+        <td style="padding:8px">${mepEsc(x.bezeichnung)}<span style="display:block;font-size:10.5px;color:#94a3b8">
+          Art.-Nr. ${mepEsc(x.artikelnr)}</span></td>
+        <td style="color:#64748b">${mepEsc(x.abteilung||"–")}</td>
+        <td>${(x.rolle==="Ursprung"||x.rolle==="Ordersatz")
+          ?`<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:9px;font-size:11px">Auslistung</span>`
+          :`<span style="background:#dcfce7;color:#166534;padding:2px 8px;border-radius:9px;font-size:11px">Einlistung</span>`}</td>
+        <td style="color:#64748b">${mepEsc(x.regal_nr&&x.regal_nr!=="0"?x.regal_nr:"–")}</td>
+        <td style="font-size:12.5px">${mepEsc(x.anmerkung||"–")}</td></tr>`).join("")}
+      </tbody></table>`:""}
+    </div>`;
+}
+
+function mepKachelBefunde(){
+  const m=mepMk(), b=mepBl();
+  const passt=f=>(!f.markt||f.markt===m)&&(!b||!f.bereich||f.bereich===b);
+  const rang={alarm:0,warnung:1,hinweis:2,gut:3};
+  const l=mepBefunde.filter(passt).sort((x,y)=>
+    (rang[x.schwere]-rang[y.schwere])||(Math.abs(y.wert||0)-Math.abs(x.wert||0)));
+  const farbe={alarm:"#ef4444",warnung:"#f59e0b",hinweis:"#004f9e",gut:"#22c55e"};
+  const hg={alarm:"#fef4f4",warnung:"#fffaf0",hinweis:"#f4f9ff",gut:"#f3fdf6"};
+  return `<div class="box"><h2>Was auffällt</h2>
+    <div class="small">Die Befunde entstehen in einem eigenen Analyselauf über alle Datenquellen,
+      nicht aus festen Regeln in dieser Seite. „Kannte ich" blendet nichts aus – ein bekanntes
+      Problem bleibt sichtbar, bis es behoben ist. Nur „falsch" unterdrückt einen Befund.</div>
+    ${l.length?l.map(f=>{
+      const fb=mepFeedback[f.schluessel];
+      const kn=(w,t)=>`<button onclick="mepMelden('${f.schluessel}','${w}')" style="border:1px solid #d8e2ef;
+        background:${fb&&fb.bewertung===w?"#004f9e":"#fff"};color:${fb&&fb.bewertung===w?"#fff":"#64748b"};
+        border-radius:14px;padding:4px 11px;font-size:11.5px;cursor:pointer">${t}</button>`;
+      return `<div style="border-left:5px solid ${farbe[f.schwere]||"#d8e2ef"};background:${hg[f.schwere]||"#fbfdff"};
+        border-radius:8px;padding:12px 14px;margin-top:10px">
+        <div style="font-weight:bold;font-size:14.5px;margin-bottom:5px">${mepEsc(f.titel)}
+          ${fb?`<span style="font-size:10.5px;background:#eef3f9;color:#64748b;padding:2px 8px;border-radius:9px;margin-left:6px">${
+            mepEsc({hilfreich:"hilfreich",kannte_ich:"bekannt",falsch:"als falsch gemeldet",erledigt:"erledigt"}[fb.bewertung]||fb.bewertung)}</span>`:""}</div>
+        <div style="font-size:13px;line-height:1.55">${mepEsc(f.text)}</div>
+        ${f.beleg?`<div style="font-size:11.5px;color:#64748b;margin-top:7px;font-family:monospace;line-height:1.5">${mepEsc(f.beleg)}</div>`:""}
+        ${f.vorschlag?`<div style="font-size:12.5px;margin-top:8px;padding:7px 10px;background:rgba(0,79,158,.06);border-radius:6px"><b>Vorschlag:</b> ${mepEsc(f.vorschlag)}</div>`:""}
+        <div style="margin-top:9px;display:flex;gap:5px;flex-wrap:wrap;align-items:center">
+          ${kn("hilfreich","hilfreich")}${kn("kannte_ich","kannte ich")}${kn("erledigt","erledigt")}${kn("falsch","falsch")}
+          <input id="mepkom-${mepEsc(f.schluessel)}" placeholder="Anmerkung"
+            onkeydown="if(event.key==='Enter')mepMelden('${f.schluessel}',null)"
+            style="flex:1;min-width:170px;padding:5px 9px;border:1px solid #d8e2ef;border-radius:13px;font-size:11.5px"></div>
+      </div>`;}).join("")
+     :`<div class="small" style="padding:10px 0;font-style:italic">Keine Befunde für diese Auswahl.</div>`}
+    </div>`;
+}
+
+async function mepMelden(schluessel,bewertung){
+  const feld=document.getElementById("mepkom-"+schluessel);
+  const kommentar=feld?feld.value.trim():"";
+  const w=bewertung||(mepFeedback[schluessel]&&mepFeedback[schluessel].bewertung)||"hilfreich";
+  const {error}=await db.from("befund_feedback")
+    .insert([{schluessel,bewertung:w,kommentar:kommentar||null,von:"Mein EDEKA Paul"}]);
+  if(error){ alert("Rückmeldung nicht gespeichert: "+error.message); return; }
+  mepFeedback[schluessel]={schluessel,bewertung:w,kommentar};
+  mepZeichnen();
+}
+
+/* Code 128 auf der Artikelnummer - sie liegt zu 100 Prozent vor, eine EAN
+   nur bei 3.598 von 20.920 Artikeln (Vorgabe Benedikt Paul 17.08.). */
+function mepBarcodes(){
+  document.querySelectorAll("svg.mepbc").forEach(el=>{
+    const c=el.getAttribute("data-code"); if(!c) return;
+    try{ JsBarcode(el,c,{format:"CODE128",height:30,displayValue:true,fontSize:11,margin:0,width:1.1}); }
+    catch(e){ el.outerHTML=`<span style="font-size:11px;color:#64748b">${c}</span>`; }
+  });
+}
 </script>
 </body>
 </html>
