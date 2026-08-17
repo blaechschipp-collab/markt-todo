@@ -481,8 +481,8 @@
   </section>
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.16-4"; // Ordersatz-Beschreibung richtiggestellt: er ersetzt nichts, er ist der neue Stand
-const APP_VERSION_DATE = "16.08.2026";
+const APP_VERSION = "v2026.08.17-2"; // Kennzahlen-Parser: flaches Berichtsformat, Berichte ohne Spalte "Woche", Abbruch statt Spaltenraten
+const APP_VERSION_DATE = "17.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
 function reloadApp(){
@@ -2103,13 +2103,74 @@ function expandMergedCells(ws, matrix){
   });
   return matrix;
 }
+/* Liest den Zeitraum aus dem Blatt "Filter" ("AJ: 10.08.2026 - 16.08.2026").
+   Noetig, seit die Spaltendimension "Woche" aus den BO-Berichten entfernt wurde:
+   ohne sie hatte der Parser keine Kalenderwoche mehr und lieferte null Zeilen.
+   Der Filter steht in jedem Bericht und ist die verlaesslichere Quelle. */
+function detectZeitraumFromWorkbook(workbook){
+  for(const sn of workbook.SheetNames){
+    if(String(sn).toLowerCase() !== "filter") continue;
+    const rows = XLSX.utils.sheet_to_json(workbook.Sheets[sn], {header:1, defval:null, raw:false});
+    const flach = rows.map(r => (r||[]).map(c => String(c==null?"":c)).join(" ")).join(" ");
+    const m = flach.match(/AJ:\s*(\d{2})\.(\d{2})\.(\d{4})\s*-\s*(\d{2})\.(\d{2})\.(\d{4})/);
+    if(!m) continue;
+    const bis = new Date(Number(m[6]), Number(m[5])-1, Number(m[4]));
+    // Donnerstag der Woche als Stichtag - ISO 8601, wie im uebrigen Bestand
+    const dow = bis.getDay() || 7;
+    const do_ = new Date(bis); do_.setDate(bis.getDate() - dow + 4);
+    const p = n => String(n).padStart(2,"0");
+    return {datum: `${do_.getFullYear()}-${p(do_.getMonth()+1)}-${p(do_.getDate())}`,
+            von: `${m[3]}-${m[2]}-${m[1]}`, bis: `${m[6]}-${m[5]}-${m[4]}`};
+  }
+  return null;
+}
+
 function detectEdekaBoFormat(matrix){
   if(!matrix || matrix.length < 4) return null;
+
+  /* --- Flaches Berichtsformat (ab 17.08.2026) -------------------------
+     Markt und Abteilung stehen als ZEILEN, nicht als Spalten:
+        Markt | Abteilung | Artikel | Artikel2 | GTIN | Kennzahl 1 | Kennzahl 2 ...
+     So aufgebaut umgeht der Bericht das SAP-Zellenlimit, an dem die
+     Kreuztabellen abbrachen. Muss vor der Kreuztabellen-Erkennung geprueft
+     werden, weil "Markt" auch hier in der Kopfzeile steht. */
+  for(let r = 0; r < Math.min(matrix.length, 12); r++){
+    const z = (matrix[r] || []).map(c => String(c == null ? "" : c).trim());
+    if(z[0] !== "Markt" || z[1] !== "Abteilung") continue;
+    const kennzahlAb = z.findIndex((c, i) => i >= 2 && c !== "" &&
+      !/^(artikel|artikel2|gtin)$/i.test(c));
+    if(kennzahlAb < 2) continue;
+    return {
+      type: "flach",
+      kopfRow: r,
+      dataStartRow: r + 1,
+      marktCol: 0, deptCol: 1, articleCol: 2, nameCol: 3, gtinCol: 4,
+      kennzahlStartCol: kennzahlAb
+    };
+  }
+
   // Header kann ab Zeile 1 (alte Datei) oder Zeile 4 (neue Datei mit Titel-Vorlauf) starten
   const marktPos = findCellInMatrix(matrix, "Markt", 12);
   if(!marktPos) return null;
   const wochePos = findCellInMatrix(matrix, "Woche", 12);
-  if(!wochePos || wochePos.col !== marktPos.col) return null;
+  // Seit 17.08.2026 gibt es Berichte OHNE Spaltendimension "Woche" - die Woche
+  // wurde entfernt, weil der Export sonst am SAP-Zellenlimit abbrach. Dieses
+  // Format muss erkannt werden, sonst faellt der Upload auf das blinde
+  // Flachformat zurueck und schreibt vertauschte Spalten in die Datenbank.
+  if(!wochePos || wochePos.col !== marktPos.col){
+    const zeile = matrix[marktPos.row] || [];
+    const trefferOhneWoche = zeile.some(cell => KNOWN_EDEKA_MARKETS.includes(normalizeMarketName(cell)));
+    if(!trefferOhneWoche) return null;
+    return {
+      type:"umsatz",
+      marketRow: marktPos.row,
+      weekRow: -1,                 // keine Woche-Zeile: Datum kommt aus dem Filter-Blatt
+      dataStartRow: marktPos.row + 1,
+      dataStartCol: marktPos.col + 1,
+      deptCol: 0,
+      kpiCol: marktPos.col
+    };
+  }
   const marketRow = matrix[marktPos.row] || [];
   const hasKnownMarket = marketRow.some(cell => KNOWN_EDEKA_MARKETS.includes(normalizeMarketName(cell)));
   if(!hasKnownMarket) return null;
@@ -2202,14 +2263,74 @@ function forwardFillHeaderRow(row, startCol, resetIfTextMatches){
     }
   }
 }
-function parseEdekaBoSheet(matrix, format, year){
+function parseEdekaBoSheet(matrix, format, year, zeitraum){
   const out = [];
+
+  /* --- Flaches Format: Markt und Abteilung als Zeilen ------------------
+     Zeilenarten:
+       Markt = "Gesamtergebnis"  -> Summe ueber alle Maerkte, wird uebersprungen
+                                    (laesst sich jederzeit nachrechnen, doppelt
+                                     gespeicherte Summen sind eine Fehlerquelle)
+       Abteilung = "Ergebnis"    -> Marktsumme        -> area "Markt Gesamt"
+       Artikel   = "Ergebnis"    -> Abteilungssumme   -> area = Abteilung
+       sonst                     -> Artikeldetailzeile mit __art__-Praefix     */
+  if(format.type === "flach"){
+    const kopf = (matrix[format.kopfRow] || []).map(c => String(c == null ? "" : c).trim());
+    const datum = zeitraum && zeitraum.datum;
+    if(!datum){
+      throw new Error("Flacher Bericht ohne lesbaren Zeitraum im Blatt „Filter“ – "
+        + "der Stichtag lässt sich nicht bestimmen. Upload abgebrochen.");
+    }
+    for(let r = format.dataStartRow; r < matrix.length; r++){
+      const row = matrix[r] || [];
+      const t = i => String(row[i] == null ? "" : row[i]).trim();
+      const marktRoh = t(format.marktCol), dept = t(format.deptCol), artikel = t(format.articleCol);
+      if(!marktRoh || marktRoh === "Gesamtergebnis") continue;
+      const market = normalizeMarketName(marktRoh);
+      if(!KNOWN_EDEKA_MARKETS.includes(market)) continue;
+
+      let area, istArtikel = false;
+      if(dept === "Ergebnis"){ area = "Markt Gesamt"; }
+      else if(!dept || dept === "#"){ continue; }
+      else { area = dept; istArtikel = (artikel !== "" && artikel !== "Ergebnis"); }
+
+      let name = "", gtin = "";
+      if(istArtikel){
+        name = t(format.nameCol).replace(/\|\|/g, " ").replace(/\|/g, " ");
+        gtin = t(format.gtinCol);
+      }
+      for(let c = format.kennzahlStartCol; c < Math.max(row.length, kopf.length); c++){
+        const kpi = kopf[c]; if(!kpi) continue;
+        const roh = row[c];
+        if(roh === null || roh === undefined || roh === "") continue;
+        const num = (typeof roh === "number") ? roh : Number(String(roh).replace(",", "."));
+        if(!Number.isFinite(num)) continue;
+        out.push({
+          market, area,
+          metric_name: istArtikel ? `${ART_PREFIX}${artikel}||${name}||${gtin}||${kpi}` : kpi,
+          metric_value: num,
+          metric_unit: inferMetricUnit(kpi),
+          metric_date: datum
+        });
+      }
+    }
+    return out;
+  }
+
   // marketRow & weekRow per Forward-Fill robust machen (für den Fall, dass Merges
   // nicht durch expandMergedCells gefangen wurden, z.B. bei manchen .xlsm-Files)
   if(matrix[format.marketRow]) forwardFillHeaderRow(matrix[format.marketRow], format.dataStartCol);
-  if(matrix[format.weekRow])   forwardFillHeaderRow(matrix[format.weekRow], format.dataStartCol);
+  if(format.weekRow >= 0 && matrix[format.weekRow]) forwardFillHeaderRow(matrix[format.weekRow], format.dataStartCol);
   const markets = matrix[format.marketRow] || [];
-  const weeks = matrix[format.weekRow] || [];
+  const weeks = format.weekRow >= 0 ? (matrix[format.weekRow] || []) : [];
+  // Bericht ohne Spaltendimension "Woche": Stichtag kommt aus dem Filter-Blatt.
+  // Ohne diesen Wert darf NICHT geraten werden - lieber ein sichtbarer Abbruch.
+  const festesDatum = format.weekRow < 0 ? (zeitraum && zeitraum.datum) : null;
+  if(format.weekRow < 0 && !festesDatum){
+    throw new Error("Bericht ohne Spalte „Woche“ und ohne lesbaren Zeitraum im Blatt „Filter“ – "
+      + "der Stichtag lässt sich nicht bestimmen. Upload abgebrochen, damit keine falsch "
+      + "datierten Werte in der Datenbank landen.");
+  }
   const kpis = format.type === "abschriften" ? (matrix[format.kpiRow] || []) : null;
   let lastDept = "";
   for(let r = format.dataStartRow; r < matrix.length; r++){
@@ -2255,12 +2376,15 @@ function parseEdekaBoSheet(matrix, format, year){
       if(marketRaw === null || marketRaw === undefined) continue;
       const market = normalizeMarketName(marketRaw);
       if(!KNOWN_EDEKA_MARKETS.includes(market)) continue;
-      const weekRaw = weeks[c];
-      if(weekRaw === null || weekRaw === undefined) continue;
-      const weekStr = String(weekRaw).trim();
-      if(weekStr === "" || weekStr.toLowerCase() === "ergebnis") continue;
-      const weekNum = parseInt(weekStr, 10);
-      if(!Number.isInteger(weekNum) || weekNum < 1 || weekNum > 53) continue;
+      let weekNum = null;
+      if(format.weekRow >= 0){
+        const weekRaw = weeks[c];
+        if(weekRaw === null || weekRaw === undefined) continue;
+        const weekStr = String(weekRaw).trim();
+        if(weekStr === "" || weekStr.toLowerCase() === "ergebnis") continue;
+        weekNum = parseInt(weekStr, 10);
+        if(!Number.isInteger(weekNum) || weekNum < 1 || weekNum > 53) continue;
+      }
       const cellVal = row[c];
       if(cellVal === null || cellVal === undefined || cellVal === "") continue;
       let num;
@@ -2280,8 +2404,8 @@ function parseEdekaBoSheet(matrix, format, year){
       }
       if(!kpiName) continue;
       const area = (dept === "Gesamtergebnis") ? "Markt Gesamt" : dept;
-      const thu = thursdayOfISOWeek(year, weekNum);
-      const dateISO = formatDate(thu);
+      const dateISO = (weekNum === null) ? festesDatum : formatDate(thursdayOfISOWeek(year, weekNum));
+      if(!dateISO) continue;
       const storedName = isArticleRow
         ? `${ART_PREFIX}${articleNo}||${articleName}||${articleGtin}||${kpiName}`
         : kpiName;
@@ -2368,11 +2492,12 @@ async function uploadMetricsExcel(){
     const fmt = detectEdekaBoFormat(matrix);
     if(fmt){
       const year = detectYearFromWorkbook(workbook);
+      const zeitraum = detectZeitraumFromWorkbook(workbook);
       let parsed = [];
       try{
-        parsed = parseEdekaBoSheet(matrix, fmt, year);
+        parsed = parseEdekaBoSheet(matrix, fmt, year, zeitraum);
       }catch(e){
-        debug.push(`Sheet "${sheetName}": Parser-Fehler: ${e.message}`);
+        debug.push(`Sheet "${sheetName}": <strong style="color:#c62828">Parser-Fehler: ${e.message}</strong>`);
         continue;
       }
       inserts.push(...parsed);
@@ -2390,7 +2515,31 @@ async function uploadMetricsExcel(){
       debug.push(`Sheet "${sheetName}": leer.`);
       continue;
     }
-    debug.push(`Sheet "${sheetName}": flaches Format. Spalten: ` + Object.keys(rows[0]).join(" | "));
+    /* ---- Schutz gegen blindes Spaltenraten (17.08.2026) ----------------
+       Der Fallback nahm bisher JEDE Spaltenueberschrift als Kennzahlnamen und
+       jeden Marktnamen als Wertespalte. Bei einem BO-Bericht, den die Erkennung
+       nicht fasste, landeten dadurch 17.517 Zeilen mit vertauschten Spalten in
+       der Datenbank - in `market` stand der Kennzahlname, in `metric_name` der
+       Markt. Der Lauf meldete trotzdem "ok".
+       Deshalb: Das Flachformat greift nur noch, wenn die Kopfzeile tatsaechlich
+       wie ein flaches Format aussieht. Sonst wird abgebrochen. Ein sichtbarer
+       Abbruch kostet Minuten, falsche Daten kosten das Vertrauen in alle Zahlen. */
+    const spalten = Object.keys(rows[0]).map(s => String(s).trim());
+    const kleinSpalten = spalten.map(s => s.toLowerCase());
+    const hatMarktSpalte = kleinSpalten.some(s => ["market","markt","filiale","standort"].includes(s));
+    const hatWertSpalte  = kleinSpalten.some(s => ["metric_value","wert","value","betrag"].includes(s));
+    const leereSpalten   = spalten.filter(s => /^__EMPTY/i.test(s)).length;
+    const marktAlsSpalte = spalten.filter(s => KNOWN_EDEKA_MARKETS.includes(normalizeMarketName(s))).length;
+    if(!hatMarktSpalte || !hatWertSpalte || leereSpalten > 0 || marktAlsSpalte > 0){
+      debug.push(`Sheet "${sheetName}": <strong style="color:#c62828">Abbruch – kein auswertbares Format.</strong> `
+        + `Gefundene Spalten: ${spalten.slice(0,10).join(" | ")}${spalten.length>10?" …":""}. `
+        + (marktAlsSpalte > 0 ? `Es stehen ${marktAlsSpalte} Marktnamen als Spaltenüberschrift – das ist eine `
+            + `Kreuztabelle, die die BO-Erkennung nicht gefasst hat. ` : "")
+        + (leereSpalten > 0 ? `${leereSpalten} Spalten ohne Überschrift. ` : "")
+        + `Es wird nichts gespeichert, damit keine vertauschten Spalten in die Datenbank gelangen.`);
+      continue;
+    }
+    debug.push(`Sheet "${sheetName}": flaches Format. Spalten: ` + spalten.join(" | "));
     rows.forEach(row => {
       const market = String(getExcelValue(row, ["market","Markt","Filiale","Standort"]) || fallbackMarket).trim();
       const area = String(getExcelValue(row, ["area","Bereich","Abteilung","Warengruppe"]) || fallbackArea).trim();
