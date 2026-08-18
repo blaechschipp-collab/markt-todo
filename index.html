@@ -546,7 +546,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.18-6"; // Zeitwahl in allen Absprüngen, Wochenbalken beschriftet, Scanquote auch bei festem Bereich, Reichweite je Markt
+const APP_VERSION = "v2026.08.18-8"; // Bestandspotenzial, Durchsicht: Regalzuordnung wirksam, Perioden aus Daten, Zeitfilter durchgaengig
 const APP_VERSION_DATE = "17.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -6509,7 +6509,12 @@ function mepPeriodeStandard(liste,kurz){
 }
 function mepZeitLeiste(quelle,feld){
   const liste=mepPerioden[quelle]||[];
-  if(liste.length<1) return "";
+  /* Frueher kam hier bei fehlenden Perioden eine leere Zeichenkette zurueck -
+     die Auswahl verschwand dann kommentarlos, und es sah aus, als haette ich
+     sie nie eingebaut (dreimal gemeldet, 18.08.2026). Jetzt steht immer da,
+     welcher Zeitraum gilt oder warum keiner angeboten wird. */
+  if(!liste.length) return `<div class="small" style="margin:8px 0 2px;color:#94a3b8">
+    Kein Zeitraum in den Daten – für diese Auswahl liegen keine Berichtswerte vor.</div>`;
   const aktiv=mepZeit[feld];
   const sortiert=liste.slice().sort((a,b)=>
     (new Date(b.bis)-new Date(a.bis))||(new Date(a.von)-new Date(b.von)));
@@ -6624,6 +6629,19 @@ function mepPruefePin(){
 function mepAbmelden(){
   try{ localStorage.removeItem("mep_zugang"); sessionStorage.removeItem("mep_zugang"); }catch(x){}
   mepZugang={markt:null,bereich:null}; mepGeladen=false;
+  /* Alles Geladene wegräumen. Vorher blieben die Daten des abgemeldeten
+     Marktes im Speicher stehen; meldet sich danach ein anderer Markt an,
+     sah er bis zum Ende des Nachladens fremde Zahlen. Die Zeitauswahl wurde
+     wegen der "nur setzen wenn leer"-Pruefung sogar dauerhaft uebernommen
+     (Durchsicht 18.08.2026). */
+  mepKz=[]; mepArtikel=[]; mepDispo=[]; mepAufgaben=[]; mepMetrics=[];
+  mepSpanne=[]; mepBefunde=[]; mepBestand=[]; mepBestandStand={}; mepScan=[];
+  mepRegale={}; mepWerbung=[]; mepWerbungDateien=[]; mepWerbungWochen=[];
+  mepWerbungErledigt={}; mepWerbungKW=null; mepScanWochen=[]; mepScanZeit=null;
+  mepPerioden={kennzahlen:[],artikel:[],spannen:[],abschriften:[]};
+  mepZeit={kennzahlen:null,artikel:null,spannen:null,flop:null,abschriften:null};
+  mepErledigtHeute=new Set(); mepStand=null;
+  mepArtAbteilung=""; mepArtRegal=""; mepFlopAbteilung=""; mepFlopRegal="";
   document.getElementById("mepTor").style.display="block";
   document.getElementById("mepInhalt").style.display="none";
 }
@@ -6704,7 +6722,10 @@ function mepAbteilungen(){
   // Aus der Bereichszuordnung, nicht aus den Kennzahlen - so steht die Liste
   // auch dann, wenn fuer eine Abteilung noch keine Zahlen vorliegen.
   const b=mepBl();
-  return [...new Set(mepBereiche.filter(z=>z.markt===mepMk()&&(!b||z.bereich===b))
+  /* Bei "Alle Märkte" darf NICHT auf einen Markt gefiltert werden - sonst ist
+     die Abteilungsliste leer, und alle Kacheln, die darauf aufbauen, bleiben
+     ohne Meldung weiss (Durchsicht 18.08.2026). */
+  return [...new Set(mepBereiche.filter(z=>(mepAlleMaerkte()||z.markt===mepMk())&&(!b||z.bereich===b))
     .map(z=>z.abteilung))].filter(Boolean);
 }
 async function mepNeuLaden(){
@@ -6726,7 +6747,11 @@ async function mepNeuLaden(){
   const alleM=mepAlleMaerkte();
   const [kzD,ar,dz,auf,met]=await Promise.all([
     alleM ? Promise.resolve([]) : fetchAllPaged(()=>db.from("kennzahlen")
-      .select("markt,bereich,abteilung,wochentag,kennzahl,wert,stand,periode_von")
+      /* periode_bis MUSS mit: sammle() verlangt beide Grenzen. Ohne sie blieb
+         mepPerioden.kennzahlen leer, der Wochenkopf zeigte dauerhaft
+         "Zeitraum unbekannt" und die Zeitauswahl bei den Abschriften fehlte
+         ganz (gefunden bei der Durchsicht am 18.08.2026). */
+      .select("markt,bereich,abteilung,wochentag,kennzahl,wert,stand,periode_von,periode_bis")
       .eq("markt",mepMk())
       .order("abteilung").order("kennzahl").order("wochentag").order("periode_von")),
     (abt.length && !mepIstHausmeister() && !alleM)
@@ -6768,12 +6793,17 @@ async function mepNeuLaden(){
       (rg||[]).forEach(x=>{ mepRegale[String(x.sap_artnr)]=x; });
     }catch(err){ console.warn("Regalzuordnung:",err); }
   }
-  // Regalnummer an die Artikelzeilen haengen, damit Filter und Anzeige sie haben
-  mepArtikel=(mepArtikel||[]).map(x=>{
+  mepKz=kzD||[]; mepArtikel=ar||[]; mepDispo=dz||[]; mepAufgaben=auf||[]; mepMetrics=met||[];
+  /* Regalnummer an die Artikelzeilen haengen - ERST HIER, nach dem Zuweisen.
+     Vorher stand dieser Block eine Zeile zu frueh und arbeitete auf dem
+     Datenbestand des vorherigen Marktes; die naechste Zeile hat das Ergebnis
+     sofort wieder ueberschrieben. Damit war die gesamte Regalabfrage
+     wirkungslos - Filter und Zweitplatzierungs-Hinweis konnten nie greifen
+     (gefunden bei der Durchsicht am 18.08.2026). */
+  mepArtikel=mepArtikel.map(x=>{
     const r=mepRegale[String(x.sap_artnr)];
     return r ? {...x, regal_nr:r.regal_nr, zweitplatzierung:r.zweitplatzierung} : x;
   });
-  mepKz=kzD||[]; mepArtikel=ar||[]; mepDispo=dz||[]; mepAufgaben=auf||[]; mepMetrics=met||[];
   // Welche Zeitraeume liegen wirklich vor? Direkt aus den geladenen Zeilen -
   // dann stimmt die Auswahl immer mit dem ueberein, was gezeigt werden kann.
   const sammle=(rows)=>{
@@ -6812,7 +6842,7 @@ async function mepNeuLaden(){
    rechnerisch aktuelle. Kommt der Wochencheck einmal spaeter als Mittwoch,
    steht so weiter der letzte da statt einer leeren Kachel. */
 async function mepWerbungLaden(){
-  mepWerbung=[]; mepWerbungErledigt={}; mepWerbungDateien=[];
+  mepWerbung=[]; mepWerbungErledigt={}; mepWerbungDateien=[]; mepWerbungWochen=[];
   if(mepAlleMaerkte()) return;
   /* Dorflaeden: kein Wochencheck, aber die Werbebilder aus ihrem Flip-Kanal.
      Michaela Paul stellt dort woechentlich ein, welche Artikel in der Werbung
@@ -7245,25 +7275,58 @@ function mepBestandMuster(){
     // In der Verwaltung je Markt UND Abteilung, sonst nur je Abteilung
     const schluessel=alleM ? x.markt+"|"+x.abteilung : x.abteilung;
     const a=m[schluessel]=m[schluessel]||{abteilung:x.abteilung, markt:x.markt,
-      summe:[0,0,0,0,0,0], anzahl:[0,0,0,0,0,0], bestand:0, bestandN:0, abgang:0, abgangN:0};
+      summe:[0,0,0,0,0,0], anzahl:[0,0,0,0,0,0], zug:[0,0,0,0,0,0], zugN:[0,0,0,0,0,0],
+      bestand:0, bestandN:0, abgang:0, abgangN:0};
     if(x.veraenderung_ek!=null){ a.summe[i]+=Number(x.veraenderung_ek); a.anzahl[i]++; }
+    if(x.zugang_ek!=null){ a.zug[i]+=Math.abs(Number(x.zugang_ek)); a.zugN[i]++; }
     if(x.anfangsbestand_ek!=null){ a.bestand+=Number(x.anfangsbestand_ek); a.bestandN++; }
     if(x.abgang_ek!=null){ a.abgang+=Math.abs(Number(x.abgang_ek)); a.abgangN++; }
   });
   return Object.values(m).map(a=>{
     const mittel=a.summe.map((s,i)=>a.anzahl[i]?s/a.anzahl[i]:null);
+    const zugang=a.zug.map((s,i)=>a.zugN[i]?s/a.zugN[i]:0);
     // Kumulierter Verlauf ueber die Woche, Start bei 0
     const lauf=[]; let k=0;
     mittel.forEach(v=>{ k+=(v||0); lauf.push(k); });
     const hoch=Math.max(...lauf), tief=Math.min(...lauf);
     const bestand=a.bestandN?a.bestand/a.bestandN:null;
     const tagesabgang=a.abgangN?a.abgang/a.abgangN:null;
-    return {...a, mittel, lauf, spanne:hoch-tief,
+    /* ---------- Bestandspotenzial ----------
+       Die Frage ist nicht "wie hoch ist der Bestand", sondern "wie viel davon
+       liegt laenger, als der Lieferrhythmus es verlangt".
+
+       LIEFERZYKLUS AUS DEN DATEN, nicht geraten: Ein Liefertag ist ein
+       Wochentag, an dem im Mittel mehr als 15 % des Wochenzugangs ankommt.
+       Damit hat die Food-Abteilung in Billigheim drei Liefertage, in den
+       Dorflaeden zwei - genau der Unterschied, den Benedikt Paul genannt hat
+       (18.08.2026). Ein Dorfladen, der einmal die Woche Food bekommt, MUSS
+       Bestand aufbauen; ihm das anzukreiden waere Unsinn.
+
+       UEBERHANG: Bei L Liefertagen soll eine Lieferung 7/L Tage tragen. Was
+       nach dieser Zeit noch ueber dem Montagsniveau steht, ist Ueberhang.
+
+       BESTANDSPOTENZIAL in Prozent: Ueberhang geteilt durch den Wochenabgang.
+       Damit ist die Zahl umsatzabhaengig - 1.000 EUR Ueberhang sind bei
+       10.000 EUR Wochenabgang 10 %, bei 2.000 EUR dagegen 50 %. Beides in
+       Einstandspreisen, also derselben Einheit.
+
+       Gerechnet wird ausschliesslich aus taeglichen Zugaengen, Abgaengen und
+       Veraenderungen. Der fortgeschriebene Bestand geht NICHT ein - der ist
+       ohne regelmaessigen Anfangsbestand nicht belastbar. */
+    const wochenzugang=zugang.reduce((s,v)=>s+v,0);
+    const liefertage=Math.max(1, zugang.filter(v=>v>0.15*wochenzugang).length);
+    const traegt=Math.ceil(7/liefertage);              // so viele Tage soll eine Lieferung reichen
+    const abTag=Math.min(5, Math.max(1, traegt));      // ab diesem Wochentag zaehlt Ueberhang
+    const ueberhangTage=lauf.slice(abTag);
+    const ueberhang=ueberhangTage.length
+      ? Math.max(0, ueberhangTage.reduce((s,v)=>s+Math.max(0,v),0)/ueberhangTage.length) : 0;
+    const wochenabgang=(tagesabgang||0)*6;
+    const potenzial=wochenabgang>0 ? ueberhang*100/wochenabgang : null;
+    return {...a, mittel, lauf, zugang, spanne:hoch-tief,
       aufbau:mittel.indexOf(Math.max(...mittel.map(v=>v==null?-1e9:v))),
       abbau:mittel.indexOf(Math.min(...mittel.map(v=>v==null?1e9:v))),
-      bestand, tagesabgang,
+      bestand, tagesabgang, liefertage, traegt, ueberhang, potenzial,
       reichweite:(bestand!=null&&tagesabgang)?bestand/tagesabgang:null,
-      // Ausschlag im Verhaeltnis zum Bestand - das macht Abteilungen vergleichbar
       relativ:(bestand&&bestand>0)?(hoch-tief)/bestand:null};
   }).filter(a=>a.anzahl.some(n=>n>3));
 }
@@ -7271,8 +7334,10 @@ function mepKachelBestand(){
   if(mepIstHausmeister()) return "";
   const l=mepBestandMuster();
   if(!l.length) return "";
-  l.sort((a,b)=>(b.relativ??0)-(a.relativ??0));
+  // Schlechteste zuerst - in jeder Ansicht (Vorgabe Benedikt Paul 18.08.2026)
+  l.sort((a,b)=>(b.potenzial??-1)-(a.potenzial??-1));
   const zeig=l.slice(0,8);
+  const summeUeberhang=l.reduce((s,a)=>s+(a.ueberhang||0),0);
   const maxSpanne=Math.max(...zeig.map(a=>a.spanne||0),1);
   /* Darstellung 18.08.2026 neu:
      Die Balken standen vorher unbeschriftet nebeneinander und lagen dadurch
@@ -7307,17 +7372,22 @@ function mepKachelBestand(){
   };
   return `<div class="box"><h2>Bestandsverlauf über die Woche
     ${mepAbsprung("mepZeigeBestand()","alle Abteilungen")}</h2>
-    <div class="small">Mittlere Bestandsveränderung je Wochentag, in Einstandspreisen.
-      <b style="color:#b45309">Braun</b> heißt Aufbau, <b style="color:#15803d">grün</b> Abbau.
-      Wo Montag hoch und Samstag tief ist, liegt die Ware die ganze Woche –
-      bei Frische ist das der Weg in die Abschrift.</div>
+    <div class="small">Sortiert nach dem <b>Bestandspotenzial</b>: dem Anteil des Bestands, der länger
+      liegt, als der Lieferrhythmus es verlangt – gemessen am Wochenabgang. 1.000 € Überhang sind bei
+      10.000 € Wochenabgang 10 %, bei 2.000 € dagegen 50 %.
+      Der Lieferrhythmus kommt aus den Zugängen selbst: wer nur zweimal die Woche beliefert wird,
+      muss Bestand aufbauen – das zählt nicht als Potenzial.
+      Zusammen ${mepEur(summeUeberhang)} über alle Abteilungen.
+      <b style="color:#b45309">Braun</b> Aufbau, <b style="color:#15803d">grün</b> Abbau,
+      blass dahinter, was noch im Regal steht.</div>
     <table style="width:100%;border-collapse:collapse;font-size:13.5px;margin-top:12px">
       <thead><tr style="text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">
         ${mepAlleMaerkte()?`<th style="padding:8px">Markt</th>`:""}
         <th style="padding:8px">Abteilung</th>
         <th style="padding:8px">Wochenverlauf</th>
+        <th style="text-align:right;padding:8px">Bestandspotenzial</th>
+        <th style="text-align:right;padding:8px">Lieferung</th>
         <th style="text-align:right;padding:8px">stärkster Aufbau</th>
-        <th style="text-align:right;padding:8px">stärkster Abbau</th>
         <th style="text-align:right;padding:8px">Reichweite</th></tr></thead><tbody>
       ${zeig.map(a=>{
         const auf=a.mittel[a.aufbau], ab=a.mittel[a.abbau];
@@ -7328,8 +7398,13 @@ function mepKachelBestand(){
           ${kritisch?`<span style="display:block;font-size:10.5px;color:#b91c1c">Aufbau am Wochenanfang,
             Abbau zum Wochenende</span>`:""}</td>
         <td style="padding:8px">${balken(a)}</td>
+        <td style="text-align:right">${a.potenzial==null?"–":
+          `<b style="font-size:15px;color:${a.potenzial>40?"#b91c1c":a.potenzial>20?"#b45309":"#15803d"}">${
+            mepPrz(a.potenzial)}</b><span style="display:block;font-size:10.5px;color:#94a3b8">${
+            mepEur(a.ueberhang)} liegen zu lange</span>`}</td>
+        <td style="text-align:right;color:#64748b">${a.liefertage}× / Woche
+          <span style="display:block;font-size:10.5px">soll ${a.traegt} Tage tragen</span></td>
         <td style="text-align:right"><b style="color:#b45309">${MEP_WT[a.aufbau]} ${mepEur(auf)}</b></td>
-        <td style="text-align:right"><b style="color:#15803d">${MEP_WT[a.abbau]} ${mepEur(ab)}</b></td>
         <td style="text-align:right">${(()=>{ const r=mepReichweiteWert(a.abteilung,a.markt);
           if(!r||r.wert==null) return `<span style="color:#94a3b8" title="${r?mepEsc(r.grund):""}">–</span>`;
           return `<b style="color:${mepReichweiteFarbe(a.abteilung,r.wert)}">${
@@ -7437,7 +7512,9 @@ async function mepScanLaden(){
     if(!mepScanZeit||!mepScanWochen.some(p=>p.von+"_"+p.bis===mepScanZeit))
       mepScanZeit=mepScanWochen[0].von+"_"+mepScanWochen[0].bis;
     const [von,bis]=mepScanZeit.split("_");
-    let q=db.from("scanquote").select("markt,kassierer,quote,positionen,pos_manuell,pos_wdh,periode_von,periode_bis")
+    // pos_scan gehoert mit dazu - die Spalte "gescannt" im Absprung zeigte
+    // sonst dauerhaft einen Strich (Durchsicht 18.08.2026).
+    let q=db.from("scanquote").select("markt,kassierer,quote,positionen,pos_scan,pos_manuell,pos_wdh,periode_von,periode_bis")
       .eq("periode_von",von).eq("periode_bis",bis);
     if(!mepAlleMaerkte()) q=q.eq("markt",mepMk());
     const {data}=await q.order("quote");
@@ -7781,9 +7858,25 @@ function mepFarbe(wert, marktWert){
   if(d < -0.5) return "#b91c1c";
   return "#08213f";
 }
+/* Welche Periode ist "das laufende Jahr", welche "die letzte Woche"?
+   Bis 18.08.2026 stand hier "2026-08-10" fest im Code. Beim naechsten
+   Wochenbericht haette die Spalte stillschweigend auf "–" gestanden.
+   Jetzt kommen beide aus den tatsaechlich geladenen Perioden. */
+function mepPeriodeLang(){
+  const l=(mepPerioden.kennzahlen||[]).slice()
+    .sort((a,b)=>(new Date(b.bis)-new Date(b.von))-(new Date(a.bis)-new Date(a.von)));
+  return l.length?l[0].von:"2026-01-01";
+}
+function mepPeriodeKurz(){
+  const l=(mepPerioden.kennzahlen||[]).filter(p=>
+    Math.round((new Date(p.bis)-new Date(p.von))/86400000)+1<=8)
+    .sort((a,b)=>new Date(b.bis)-new Date(a.bis));
+  return l.length?l[0].von:null;
+}
 function mepKachelKennzahlen(){
-  const jahr=mepWerte("2026-01-01",true), woche=mepWerte("2026-08-10",false);
-  const mJahr=mepMarktWerte("2026-01-01",true), mWoche=mepMarktWerte("2026-08-10",false);
+  const pLang=mepPeriodeLang(), pKurz=mepPeriodeKurz();
+  const jahr=mepWerte(pLang,true), woche=pKurz?mepWerte(pKurz,false):{uA:null,kA:null,bon:null,bonVj:null};
+  const mJahr=mepMarktWerte(pLang,true), mWoche=pKurz?mepMarktWerte(pKurz,false):{uA:null,kA:null};
   const B=mepBl();
   /* Spannen aus der Spannenanalyse, nicht hochgerechnet - siehe Kopfkommentar. */
   const sp=mepSpanne.filter(x=>x.markt===mepMk());
@@ -7877,7 +7970,10 @@ function mepKachelKennzahlen(){
 
 function mepKachelSpannen(){
   const abt=new Set(mepAbteilungen());
-  let t=mepSpanne.filter(x=>x.markt===mepMk()&&x.abteilung!=="Gesamtergebnis"&&(!mepBl()||abt.has(x.abteilung)));
+  // Zeitfilter auch hier - sonst zeigt die Kachel einen anderen Zeitraum als
+  // ihr eigener Absprung (Durchsicht 18.08.2026).
+  let t=mepSpanne.filter(x=>x.markt===mepMk()&&x.abteilung!=="Gesamtergebnis"
+    &&(!mepBl()||abt.has(x.abteilung))&&mepZeitPasst(x,"spannen"));
   /* Sortiert wird nach der ABWEICHUNG, schlechteste oben - also nach der
      Differenz Nettoertragsspanne minus Umsatzspanne in Prozentpunkten
      (Vorgabe Benedikt Paul 17.08.2026). Vorher stand die groesste Euro-Summe
@@ -8124,13 +8220,15 @@ function mepKachelFlop(){
       :`<div class="small" style="padding:10px 0;font-style:italic">Für diese Auswahl liegen keine
         Artikel mit Spannenverlust vor.</div>`}
     <div class="small" style="margin-top:9px">Artikel unter ${MEP_FLOP_MINDESTUMSATZ} € Umsatz bleiben außen vor:
-      bei kleinem Umsatz wird der Prozentwert zum Zufallswert. <b>Eine Auswahl nach Regal fehlt noch –</b>
-      die Regalnummer steht in keinem der gelieferten Berichte.</div>
+      bei kleinem Umsatz wird der Prozentwert zum Zufallswert.
+      ${regale.length?"Die Regalauswahl greift, sobald der Regalbericht eingespielt ist – Regalnummern ab 990000 sind Zweitplatzierungen."
+        :"<b>Die Regalauswahl erscheint, sobald der Regalbericht eingespielt ist</b> – die Tabelle artikel_regal ist derzeit leer."}</div>
     </div>`;
 }
 function mepZeigeFlop(){
   const l=mepArtikel.filter(x=>mepZeitPasst(x,"flop"))
-    .filter(x=>!mepFlopAbteilung||x.abteilung===mepFlopAbteilung)
+    .filter(x=>(!mepFlopAbteilung||x.abteilung===mepFlopAbteilung)
+             &&(!mepFlopRegal||x.regal_nr===mepFlopRegal))   // Regalfilter fehlte hier
     .map(x=>({...x,f:mepFlopWerte(x)})).filter(x=>x.f)
     .sort((a,b)=> mepFlopMass==="euro" ? b.f.verlust-a.f.verlust : (b.f.anteil||0)-(a.f.anteil||0));
   let h=`${mepZeitLeisteModal("artikel","flop","mepZeigeFlop")}
@@ -8434,7 +8532,7 @@ function mepKachelBefunde(){
          damit der Befund und vor allem der LOESUNGSVORSCHLAG im Vordergrund
          stehen. Vorher nahmen vier gleich grosse Knoepfe mehr Platz ein als
          der eigentliche Inhalt. */
-      const dm=(w,zeichen,titel)=>`<button onclick="mepMelden('${f.schluessel}','${w}')"
+      const dm=(w,zeichen,titel)=>`<button onclick="mepMelden('${mepEsc(f.schluessel)}','${w}')"
         title="${titel}" style="border:1px solid ${fb&&fb.bewertung===w?"#004f9e":"#e2e8f0"};
         background:${fb&&fb.bewertung===w?"#004f9e":"transparent"};
         color:${fb&&fb.bewertung===w?"#fff":"#94a3b8"};border-radius:8px;padding:3px 8px;
@@ -8447,7 +8545,7 @@ function mepKachelBefunde(){
               mepEsc({hilfreich:"hilfreich",kannte_ich:"bekannt",falsch:"als falsch gemeldet",erledigt:"erledigt"}[fb.bewertung]||fb.bewertung)}</span>`:""}</div>
           <div style="display:flex;gap:4px;align-items:center;flex:none">
             ${dm("hilfreich","\u{1F44D}","hilfreich")}${dm("falsch","\u{1F44E}","falsch \u2013 wird kuenftig nicht mehr gezeigt")}
-            <button onclick="mepFeedbackFeld('${f.schluessel}')" style="border:1px solid #e2e8f0;
+            <button onclick="mepFeedbackFeld('${mepEsc(f.schluessel)}')" style="border:1px solid #e2e8f0;
               background:transparent;color:#64748b;border-radius:8px;padding:4px 10px;
               font-size:11.5px;cursor:pointer">Feedback geben</button>
           </div></div>
@@ -8463,10 +8561,10 @@ function mepKachelBefunde(){
             style="width:100%;padding:7px 9px;border:1px solid #e2e8f0;border-radius:8px;
             font-size:12.5px;font-family:inherit;resize:vertical"></textarea>
           <div style="display:flex;gap:6px;margin-top:6px;justify-content:flex-end">
-            <button onclick="mepFeedbackFeld('${f.schluessel}')" style="border:1px solid #e2e8f0;
+            <button onclick="mepFeedbackFeld('${mepEsc(f.schluessel)}')" style="border:1px solid #e2e8f0;
               background:transparent;color:#64748b;border-radius:8px;padding:4px 12px;font-size:12px;cursor:pointer">Abbrechen</button>
             <button class="btn-yellow" style="width:auto;padding:5px 16px;font-size:12px"
-              onclick="mepMelden('${f.schluessel}',null)">Absenden</button>
+              onclick="mepMelden('${mepEsc(f.schluessel)}',null)">Absenden</button>
           </div></div>
       </div>`;}).join("")
      :`<div class="small" style="padding:10px 0;font-style:italic">Keine Befunde für diese Auswahl.</div>`}
