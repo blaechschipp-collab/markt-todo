@@ -1,0 +1,25 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+
+  "//": [
+    "Weiterleitung NUR von der alten vercel.app-Adresse auf die eigene Domain.",
+    "",
+    "WICHTIG - der Grund fuer die has-Bedingung: Seit meinedeka.edeka-paul.de",
+    "selbst auf Vercel zeigt, wuerde eine Weiterleitung ohne diese Bedingung",
+    "die neue Adresse auf sich selbst schicken - eine Endlosschleife, und die",
+    "Seite waere ueberhaupt nicht mehr erreichbar. Die Bedingung sorgt dafuer,",
+    "dass nur Aufrufe von markt-todo.vercel.app umgeleitet werden.",
+    "",
+    "Damit finden die Kiosk-Tablets mit dem alten Lesezeichen weiterhin ihren",
+    "Weg, ohne dass jemand sie anfassen muss."
+  ],
+
+  "redirects": [
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": "markt-todo.vercel.app" }],
+      "destination": "https://meinedeka.edeka-paul.de/$1",
+      "permanent": true
+    }
+  ]
+}

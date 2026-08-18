@@ -1,0 +1,72 @@
+# Automatischer Upload nach IONOS
+# =============================================================================
+# WARUM HIER UND NICHT AUF DEM RECHNER:
+#
+# Der IONOS-Zugang laeuft ueber SFTP mit Kennwort - Schluessel gibt es im
+# Kundenbereich nur, wenn der Zugang auf "SSH" steht statt auf "SFTP".
+# Ein Kennwort auf dem Marktrechner abzulegen war der zweitbeste Weg.
+#
+# Besser: Der Upload laeuft dort, wo die Datei ohnehin ankommt - bei GitHub.
+# Skript 22 schiebt markt-todo.html nach GitHub, und dieser Ablauf schiebt sie
+# von dort weiter nach IONOS. Fuer Benedikt aendert sich nichts: Er startet
+# weiterhin nur 22.
+#
+# Das Kennwort liegt als GitHub-Secret - verschluesselt, nur fuer diesen
+# Ablauf lesbar, nirgends im Klartext, auf keinem Rechner im Markt.
+#
+# EINMALIG EINZURICHTEN (im Browser, dauert zwei Minuten):
+#   github.com/blaechschipp-collab/markt-todo
+#     -> Settings -> Secrets and variables -> Actions -> New repository secret
+#   Drei Stueck anlegen:
+#     IONOS_HOST      access847879533.webspace-data.io
+#     IONOS_USER      acc188148483
+#     IONOS_PASSWORD  das FTP-Kennwort aus dem IONOS-Kundenbereich
+# =============================================================================
+
+name: Nach IONOS hochladen
+
+# STILLGELEGT am 18.08.2026: kein "push"-Ausloeser mehr.
+# GRUND: meinedeka.edeka-paul.de laeuft direkt ueber Vercel. Der Umweg ueber
+# den IONOS-Webspace ist hinfaellig - die Subdomain haengt im WordPress-
+# Vertrag und liess sich keinem Webspace zuordnen.
+# Der Ablauf bleibt liegen und ist von Hand startbar, falls der Weg ueber
+# IONOS doch einmal gebraucht wird. Dann die drei Secrets anlegen.
+on:
+  workflow_dispatch:
+
+jobs:
+  hochladen:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dateien holen
+        uses: actions/checkout@v4
+
+      - name: Per SFTP nach IONOS uebertragen
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.IONOS_HOST }}
+          username: ${{ secrets.IONOS_USER }}
+          password: ${{ secrets.IONOS_PASSWORD }}
+          port: 22
+          source: "index.html,logo.png"
+          target: "/meinEDEKAPaul"
+          overwrite: true
+
+      # Nachweis statt Erfolgsmeldung: Die veroeffentlichte Seite wird
+      # zurueckgelesen und die Fassungsnummer verglichen. Genau dieser Schritt
+      # hat im Projekt mehrfach gefehlt - "erfolgreich" sagt nichts darueber,
+      # was wirklich online steht.
+      - name: Nachsehen, was online steht
+        run: |
+          SOLL=$(grep -o 'const APP_VERSION = "[^"]*"' index.html | head -1 | cut -d'"' -f2)
+          echo "Hochgeladen: $SOLL"
+          sleep 10
+          IST=$(curl -sS --max-time 30 https://meinedeka.edeka-paul.de/ \
+                | grep -o 'const APP_VERSION = "[^"]*"' | head -1 | cut -d'"' -f2)
+          echo "Online:      $IST"
+          if [ "$SOLL" != "$IST" ]; then
+            echo "::warning::Online steht $IST, hochgeladen wurde $SOLL."
+            echo "Das kann am Zwischenspeicher liegen. Bleibt es dabei, stimmt der Zielordner nicht."
+          else
+            echo "Stimmt überein."
+          fi
