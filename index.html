@@ -604,8 +604,8 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.18-19"; // RLS, Regal-Parser, Tabellen fuer das Handy
-const APP_VERSION_DATE = "17.08.2026";
+const APP_VERSION = "v2026.08.18-20"; // Regal-Umsatz: Rohwerte statt formatiertem Text
+const APP_VERSION_DATE = "18.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
 function reloadApp(){
@@ -6076,6 +6076,33 @@ async function autoHochladen(){
 
    Geloescht wird ERST, wenn die neuen Zeilen gelesen und geprueft sind. Der
    umgekehrte Weg hat in diesem Projekt schon einmal Daten gekostet. */
+/* Eine Zahl aus einer Excel-Zelle holen (18.08.2026).
+
+   Erst der Rohwert: ist er schon eine Zahl, ist alles gesagt - kein
+   Zahlenformat, keine Trennzeichen, nichts kaputtzumachen.
+
+   Nur wenn kein Rohwert da ist, wird der Text ausgewertet. Dann gilt:
+   das ZULETZT stehende Trennzeichen ist das Dezimaltrennzeichen, alle
+   uebrigen sind Tausenderpunkte. Damit gehen sowohl "1.523,93" (deutsch)
+   als auch "1523.93" (englisch) richtig durch. Die alte Fassung loeschte
+   pauschal jeden Punkt und machte aus "-1523.93" die Zahl -152393. */
+function zahlAusZelle(roh, text){
+  if(typeof roh === "number" && isFinite(roh)) return roh;
+  let s = String(roh==null ? (text==null?"":text) : roh).trim();
+  if(s === "") return null;
+  s = s.replace(/[^\d,.\-]/g, "");
+  if(!/\d/.test(s)) return null;      // "#" oder "-" ist kein Umsatz, sondern leer
+  const letzterPunkt = s.lastIndexOf("."), letztesKomma = s.lastIndexOf(",");
+  const trenner = letzterPunkt > letztesKomma ? "." : (letztesKomma >= 0 ? "," : "");
+  if(trenner){
+    const teile = s.split(trenner);
+    const nach = teile.pop();
+    s = teile.join("").replace(/[.,]/g, "") + "." + nach;
+  }
+  const n = Number(s);
+  return isFinite(n) ? n : null;
+}
+
 async function uploadRegaldaten(){
   if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
   const input = document.getElementById("regalFile");
@@ -6088,6 +6115,22 @@ async function uploadRegaldaten(){
     const wb = XLSX.read(await file.arrayBuffer(), {type:"array"});
     const sheetName = wb.SheetNames.find(n => n.toLowerCase().includes("kreuztab")) || wb.SheetNames[0];
     const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, defval:null, raw:false});
+    /* Zweiter Durchgang mit den ROHWERTEN (18.08.2026).
+
+       Warum: "raw:false" wendet das Zahlenformat der Datei an. In diesem
+       Bericht steht in der Umsatzspalte das Format "0", "00" oder "000" -
+       also OHNE Nachkommastellen. SheetJS liefert dann "54" statt 54,40 und
+       "3" statt 2,68. Bei den 14 Zellen mit dem Format "0,000" scheitert die
+       Formatierung ganz und SheetJS gibt die Rohzahl englisch zurueck
+       ("-1523.93"); die Zeile darunter loeschte frueher den Punkt und machte
+       daraus -152393 - Faktor 100.
+
+       Gemessen am 18.08.2026: Steinfeld kam mit -125.868 EUR
+       Gesamtumsatz in der Datenbank an, tatsaechlich sind es +25.085,20 EUR.
+
+       Deshalb: Text nur noch fuer Kopfzeile und Beschriftungen, Zahlen
+       kommen aus dem Rohdurchgang. */
+    const rowsRoh = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, defval:null, raw:true});
     if(rows.length < 3){ msg.style.color="#c62828"; msg.innerHTML="Datei hat zu wenig Zeilen."; return; }
 
     /* Die Kopfzeile steht NICHT zwingend in Zeile 1. Im BO-Export vom
@@ -6146,11 +6189,12 @@ async function uploadRegaldaten(){
          || !/^\d{4,}$/.test(art)){ uebersprungen++; continue; }
       let gtin = cGtin>=0 ? String(r[cGtin]==null?"":r[cGtin]).trim() : "";
       if(gtin==="#") gtin="";
-      const umsatzRoh = cUms>=0 ? String(r[cUms]==null?"":r[cUms]).replace(/\./g,"").replace(",",".") : "";
+      const umsatz = zahlAusZelle(cUms>=0 ? (rowsRoh[i]||[])[cUms] : null,
+                                  cUms>=0 ? r[cUms] : null);
       maerkte.add(markt);
       saetze.push({ markt, sap_artnr: art, regal_nr: regal,
         bezeichnung: String(r[cBez]==null?"":r[cBez]).trim(),
-        gtin, umsatz: umsatzRoh===""?null:(isNaN(Number(umsatzRoh))?null:Number(umsatzRoh)),
+        gtin, umsatz,
         stand });
     }
     if(!saetze.length){
