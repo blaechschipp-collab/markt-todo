@@ -12,6 +12,19 @@
   <style>
     :root{--blue:#004f9e;--blue-dark:#00315f;--yellow:#ffdd00;--red:#ef4444;--orange:#f59e0b;--green:#22c55e;--border:#d8e2ef;--text:#08213f}
     *{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(180deg,var(--blue-dark),var(--blue));color:var(--text);min-height:100vh}.header{background:linear-gradient(135deg,#002b55,#0059ad);padding:22px 26px 18px;border-bottom:6px solid var(--yellow)}.brand{max-width:1300px;margin:0 auto}.logo{max-width:520px;width:100%;height:auto;display:block}.brand-title{font-size:44px;font-weight:900;font-style:italic;color:#fff}.brand-subtitle{font-size:18px;color:#d9ecff}.main{max-width:1300px;margin:0 auto;padding:24px}.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px}.tab{border:2px solid var(--yellow);background:transparent;color:#fff;padding:14px 24px;border-radius:12px 12px 0 0;font-weight:bold;cursor:pointer}.tab.active{background:var(--yellow);color:var(--blue-dark)}.todo-tab{flex:1 1 30%}.dispo-tab{flex:1 1 30%}.backshop-tab{flex:1 1 30%}.werbung-tab{flex:1 1 30%}.analytics-tab{flex:1 1 30%}.admin-tab{flex:1 1 30%;min-width:92px}.tab{white-space:nowrap;text-align:center;padding:12px 8px;font-size:14px}
+/* Der neue Reiter "Mein EDEKA Paul" hatte als einziger keine flex-Regel und
+   war deshalb so breit wie sein Text. */
+.mep-tab{flex:1 1 30%}
+/* Nur-drei-Reiter-Betrieb: Die Leiste bricht NICHT mehr um. Grund fuer den
+   Umbruch war "white-space:nowrap" - ein Flex-Element kann nicht schmaler
+   werden als sein laengstes Wort, und "Meine Baeckerei + Mein EDEKA Paul +
+   Admin" nebeneinander sind auf einem Tablet breiter als der Bildschirm.
+   Bei sieben Reitern fiel das nicht auf, bei dreien schon.
+   Loesung: Die Knoepfe duerfen schrumpfen (min-width:0) und ihr Text darf
+   innerhalb des Knopfes umbrechen - dann stehen die Reiter nebeneinander
+   und werden notfalls zweizeilig, statt untereinander zu rutschen. */
+.tabs.drei{flex-wrap:nowrap}
+.tabs.drei .tab{flex:1 1 0;min-width:0;white-space:normal;line-height:1.2;font-size:clamp(12px,2.4vw,15px);padding:12px 6px;display:flex;align-items:center;justify-content:center}
 @media (max-width: 700px){.main{padding:12px}.tab{padding:10px 6px;font-size:13px;border-radius:10px}.tabs{gap:4px}.todo-tab,.dispo-tab,.backshop-tab,.werbung-tab,.analytics-tab,.admin-tab{flex:1 1 30%}}.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:14px}.metric-card{background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:16px}.metric-value{font-size:28px;font-weight:900;color:var(--blue-dark)}.locked{opacity:.75}.box{background:#fff;border-radius:14px;padding:18px;margin-bottom:18px;box-shadow:0 8px 24px rgba(0,0,0,.14)}.admin{border:3px solid var(--yellow)}.control-grid{display:grid;grid-template-columns:repeat(5,minmax(160px,1fr));gap:14px;align-items:end}label{font-weight:bold;font-size:14px;display:block;margin-bottom:6px}input,select,textarea,button{padding:12px;border-radius:8px;border:1px solid #b8c7d9;font-size:15px;width:100%}textarea{min-height:86px;resize:vertical}button{cursor:pointer;font-weight:bold;border:none}.btn-yellow{background:var(--yellow);color:var(--blue-dark)}.btn-blue{background:var(--blue);color:#fff}.btn-dark{background:var(--blue-dark);color:#fff}.btn-red{background:#c62828;color:#fff}.btn-green{background:#2e7d32;color:#fff}.task{padding:14px;border-radius:10px;margin-bottom:10px;border:1px solid var(--border);display:flex;gap:12px;align-items:flex-start}.high{background:#ffe5e5;border-color:#ffb3b3}.medium{background:#fff5cc;border-color:#ffe480}.low{background:#e8f5e9;border-color:#bde8c3}.info{background:#e0f2fe;border-color:#7dd3fc}.done{text-decoration:line-through;color:#6b7280}.pill{display:inline-block;padding:3px 8px;border-radius:999px;color:#fff;font-size:12px;font-weight:bold;margin-left:6px}.high-p{background:var(--red)}.medium-p{background:var(--orange)}.low-p{background:var(--green)}.open-p{background:#64748b}.done-p{background:var(--green)}.info-p{background:#0284c7}.small{font-size:13px;color:#64748b;margin-top:4px}.days label,.months label{display:inline-flex;align-items:center;gap:6px;margin:6px 12px 6px 0;font-weight:normal}.days input,.months input{width:auto}.admin-actions{display:flex;gap:8px;flex-wrap:wrap}.admin-actions button{width:auto}.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px}table{border-collapse:collapse;width:100%;min-width:900px;background:#fff}th,td{border:1px solid #e1e8f0;padding:9px;text-align:left;font-size:13px}th{background:#f1f5f9}.footer{background:var(--yellow);color:var(--blue-dark);text-align:center;padding:18px;font-weight:bold;margin-top:30px}
     .kpi-block .kpi-cards{display:none}
     .kpi-mobile-card{background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px}
@@ -195,7 +208,10 @@
        gebraucht: Die Kacheln in "Mein EDEKA Paul" haken ueber dieselben
        Funktionen ab und rechnen mit derselben Bevorratungslogik.
        Zurueckdrehen: MEP_NUR_DREI_REITER auf false setzen. -->
-  <div class="tabs">
+  <!-- Klasse "drei" steht schon hier im HTML und nicht erst per Skript:
+       sonst stuenden die Reiter beim Laden einen Wimpernschlag lang
+       untereinander und springen dann. -->
+  <div class="tabs drei">
     <button id="backshopTab" class="tab active backshop-tab" onclick="showTab('backshop')">🥐 Meine Bäckerei</button><button id="mepTab" class="tab mep-tab" onclick="showTab('mep')">🍏 Mein EDEKA Paul</button><button id="adminTab" class="tab admin-tab" onclick="openAdminPin()">🔒 Admin</button><button id="todoTab" class="tab todo-tab alt-reiter" onclick="showTab('todo')">☑ ToDo</button><button id="dispoTab" class="tab dispo-tab alt-reiter" onclick="showTab('dispo')">📦 Dispo</button><button id="werbungTab" class="tab werbung-tab alt-reiter" onclick="showTab('werbung')">💰 Bevorratung</button><button id="analyticsTab" class="tab analytics-tab alt-reiter" onclick="showTab('analytics')">📊 Auswertungen</button>
   </div>
   <section id="todoSection">
@@ -561,7 +577,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.18-16"; // Drei Reiter: Meine Baeckerei, Mein EDEKA Paul, Admin
+const APP_VERSION = "v2026.08.18-17"; // Drei Reiter stehen nebeneinander statt untereinander
 const APP_VERSION_DATE = "17.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -1523,6 +1539,10 @@ function alteReiterAnzeigen(zeigen){
   document.querySelectorAll(".alt-reiter").forEach(b=>{
     b.style.display = zeigen ? "" : "none";
   });
+  // Bei drei Reitern bleibt die Leiste einzeilig (Klasse "drei"), bei sieben
+  // darf sie wie bisher umbrechen - sonst waeren sie unlesbar schmal.
+  const leiste=document.querySelector(".tabs");
+  if(leiste) leiste.classList.toggle("drei", !zeigen);
 }
 
 function showTab(tab){
