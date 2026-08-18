@@ -546,7 +546,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.18-12"; // Scanquote: Zeitraum als Ueberlappung, Sichtbarkeit an der Anmeldung, alle Kassen
+const APP_VERSION = "v2026.08.18-13"; // Bevorratung als Kachel in Abteilungs- und Marktleiteransicht, Analyselauf schreibt Befunde
 const APP_VERSION_DATE = "17.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -6888,7 +6888,7 @@ async function mepNeuLaden(){
      stehengeblieben. Welche Periode zu welchem Zeitraum passt, entscheidet
      jetzt mepPassendePeriode beim Lesen, nicht eine gemerkte Auswahl. */
   await Promise.all([mepWerbungLaden(), mepLogsLaden(), mepVerwaltungLaden(),
-                     mepScanLaden(), mepBestandLaden()]);
+                     mepScanLaden(), mepBestandLaden(), mepBevorratungLaden()]);
   const jahr=mepKz.filter(x=>x.periode_von==="2026-01-01");
   if(jahr.length) mepStand=jahr[0].stand;
   mepZeichnen();
@@ -7546,6 +7546,116 @@ function mepZeigeBestand(){
   mepModal("Bestandsverlauf je Abteilung", h);
 }
 
+/* ---------- Bevorratung ----------
+   Der Reiter "Bevorratung" rechnet seit Langem, wie viele Kartons eines
+   Werbeartikels sich lohnen: Wochenabsatz mal Bevorratungswochen, verglichen
+   mit dem Preisvorteil der Aktion. Frischeabteilungen bekommen weniger
+   Wochen, weil die Ware sonst verdirbt.
+
+   Diese Kachel rechnet NICHT neu. Sie ruft dieselbe Funktion auf
+   (computeWerbungRecommendation) und filtert das Ergebnis auf den gewaehlten
+   Bereich. Zwei getrennte Rechenwege waeren die sichere Art, frueher oder
+   spaeter unterschiedliche Zahlen in zwei Reitern zu haben
+   (Vorgabe Benedikt Paul 18.08.2026: in die Abteilungs- und
+   Marktleiteransicht aufnehmen). */
+async function mepBevorratungLaden(){
+  try{
+    if(!werbungState.loaded && typeof loadWerbungData==="function"){
+      const feld=document.getElementById("werbungMarket");
+      const merker=feld?feld.value:null;
+      if(feld && !mepAlleMaerkte()) feld.value=mepMk();
+      await loadWerbungData();
+      if(typeof loadWerbungTicked==="function") await loadWerbungTicked();
+      if(feld && merker!=null) feld.value=merker;
+    }
+  }catch(err){ console.warn("Bevorratung:",err); }
+}
+function mepBevorratung(){
+  if(!werbungState.loaded||!werbungState.promo.length) return null;
+  const s=werbungState.settings||{threshold:20,bevWochen:6,bevFrische:1};
+  const markt=mepAlleMaerkte()?null:mepMk();
+  const maerkte=markt?[markt]:mepMarktListe();
+  let alle=[];
+  maerkte.forEach(m=>{
+    const r=computeWerbungRecommendation(m, s.threshold, s.bevWochen, s.bevFrische)||[];
+    r.forEach(x=>alle.push({...x, markt:m}));
+  });
+  // Auf den gewaehlten Bereich eingrenzen - ueber dieselbe Abteilungsliste
+  // wie alle anderen Kacheln
+  const b=mepBl();
+  if(b){
+    const abt=new Set(mepAbteilungen());
+    alle=alle.filter(x=>x.abteilung&&abt.has(x.abteilung));
+  }
+  return {liste:alle, einstellungen:s};
+}
+function mepKachelBevorratung(){
+  if(mepIstHausmeister()) return "";
+  const d=mepBevorratung();
+  if(!d){
+    return `<div class="box"><h2>Bevorratung</h2>
+      <div class="small" style="padding:10px 0;font-style:italic">Kein Werbe-Ordersatz geladen.
+      Die aktuelle Werbe-PDF wird im Admin-Bereich eingespielt.</div></div>`;
+  }
+  const l=d.liste.slice().sort((a,b)=>b.ersparnisGes-a.ersparnisGes);
+  const offen=l.filter(x=>!werbungState.ticked.has(x.sap_artnr));
+  const kartons=l.reduce((s,x)=>s+(x.kartons||0),0);
+  const ersparnis=l.reduce((s,x)=>s+(x.ersparnisGes||0),0);
+  const zeig=offen.slice(0,6);
+  return `<div class="box"><h2>Bevorratung${mepBl()?" · "+mepEsc(mepBl()):""}
+    <span style="font-weight:normal;font-size:14px;color:#64748b">${mepZahl(offen.length)} von ${mepZahl(l.length)} offen</span>
+    ${mepAbsprung("mepZeigeBevorratung()","alle Artikel")}</h2>
+    <div class="small">Werbeartikel, bei denen sich ein Vorgriff rechnet: Wochenabsatz mal
+      ${d.einstellungen.bevWochen} Wochen, Frische nur ${d.einstellungen.bevFrische} Woche,
+      ab ${d.einstellungen.threshold} € Ersparnis. Zusammen <b>${mepZahl(kartons)} Kartons</b> und
+      <b>${mepEur(ersparnis)}</b> Ersparnis. Gerechnet wird dasselbe wie im Reiter Bevorratung –
+      nur auf Ihren Bereich eingegrenzt.</div>
+    ${zeig.length?`<table style="width:100%;border-collapse:collapse;font-size:13.5px;margin-top:10px">
+      <thead><tr style="text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">
+        <th style="padding:8px">Erledigt</th><th>Artikel</th>
+        ${mepAlleMaerkte()?"<th>Markt</th>":""}<th>Abteilung</th>
+        <th style="text-align:right">Kartons</th><th style="text-align:right">Ersparnis</th></tr></thead><tbody>
+      ${zeig.map(x=>`<tr style="border-top:1px solid #eef3f9">
+        <td style="padding:8px"><input type="checkbox" onchange="mepBevAbhaken('${mepEsc(x.sap_artnr)}')"></td>
+        <td>${mepEsc(x.name)}
+          <span style="display:block;font-size:10.5px;color:#94a3b8">Art.-Nr. ${mepEsc(x.sap_artnr)} ·
+            ${x.wochenverkauf!=null?x.wochenverkauf.toFixed(1):"–"} St./Woche${
+            x.isFrische?' · <b style="color:#166534">Frische</b>':""}</span></td>
+        ${mepAlleMaerkte()?`<td style="color:#64748b">${mepEsc(x.markt)}</td>`:""}
+        <td style="color:#64748b">${mepEsc(x.abteilung||"–")}</td>
+        <td style="text-align:right"><b style="font-size:15px">${mepZahl(x.kartons)}</b></td>
+        <td style="text-align:right"><b style="color:#15803d">${mepEur(x.ersparnisGes)}</b></td></tr>`).join("")}
+      </tbody></table>`
+      :`<div class="small" style="padding:10px 0;font-style:italic">Für diese Auswahl ist nichts zu bevorraten.</div>`}
+    </div>`;
+}
+async function mepBevAbhaken(art){
+  if(typeof toggleWerbungTick==="function"){ await toggleWerbungTick(art); }
+  mepZeichnen();
+}
+function mepZeigeBevorratung(){
+  const d=mepBevorratung();
+  if(!d){ mepModal("Bevorratung","<div class=\"small\">Kein Werbe-Ordersatz geladen.</div>"); return; }
+  const l=d.liste.slice().sort((a,b)=>b.ersparnisGes-a.ersparnisGes);
+  let h=`<div class="small" style="margin-bottom:10px">${mepMk()}${mepBl()?" · "+mepEsc(mepBl()):""} ·
+    ${mepZahl(l.length)} Artikel · Bevorratung ${d.einstellungen.bevWochen} Wochen,
+    Frische ${d.einstellungen.bevFrische}, Schwelle ${d.einstellungen.threshold} €.
+    Die Vorgaben werden im Reiter Bevorratung eingestellt.</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13.5px">${
+    mepTh("Artikel","Abteilung","~St./Woche","~Wochen","~Kartons","~Stück","~Ersparnis")}<tbody>`;
+  l.forEach(x=>{ const erl=werbungState.ticked.has(x.sap_artnr);
+    h+=`<tr style="border-top:1px solid #eef3f9;${erl?"opacity:.45":""}">
+    <td style="padding:8px;${erl?"text-decoration:line-through":""}">${mepEsc(x.name)}
+      <span style="display:block;font-size:10.5px;color:#94a3b8">Art.-Nr. ${mepEsc(x.sap_artnr)}</span></td>
+    <td style="color:#64748b">${mepEsc(x.abteilung||"–")}${x.isFrische?' <b style="color:#166534">Frische</b>':""}</td>
+    <td style="text-align:right">${x.wochenverkauf!=null?x.wochenverkauf.toFixed(1):"–"}</td>
+    <td style="text-align:right">${mepZahl(x.effektiveWochen)}</td>
+    <td style="text-align:right"><b>${mepZahl(x.kartons)}</b></td>
+    <td style="text-align:right;color:#64748b">${mepZahl(x.stueckEmpf)}</td>
+    <td style="text-align:right"><b style="color:#15803d">${mepEur(x.ersparnisGes)}</b></td></tr>`; });
+  mepModal("Bevorratung · alle Artikel", h+"</tbody></table>");
+}
+
 /* ---------- Scanquote: die schwächsten Kassen ----------
    Marktleitung sieht die schlechtesten fünf ihres Marktes, die Verwaltung
    dieselbe Auswahl über alle Märkte, jeweils mit Absprung in die vollständige
@@ -7802,11 +7912,11 @@ function mepZeichnen(){
   z.innerHTML = mepIstHausmeister()
     ? mepKachelAufgaben()+mepKachelBefunde()
     : mepAlleMaerkte()
-      ? mepKachelVerwaltung()+mepKachelOffen()+mepKachelScanquote()+mepKachelBestand()
+      ? mepKachelVerwaltung()+mepKachelOffen()+mepKachelScanquote()+mepKachelBestand()+mepKachelBevorratung()
         +mepVerw(mepKachelAufgaben)+mepVerw(mepKachelDispo)+mepKachelBefunde()
       : mepKachelVerwaltung()+mepKachelKennzahlen()+mepKachelOffen()+mepKachelSpannen()+mepKachelBefunde()
         +mepKachelScanquote()+mepKachelBestand()
-        +mepKachelWerbung()+mepKachelFlop()+mepKachelArtikel()
+        +mepKachelWerbung()+mepKachelBevorratung()+mepKachelFlop()+mepKachelArtikel()
         +mepVerw(mepKachelAufgaben)+mepVerw(mepKachelDispo);
   mepBarcodes();
 }
