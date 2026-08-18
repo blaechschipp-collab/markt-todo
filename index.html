@@ -615,7 +615,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.18-23"; // Bestandsverlauf sagt jetzt, warum er leer ist
+const APP_VERSION = "v2026.08.18-25"; // Liefertage aus Vorgabe; Leergut und ausgelaufene Abteilungen gesondert
 const APP_VERSION_DATE = "18.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -6980,8 +6980,30 @@ function mepZugangAus(z, gewMarkt, gewBereich){
              bereich: erlaubt.includes(gewBereich) ? gewBereich : "Alle Bereiche",
              rolle: z.rolle };
   }
-  // Verwaltung, Hausmeister und die Bereiche bekommen genau das, was in der
-  // Datenbank steht.
+  /* Verwaltung darf sich in einen einzelnen Markt und Bereich setzen
+     (Vorgabe Benedikt Paul, 18.08.2026: "Wenn Michaela oder ich eine
+     Abteilung auswaehlen, wollen wir uns dort mit unserer PIN anmelden
+     koennen. Bisher springt es auf die Verwaltung um.")
+
+     Vorher wurde die Auswahl im Anmeldefenster verworfen und stur
+     markt/bereich aus der Datenbank genommen - also immer "Verwaltung /
+     Alle Maerkte".
+
+     Das ist KEINE Ausweitung der Rechte: Die Verwaltung sieht ohnehin alle
+     Maerkte. Sie schraenkt sich hier nur ein, um dieselbe Ansicht zu haben
+     wie die Marktleitung vor Ort. Wer "Verwaltung / Alle Maerkte" waehlt,
+     bekommt unveraendert den Gesamtblick samt Liquiditaet und Bewerbungen. */
+  if(z.rolle==="verwaltung"){
+    const eigen = !gewMarkt || gewMarkt==="Verwaltung";
+    if(eigen) return { markt:z.markt, bereich:z.bereich, rolle:z.rolle };
+    const erlaubt = MEP_MAERKTE[gewMarkt] || ["Alle Bereiche"];
+    return { markt: gewMarkt,
+             bereich: erlaubt.includes(gewBereich) ? gewBereich : "Alle Bereiche",
+             rolle: z.rolle };
+  }
+
+  // Hausmeister und die Bereiche bekommen genau das, was in der Datenbank
+  // steht - dort entscheidet die PIN, nicht die Auswahl.
   return { markt:z.markt, bereich:z.bereich, rolle:z.rolle };
 }
 
@@ -7618,6 +7640,132 @@ function mepKachelVerwaltung(){
    Deshalb wird hier die VERAENDERUNG je Wochentag gemittelt und daraus der
    Verlauf gebildet - nicht der absolute Bestand. Der Startpunkt der Kurve ist
    damit willkuerlich, die Form ist es nicht. Genau die Form ist die Aussage. */
+/* ---------- Liefertage je Markt und Abteilung ----------
+   VORGABE Benedikt Paul, 18.08.2026, eingetragen in
+   Liefertage_je_Markt_und_Abteilung.xlsx. Diese Tabelle ist erzeugt, nicht
+   abgetippt.
+
+   WARUM FEST HINTERLEGT UND NICHT GERECHNET:
+   Vorher schaetzte die App den Lieferzyklus aus den Zugangsbuchungen -
+   erst ueber eine 15-%-Schwelle, dann ueber die Zahl der Buchungstage.
+   Beides ist falsch, weil eine Buchung keine Lieferung ist. Gemessen ergab
+   Billigheim/Food 5,7 "Liefertage", tatsaechlich sind es drei: Mo, Mi, Fr.
+   Und Steinfeld/Leergut kam auf 5,9 - dort wird taeglich Leergut
+   zurueckgenommen, geliefert wird nichts.
+
+   art unterscheidet vier Faelle:
+     (kein art)         normale Lieferung, lt = Liefertage laut Vorgabe
+     "sammelbuchung"    Ware kommt TAEGLICH, gebucht wird aber nur
+     "kundenruecknahme" Leergut. Kommt taeglich vom KUNDEN, wird nicht
+                        geliefert. Ein Lieferzyklus existiert nicht, ein
+                        Bestandspotenzial ergibt hier keinen Sinn.
+                        (Korrektur Benedikt Paul 18.08.2026 - vorher stand
+                        dort derselbe Rhythmus wie fuer den Markt.)
+     "auslaufend"       Abteilung gibt es faktisch nicht mehr. Steinfeld
+                        Fisch (eine Buchung in 33 Wochen) und Steinfeld
+                        Kaese (64 EUR Wochenzugang gegen 2.691 EUR in
+                        Billigheim). Wird in der Kachel gar nicht mehr
+                        gezeigt; die Daten bleiben in der Datenbank.
+
+   sammelbuchung heisst: Ware kommt TAEGLICH, gebucht wird aber nur
+   einmal in der Woche (Vorgabe Benedikt Paul: Baeckerei und Zeitschriften).
+   Fuer diese Abteilungen ist der Lieferzyklus 6, der Wochenverlauf aus den
+   Buchungen aber wertlos - der Montagsberg ist ein Buchungsartefakt und
+   kein Bestandsaufbau. Sie bekommen deshalb KEIN Bestandspotenzial,
+   sondern einen Hinweis.
+
+   Pflege: Die Excel-Datei liegt in 20_MarktToDo. Aendert sich ein
+   Lieferrhythmus, dort eintragen und diese Tabelle neu erzeugen. */
+const MEP_LIEFERTAGE={
+  "Billigheim-Ingenheim|Backwaren Bake OFF":{lt:3,tage:"MoMiFr"},
+  "Billigheim-Ingenheim|Drogerie Abteilung":{lt:3,tage:"MoMiFr"},
+  "Billigheim-Ingenheim|Fisch Bedienung":{lt:6,tage:"MoDiMiDoFrSa"},
+  "Billigheim-Ingenheim|Food Abteilung":{lt:3,tage:"MoMiFr"},
+  "Billigheim-Ingenheim|Getränke Markt":{lt:3,tage:"MoMiFr"},
+  "Billigheim-Ingenheim|Käse Bedienung":{lt:6,tage:"MoDiMiDoFrSa"},
+  "Billigheim-Ingenheim|Leergut":{lt:3,tage:"MoMiFr",art:"kundenruecknahme"},
+  "Billigheim-Ingenheim|Markt Allgemein":{lt:3,tage:"MoMiFr"},
+  "Billigheim-Ingenheim|Marktbäckerei":{lt:6,art:"sammelbuchung"},
+  "Billigheim-Ingenheim|Metzgerei Bedienung":{lt:6,tage:"MoDiMiDoFrSa"},
+  "Billigheim-Ingenheim|Molkereiprodukte":{lt:6,tage:"MoDiMiDoFrSa"},
+  "Billigheim-Ingenheim|Non Food Elektro":{lt:3,tage:"MoMiFr"},
+  "Billigheim-Ingenheim|Non Food Freizeit":{lt:3,tage:"MoMiFr"},
+  "Billigheim-Ingenheim|Non Food Haushaltswa":{lt:3,tage:"MoMiFr"},
+  "Billigheim-Ingenheim|Non Food Textil":{lt:3,tage:"MoMiFr"},
+  "Billigheim-Ingenheim|Obst Gemuse":{lt:6,tage:"MoDiMiDoFrSa"},
+  "Billigheim-Ingenheim|Pflanzen/ Pf.-Bedarf":{lt:6,tage:"MoDiMiDoFrSa"},
+  "Billigheim-Ingenheim|SB Fleisch":{lt:6,tage:"MoDiMiDoFrSa"},
+  "Billigheim-Ingenheim|SB Wurst":{lt:6,tage:"MoDiMiDoFrSa"},
+  "Billigheim-Ingenheim|Tabak":{lt:3,tage:"MoMiFr"},
+  "Billigheim-Ingenheim|Tiefkühl Abteilung":{lt:3,tage:"MoMiFr"},
+  "Billigheim-Ingenheim|Wein Spirituosen":{lt:3,tage:"MoMiFr"},
+  "Billigheim-Ingenheim|Zeitung Bücher":{lt:6,art:"sammelbuchung"},
+  "Steinfeld|Backwaren Bake OFF":{lt:2,tage:"MoMi"},
+  "Steinfeld|Drogerie Abteilung":{lt:2,tage:"MoDo"},
+  "Steinfeld|Fisch Bedienung":{lt:6,tage:"MoDiMiDoFrSa",art:"auslaufend"},
+  "Steinfeld|Food Abteilung":{lt:2,tage:"MoDo"},
+  "Steinfeld|Getränke Markt":{lt:2,tage:"MoDo"},
+  "Steinfeld|Käse Bedienung":{lt:6,tage:"MoDiMiDoFrSa",art:"auslaufend"},
+  "Steinfeld|Leergut":{lt:2,tage:"MoDo",art:"kundenruecknahme"},
+  "Steinfeld|Markt Allgemein":{lt:2,tage:"MoDo"},
+  "Steinfeld|Marktbäckerei":{lt:6,art:"sammelbuchung"},
+  "Steinfeld|Metzgerei Bedienung":{lt:6,tage:"MoDiMiDoFrSa"},
+  "Steinfeld|Molkereiprodukte":{lt:6,tage:"MoDiMiDoFrSa"},
+  "Steinfeld|Non Food Elektro":{lt:2,tage:"MoDo"},
+  "Steinfeld|Non Food Freizeit":{lt:2,tage:"MoDo"},
+  "Steinfeld|Non Food Haushaltswa":{lt:2,tage:"MoDo"},
+  "Steinfeld|Non Food Textil":{lt:2,tage:"MoDo"},
+  "Steinfeld|Obst Gemuse":{lt:6,tage:"MoDiMiDoFrSa"},
+  "Steinfeld|Pflanzen/ Pf.-Bedarf":{lt:6,tage:"MoDiMiDoFrSa"},
+  "Steinfeld|SB Fleisch":{lt:6,tage:"MoDiMiDoFrSa"},
+  "Steinfeld|SB Wurst":{lt:6,tage:"MoDiMiDoFrSa"},
+  "Steinfeld|Tabak":{lt:2,tage:"MoMi"},
+  "Steinfeld|Tiefkühl Abteilung":{lt:2,tage:"MoMi"},
+  "Steinfeld|Wein Spirituosen":{lt:2,tage:"MoDo"},
+  "Steinfeld|Zeitung Bücher":{lt:2,tage:"MoDo"},
+  "Freckenfeld|Backwaren Bake OFF":{lt:1,tage:"Do"},
+  "Freckenfeld|Drogerie Abteilung":{lt:1,tage:"Do"},
+  "Freckenfeld|Food Abteilung":{lt:1,tage:"Do"},
+  "Freckenfeld|Getränke Markt":{lt:1,tage:"Do"},
+  "Freckenfeld|Leergut":{lt:1,tage:"Do",art:"kundenruecknahme"},
+  "Freckenfeld|Markt Allgemein":{lt:1,tage:"Do"},
+  "Freckenfeld|Marktbäckerei":{lt:6,art:"sammelbuchung"},
+  "Freckenfeld|Metzgerei Bedienung":{lt:3,tage:"MoMiFr"},
+  "Freckenfeld|Molkereiprodukte":{lt:3,tage:"MoMiFr"},
+  "Freckenfeld|Non Food Elektro":{lt:1,tage:"Do"},
+  "Freckenfeld|Non Food Freizeit":{lt:1,tage:"Do"},
+  "Freckenfeld|Non Food Haushaltswa":{lt:1,tage:"Do"},
+  "Freckenfeld|Non Food Textil":{lt:1,tage:"Do"},
+  "Freckenfeld|Obst Gemuse":{lt:3,tage:"MoMiFr"},
+  "Freckenfeld|Pflanzen/ Pf.-Bedarf":{lt:3,tage:"MoMiFr"},
+  "Freckenfeld|SB Fleisch":{lt:3,tage:"MoMiFr"},
+  "Freckenfeld|SB Wurst":{lt:3,tage:"MoMiFr"},
+  "Freckenfeld|Tabak":{lt:1,tage:"Do"},
+  "Freckenfeld|Tiefkühl Abteilung":{lt:1,tage:"Mi"},
+  "Freckenfeld|Wein Spirituosen":{lt:1,tage:"Do"},
+  "Freckenfeld|Zeitung Bücher":{lt:6,art:"sammelbuchung"},
+  "Gossersweiler-Stein|Backwaren Bake OFF":{lt:1,tage:"Do"},
+  "Gossersweiler-Stein|Drogerie Abteilung":{lt:1,tage:"Do"},
+  "Gossersweiler-Stein|Food Abteilung":{lt:1,tage:"Do"},
+  "Gossersweiler-Stein|Getränke Markt":{lt:1,tage:"Do"},
+  "Gossersweiler-Stein|Leergut":{lt:1,tage:"Do",art:"kundenruecknahme"},
+  "Gossersweiler-Stein|Markt Allgemein":{lt:1,tage:"Do"},
+  "Gossersweiler-Stein|Marktbäckerei":{lt:6,art:"sammelbuchung"},
+  "Gossersweiler-Stein|Metzgerei Bedienung":{lt:3,tage:"MoMiFr"},
+  "Gossersweiler-Stein|Molkereiprodukte":{lt:3,tage:"MoMiFr"},
+  "Gossersweiler-Stein|Non Food Elektro":{lt:1,tage:"Do"},
+  "Gossersweiler-Stein|Non Food Freizeit":{lt:1,tage:"Do"},
+  "Gossersweiler-Stein|Non Food Haushaltswa":{lt:1,tage:"Do"},
+  "Gossersweiler-Stein|Non Food Textil":{lt:1,tage:"Do"},
+  "Gossersweiler-Stein|Obst Gemuse":{lt:3,tage:"MoMiFr"},
+  "Gossersweiler-Stein|Pflanzen/ Pf.-Bedarf":{lt:3,tage:"MoMiFr"},
+  "Gossersweiler-Stein|SB Fleisch":{lt:3,tage:"MoMiFr"},
+  "Gossersweiler-Stein|SB Wurst":{lt:3,tage:"MoMiFr"},
+  "Gossersweiler-Stein|Tabak":{lt:1,tage:"Do"},
+  "Gossersweiler-Stein|Tiefkühl Abteilung":{lt:1,tage:"Mi"},
+  "Gossersweiler-Stein|Wein Spirituosen":{lt:1,tage:"Do"},
+  "Gossersweiler-Stein|Zeitung Bücher":{lt:6,art:"sammelbuchung"},
+};
 const MEP_WT=["Mo","Di","Mi","Do","Fr","Sa"];
 /* Abteilungen, bei denen ein liegender Bestand unmittelbar auf die Qualitaet
    schlaegt. Die Einstufung kommt aus derselben Quelle wie in der Bevorratung
@@ -7681,9 +7829,11 @@ function mepBestandMuster(){
     const schluessel=alleM ? x.markt+"|"+x.abteilung : x.abteilung;
     const a=m[schluessel]=m[schluessel]||{abteilung:x.abteilung, markt:x.markt,
       summe:[0,0,0,0,0,0], anzahl:[0,0,0,0,0,0], zug:[0,0,0,0,0,0], zugN:[0,0,0,0,0,0],
+      zugT:[0,0,0,0,0,0],
       bestand:0, bestandN:0, abgang:0, abgangN:0};
     if(x.veraenderung_ek!=null){ a.summe[i]+=Number(x.veraenderung_ek); a.anzahl[i]++; }
-    if(x.zugang_ek!=null){ a.zug[i]+=Math.abs(Number(x.zugang_ek)); a.zugN[i]++; }
+    if(x.zugang_ek!=null){ a.zug[i]+=Math.abs(Number(x.zugang_ek)); a.zugN[i]++;
+      if(Math.abs(Number(x.zugang_ek))>0) a.zugT[i]++; }   // Tage MIT Lieferung zaehlen
     if(x.anfangsbestand_ek!=null){ a.bestand+=Number(x.anfangsbestand_ek); a.bestandN++; }
     if(x.abgang_ek!=null){ a.abgang+=Math.abs(Number(x.abgang_ek)); a.abgangN++; }
   });
@@ -7719,21 +7869,75 @@ function mepBestandMuster(){
        Veraenderungen. Der fortgeschriebene Bestand geht NICHT ein - der ist
        ohne regelmaessigen Anfangsbestand nicht belastbar. */
     const wochenzugang=zugang.reduce((s,v)=>s+v,0);
-    const liefertage=Math.max(1, zugang.filter(v=>v>0.15*wochenzugang).length);
+    /* LIEFERTAGE - neu gerechnet am 18.08.2026.
+
+       Vorher: "Liefertag ist ein Wochentag, an dem im Mittel mehr als 15 %
+       des Wochenzugangs ankommt." Diese Regel ist falsch, und zwar in beide
+       Richtungen. Bei sechs Werktagen liegt die Gleichverteilung bei 16,7 % -
+       die Schwelle liegt also genau dort, wo die meisten Abteilungen sind.
+       Jede kleine Schwankung wirft einen Tag heraus.
+
+       Gemessen ueber 33 Wochen (01.01.-16.08.2026), Kalendertage als Nenner:
+
+         Steinfeld / Food Abteilung      Regel: 2   tatsaechlich: 5,70
+         Gossersweiler / Getraenke       Regel: 1   tatsaechlich: 5,52
+         Billigheim / Marktbaeckerei     Regel: 2   tatsaechlich: 5,67
+         Freckenfeld / Marktbaeckerei    Regel: 2   tatsaechlich: 0,85
+
+       Bei den Vollsortimentern unterschaetzt die Regel massiv, bei den
+       Dorflaeden ueberschaetzt sie. Ein Liefertag statt fuenf heisst:
+       "eine Lieferung muss sieben Tage tragen" - und alles ab Dienstag gilt
+       als Ueberhang. Das erzeugt ein Bestandspotenzial, das es nicht gibt.
+       (Hinweis Benedikt Paul, 18.08.2026: die Regel war offenbar am Dorfladen
+       geeicht und auf die Maerkte uebertragen.)
+
+       Jetzt: gezaehlt wird, an wie vielen Tagen je Woche tatsaechlich eine
+       Lieferung gebucht wurde. Nenner sind die Wochen des gewaehlten
+       Zeitraums, nicht die vorhandenen Zeilen - Tage ohne Bewegung haben im
+       Bericht gar keine Zeile und wuerden sonst unter den Tisch fallen. */
+    /* Erst in der Vorgabe nachsehen, nur im Notfall rechnen. Die Vorgabe ist
+       das, was Benedikt Paul eingetragen hat; die Messung war zweimal
+       falsch. Steht eine Abteilung nicht in der Tabelle - etwa weil sie neu
+       ist -, wird ersatzweise gemessen und das im Bericht kenntlich
+       gemacht. */
+    const vorgabe = (typeof MEP_LIEFERTAGE!=="undefined")
+      ? MEP_LIEFERTAGE[a.markt+"|"+a.abteilung] : null;
+    const gz=(typeof mepZeitraumGrenzen==="function") ? mepZeitraumGrenzen(mepZeitraum) : null;
+    const wochenImZeitraum = gz
+      ? Math.max(1, (new Date(gz.bis)-new Date(gz.von))/86400000/7)
+      : Math.max(1, a.anzahl.reduce((s,n)=>Math.max(s,n),0));
+    const lieferTageGesamt=a.zugT.reduce((s,v)=>s+v,0);
+    const gemessen=Math.min(6, Math.max(1, lieferTageGesamt/wochenImZeitraum));
+    const liefertage = vorgabe ? vorgabe.lt : gemessen;
+    const art = vorgabe ? (vorgabe.art || "lieferung") : "gemessen";
+    const sammelbuchung = (art !== "lieferung" && art !== "gemessen");
+    const lieferQuelle = vorgabe ? "vorgabe" : "gemessen";
     const traegt=Math.ceil(7/liefertage);              // so viele Tage soll eine Lieferung reichen
     const abTag=Math.min(5, Math.max(1, traegt));      // ab diesem Wochentag zaehlt Ueberhang
     const ueberhangTage=lauf.slice(abTag);
     const ueberhang=ueberhangTage.length
       ? Math.max(0, ueberhangTage.reduce((s,v)=>s+Math.max(0,v),0)/ueberhangTage.length) : 0;
     const wochenabgang=(tagesabgang||0)*6;
-    const potenzial=wochenabgang>0 ? ueberhang*100/wochenabgang : null;
+    /* Bei Sammelbuchung KEIN Bestandspotenzial. Ware kommt taeglich,
+       gebucht wird einmal die Woche - der Wochenverlauf zeigt dann den
+       Buchungstag, nicht das Warenlager. Eine Zahl daraus waere erfunden.
+       Lieber nichts ausweisen als etwas Falsches (Baeckerei, Zeitschriften;
+       Vorgabe Benedikt Paul 18.08.2026). */
+    const potenzial=(sammelbuchung || !(wochenabgang>0)) ? null : ueberhang*100/wochenabgang;
     return {...a, mittel, lauf, zugang, spanne:hoch-tief,
       aufbau:mittel.indexOf(Math.max(...mittel.map(v=>v==null?-1e9:v))),
       abbau:mittel.indexOf(Math.min(...mittel.map(v=>v==null?1e9:v))),
       bestand, tagesabgang, liefertage, traegt, ueberhang, potenzial,
+      sammelbuchung, lieferQuelle, gemessen, art,
       reichweite:(bestand!=null&&tagesabgang)?bestand/tagesabgang:null,
       relativ:(bestand&&bestand>0)?(hoch-tief)/bestand:null};
-  }).filter(a=>a.anzahl.some(n=>n>3));
+  }).filter(a=>a.anzahl.some(n=>n>3))
+    /* Ausgelaufene Abteilungen raus (Vorgabe Benedikt Paul 18.08.2026:
+       "Fisch und Käse in Steinfeld gibt es fast nicht mehr"). Sie stehen
+       sonst mit einem Wochenzugang von 64 EUR neben Abteilungen mit 20.000
+       und verzerren die Rangfolge. Die Daten bleiben in der Datenbank, nur
+       die Kachel zeigt sie nicht mehr. */
+    .filter(a=>a.art!=="auslaufend");
 }
 function mepKachelBestand(){
   if(mepIstHausmeister()) return "";
@@ -7847,8 +8051,14 @@ function mepKachelBestand(){
           `<b style="font-size:15px;color:${a.potenzial>40?"#b91c1c":a.potenzial>20?"#b45309":"#15803d"}">${
             mepPrz(a.potenzial)}</b><span style="display:block;font-size:10.5px;color:#94a3b8">${
             mepEur(a.ueberhang)} liegen zu lange</span>`}</td>
-        <td style="text-align:right;color:#64748b">${a.liefertage}× / Woche
-          <span style="display:block;font-size:10.5px">soll ${a.traegt} Tage tragen</span></td>
+        <td style="text-align:right;color:#64748b">${a.lieferQuelle==="vorgabe"
+            ? a.liefertage+"× / Woche"
+            : a.liefertage.toFixed(1).replace(".",",")+"× / Woche"}
+          <span style="display:block;font-size:10.5px">${
+            a.art==="kundenruecknahme" ? "Rücknahme vom Kunden, keine Lieferung"
+          : a.art==="sammelbuchung"    ? "täglich Ware, Buchung 1× je Woche"
+          : a.lieferQuelle==="vorgabe" ? "soll "+a.traegt+" Tage tragen"
+          : "<b style='color:#b45309'>geschätzt</b> – nicht hinterlegt"}</span></td>
         <td style="text-align:right"><b style="color:#b45309">${MEP_WT[a.aufbau]} ${mepEur(auf)}</b></td>
         <td style="text-align:right">${(()=>{ const r=mepReichweiteWert(a.abteilung,a.markt);
           if(!r||r.wert==null) return `<span style="color:#94a3b8" title="${r?mepEsc(r.grund):""}">–</span>`;
