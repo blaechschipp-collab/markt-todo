@@ -51,6 +51,17 @@
   tr td:last-child{border-bottom:0}
   td::before{content:attr(data-spalte);flex:0 0 42%;font-weight:bold;color:#475569;font-size:13px}
   td:not([data-spalte])::before{content:"";flex:0}
+  /* Unterreiter umbrechen lassen (18.08.2026). Bei 384 px gemessen: die
+     Reihe „ToDo-Pflege | Uploads | Abmelden" war 436 px breit und schob
+     die ganze Seite seitlich. Die Tabellen waren nicht schuld. */
+  .sub-tabs{flex-wrap:wrap}
+  .sub-tab{flex:1 1 46%;padding:12px 8px;font-size:14px}
+  /* In der Kartendarstellung nimmt die Beschriftung 42 % der Zeile. Fuer
+     zwei Knoepfe nebeneinander bleibt bei 340 px zu wenig uebrig - die
+     Reihe „Anpassen | Alle loeschen" ragte 14 px hinaus. Untereinander
+     statt nebeneinander; nebenbei sinkt die Gefahr, „Alle loeschen"
+     danebenzutippen. */
+  .admin-actions{grid-template-columns:1fr}
 }th,td{border:1px solid #e1e8f0;padding:9px;text-align:left;font-size:13px}th{background:#f1f5f9}.footer{background:var(--yellow);color:var(--blue-dark);text-align:center;padding:18px;font-weight:bold;margin-top:30px}
     .kpi-block .kpi-cards{display:none}
     .kpi-mobile-card{background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px}
@@ -604,7 +615,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.18-20"; // Regal-Umsatz: Rohwerte statt formatiertem Text
+const APP_VERSION = "v2026.08.18-21"; // Handy: Unterreiter, Adminknoepfe, Befundkopf brechen um
 const APP_VERSION_DATE = "18.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -9104,7 +9115,7 @@ function mepKachelBefunde(){
         font-size:14px;cursor:pointer;line-height:1.2">${zeichen}</button>`;
       return `<div style="border-left:5px solid ${farbe[f.schwere]||"#d8e2ef"};background:${hg[f.schwere]||"#fbfdff"};
         border-radius:8px;padding:12px 14px;margin-top:10px">
-        <div style="display:flex;align-items:flex-start;gap:10px;margin-bottom:5px">
+        <div style="display:flex;flex-wrap:wrap;align-items:flex-start;gap:10px;margin-bottom:5px">
           <div style="font-weight:bold;font-size:14.5px;flex:1">${mepEsc(f.titel)}
             ${fb?`<span style="font-size:10.5px;background:#eef3f9;color:#64748b;padding:2px 8px;border-radius:9px;margin-left:6px">${
               mepEsc({hilfreich:"hilfreich",kannte_ich:"bekannt",falsch:"als falsch gemeldet",erledigt:"erledigt"}[fb.bewertung]||fb.bewertung)}</span>`:""}</div>
