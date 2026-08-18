@@ -615,7 +615,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.18-22"; // Dispo: Info-PDFs gelten nicht mehr als Fehlschlag
+const APP_VERSION = "v2026.08.18-23"; // Bestandsverlauf sagt jetzt, warum er leer ist
 const APP_VERSION_DATE = "18.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -7738,7 +7738,46 @@ function mepBestandMuster(){
 function mepKachelBestand(){
   if(mepIstHausmeister()) return "";
   const l=mepBestandMuster();
-  if(!l.length) return "";
+  /* Sagen statt verschwinden (18.08.2026).
+
+     Vorher gab die Kachel hier stillschweigend "" zurueck. Benedikt Paul
+     meldete am 18.08., der Bestandsverlauf sei "nirgends" - und niemand
+     konnte sehen, warum: keine Meldung, keine Zeile, nichts. Die Suche
+     danach hat einen Abend gekostet, obwohl die Daten vollstaendig in der
+     Datenbank lagen (16.234 Zeilen, vier Maerkte, 24 Abteilungen).
+
+     Eine leere Kachel ist eine Aussage. Sie gehoert hingeschrieben, mit den
+     Zahlen, an denen man erkennt, woran es liegt. */
+  if(!l.length){
+    const g=(typeof mepZeitraumGrenzen==="function") ? mepZeitraumGrenzen(mepZeitraum) : {von:"?",bis:"?",text:"?"};
+    const roh=(mepBestand||[]).length;
+    const abt=(typeof mepAbteilungen==="function") ? mepAbteilungen().length : "?";
+    return `<div class="box" style="border-left:4px solid #b45309">
+      <h2>Bestandsverlauf über die Woche
+        <span style="font-weight:normal;font-size:14px;color:#64748b">keine Daten für diese Auswahl</span></h2>
+      <div class="small">Die Kachel bleibt leer, weil die Abfrage nichts zurückgegeben hat.
+        Das liegt <b>nicht</b> zwingend an fehlenden Daten – meist ist es die Auswahl:
+        <table style="margin-top:9px;border:0">
+          <tr><td style="border:0;padding:3px 10px 3px 0">Zeitraum</td>
+              <td style="border:0;padding:3px 0"><b>${mepEsc(g.text)}</b> (${mepEsc(g.von)} bis ${mepEsc(g.bis)})</td></tr>
+          <tr><td style="border:0;padding:3px 10px 3px 0">Markt</td>
+              <td style="border:0;padding:3px 0"><b>${mepEsc(mepMk()||"–")}</b></td></tr>
+          <tr><td style="border:0;padding:3px 10px 3px 0">Bereich</td>
+              <td style="border:0;padding:3px 0"><b>${mepEsc(mepBl()||"alle")}</b>, ${abt} Abteilungen</td></tr>
+          <tr><td style="border:0;padding:3px 10px 3px 0">geladene Zeilen</td>
+              <td style="border:0;padding:3px 0"><b>${roh}</b></td></tr>
+        </table>
+        <b style="display:block;margin-top:9px">Was zu prüfen ist, in dieser Reihenfolge:</b>
+        <b>1.</b> Stehen oben <b>0 geladene Zeilen</b>? Dann kam die Abfrage nicht durch –
+        entweder ist der gewählte Zeitraum leer, oder die Seite hat die Daten gar nicht
+        geholt. Zeitraum unter „mehr" auf <i>laufendes Jahr</i> stellen und neu laden.
+        <b>2.</b> Stehen dort Zeilen, aber die Kachel bleibt leer? Dann passt der
+        <b>Bereich</b> nicht zu den Abteilungen des Berichts – auf „alle Bereiche" stellen.
+        <b>3.</b> Bleibt es dabei, liegt es an den Daten selbst. Der Bericht
+        <code>Bestandsverlauf_*.xlsx</code> wird derzeit <b>nicht</b> automatisch
+        eingelesen; die Tabelle wächst also nur, solange jemand nachhilft.</div>
+      </div>`;
+  }
   // Schlechteste zuerst - in jeder Ansicht (Vorgabe Benedikt Paul 18.08.2026)
   l.sort((a,b)=>(b.potenzial??-1)-(a.potenzial??-1));
   const zeig=l.slice(0,8);
