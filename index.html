@@ -546,7 +546,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.18-13"; // Bevorratung als Kachel in Abteilungs- und Marktleiteransicht, Analyselauf schreibt Befunde
+const APP_VERSION = "v2026.08.18-15"; // Frische je Abteilung aus der Datenbank statt Stichwortsuche im Namen
 const APP_VERSION_DATE = "17.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -5074,7 +5074,26 @@ const WERBUNG_SETTING_KEYS = {
   bevFrische: "promo_bev_frische_wochen"
 };
 
-// Feste Liste der Abteilungen, die als "Frische" gelten und daher kürzer bevorratet werden
+/* Frische-Zuordnung je Abteilung.
+   ==========================================================================
+   Bis 18.08.2026 wurde im Abteilungsnamen nach Stichwoertern gesucht
+   ("WURST", "OBST", "BROT" …). Das trifft ungenau: "Tiefkühl Abteilung"
+   enthaelt kein Stichwort und galt als haltbar - richtig -, "Pflanzen/
+   Pf.-Bedarf" ebenfalls, obwohl Blumen verderben.
+
+   Jetzt kommt die Zuordnung aus der Tabelle abteilung_frische. Sie folgt der
+   Bereichsstruktur, weicht aber bewusst an zwei Stellen ab:
+     - Tiefkuehl haengt im Bereich "Gekühlte Frische", ist aber monatelang
+       haltbar. Als Frische eingestuft wuerde die Bevorratung auf eine Woche
+       gekuerzt - bei TK ist Vorgriff gerade sinnvoll.
+     - Pflanzen sind kein Lebensmittel, verderben aber schneller als jede
+       Konserve.
+   Solche Faelle lassen sich aus keinem Namen ableiten. In der Tabelle sind
+   sie sichtbar und aenderbar, mit Begruendung.
+
+   Die alte Stichwortliste bleibt als Rueckfallebene: Kommt eine Abteilung neu
+   dazu und steht noch nicht in der Tabelle, wird sie wie bisher behandelt -
+   lieber vorsichtig als gar nicht. */
 const WERBUNG_FRISCHE_ABTEILUNGEN = [
   "SB WURST","WURST","FLEISCH","KAESE","KÄSE","BEDIENUNG",
   "MOLKEREI","MOPRO","JOGHURT","MILCH",
@@ -5082,10 +5101,27 @@ const WERBUNG_FRISCHE_ABTEILUNGEN = [
   "BROT","BACKWAREN","BROT/BACKWAREN","BACKSHOP",
   "FRISCHE","FRISCHDIENST","FRISCHEDIENST"
 ];
+let FRISCHE_TABELLE = null;   // abteilung -> {ist_frische, haltbarkeit, begruendung}
+async function ladeFrischeZuordnung(){
+  if(FRISCHE_TABELLE) return FRISCHE_TABELLE;
+  try{
+    const r = await db.from("abteilung_frische").select("abteilung,ist_frische,haltbarkeit,begruendung");
+    FRISCHE_TABELLE = {};
+    (r.data||[]).forEach(x => { FRISCHE_TABELLE[x.abteilung] = x; });
+  }catch(e){ FRISCHE_TABELLE = {}; }
+  return FRISCHE_TABELLE;
+}
 function isFrischeAbteilung(abt){
   if(!abt) return false;
+  if(FRISCHE_TABELLE && Object.prototype.hasOwnProperty.call(FRISCHE_TABELLE, abt)){
+    return !!FRISCHE_TABELLE[abt].ist_frische;
+  }
   const s = String(abt).toUpperCase();
   return WERBUNG_FRISCHE_ABTEILUNGEN.some(kw => s.includes(kw));
+}
+function frischeHinweis(abt){
+  const e = FRISCHE_TABELLE && FRISCHE_TABELLE[abt];
+  return e && e.haltbarkeit ? e.haltbarkeit : "";
 }
 
 async function loadWerbungSettings(){
@@ -5172,6 +5208,7 @@ async function onWerbungMarketChange(){
 }
 
 async function loadWerbungData(){
+  await ladeFrischeZuordnung();   // Frische-Einstufung aus der Datenbank
   const list = document.getElementById("werbungList");
   list.innerHTML = `<div class="small" style="color:#64748b">Lade Werbedaten …</div>`;
   const [pRes, sRes] = await Promise.all([
@@ -6888,7 +6925,8 @@ async function mepNeuLaden(){
      stehengeblieben. Welche Periode zu welchem Zeitraum passt, entscheidet
      jetzt mepPassendePeriode beim Lesen, nicht eine gemerkte Auswahl. */
   await Promise.all([mepWerbungLaden(), mepLogsLaden(), mepVerwaltungLaden(),
-                     mepScanLaden(), mepBestandLaden(), mepBevorratungLaden()]);
+                     mepScanLaden(), mepBestandLaden(), mepBevorratungLaden(),
+                     ladeFrischeZuordnung()]);
   const jahr=mepKz.filter(x=>x.periode_von==="2026-01-01");
   if(jahr.length) mepStand=jahr[0].stand;
   mepZeichnen();
@@ -7280,8 +7318,15 @@ function mepKachelVerwaltung(){
    damit willkuerlich, die Form ist es nicht. Genau die Form ist die Aussage. */
 const MEP_WT=["Mo","Di","Mi","Do","Fr","Sa"];
 /* Abteilungen, bei denen ein liegender Bestand unmittelbar auf die Qualitaet
-   schlaegt. Fuer sie gelten strengere Schwellen bei der Reichweite. */
-const MEP_FRISCHE=/obst|gem[üu]se|molkerei|fleisch|wurst|fisch|b[äa]ckerei|bake|k[äa]se|frische|convenience|tiefk/i;
+   schlaegt. Die Einstufung kommt aus derselben Quelle wie in der Bevorratung
+   (Tabelle abteilung_frische) - vorher standen hier zwei verschiedene
+   Regeln, und die eine hielt Tiefkuehl faelschlich fuer Frische
+   (Hinweis Benedikt Paul 18.08.2026). */
+const MEP_FRISCHE_REGEX=/obst|gem[üu]se|molkerei|fleisch|wurst|fisch|b[äa]ckerei|bake|k[äa]se|frische/i;
+const MEP_FRISCHE={test:(abt)=>{
+  if(typeof isFrischeAbteilung==="function") return isFrischeAbteilung(abt);
+  return MEP_FRISCHE_REGEX.test(abt||"");
+}};
 let mepBestand=[], mepBestandStand={};
 async function mepBestandLaden(){
   mepBestand=[]; mepBestandStand={};
@@ -7610,22 +7655,33 @@ function mepKachelBevorratung(){
       ab ${d.einstellungen.threshold} € Ersparnis. Zusammen <b>${mepZahl(kartons)} Kartons</b> und
       <b>${mepEur(ersparnis)}</b> Ersparnis. Gerechnet wird dasselbe wie im Reiter Bevorratung –
       nur auf Ihren Bereich eingegrenzt.</div>
-    ${zeig.length?`<table style="width:100%;border-collapse:collapse;font-size:13.5px;margin-top:10px">
-      <thead><tr style="text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">
-        <th style="padding:8px">Erledigt</th><th>Artikel</th>
-        ${mepAlleMaerkte()?"<th>Markt</th>":""}<th>Abteilung</th>
-        <th style="text-align:right">Kartons</th><th style="text-align:right">Ersparnis</th></tr></thead><tbody>
-      ${zeig.map(x=>`<tr style="border-top:1px solid #eef3f9">
-        <td style="padding:8px"><input type="checkbox" onchange="mepBevAbhaken('${mepEsc(x.sap_artnr)}')"></td>
-        <td>${mepEsc(x.name)}
-          <span style="display:block;font-size:10.5px;color:#94a3b8">Art.-Nr. ${mepEsc(x.sap_artnr)} ·
-            ${x.wochenverkauf!=null?x.wochenverkauf.toFixed(1):"–"} St./Woche${
-            x.isFrische?' · <b style="color:#166534">Frische</b>':""}</span></td>
-        ${mepAlleMaerkte()?`<td style="color:#64748b">${mepEsc(x.markt)}</td>`:""}
-        <td style="color:#64748b">${mepEsc(x.abteilung||"–")}</td>
-        <td style="text-align:right"><b style="font-size:15px">${mepZahl(x.kartons)}</b></td>
-        <td style="text-align:right"><b style="color:#15803d">${mepEur(x.ersparnisGes)}</b></td></tr>`).join("")}
-      </tbody></table>`
+    ${zeig.length?zeig.map(x=>`
+      <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;padding:11px 0;
+        border-bottom:1px solid #f1f5f9">
+        <div style="flex:1 1 240px;min-width:0">
+          <div style="font-size:14.5px;font-weight:600">${mepEsc(x.name)}</div>
+          <div class="small" style="margin-top:3px">
+            ${x.abteilung?`<span style="background:${x.isFrische?"#dcfce7":"#e0f2fe"};
+              color:${x.isFrische?"#166534":"#1e40af"};padding:2px 8px;border-radius:6px;
+              font-size:11.5px;font-weight:700">${x.isFrische?"Frische · ":""}${mepEsc(x.abteilung)}</span>`:""}
+            ${mepAlleMaerkte()&&x.markt?` · ${mepEsc(x.markt)}`:""}
+            · Art.-Nr. ${mepEsc(x.sap_artnr)}
+            · ${x.wochenverkauf!=null?x.wochenverkauf.toFixed(1):"–"} St./Woche
+            · Bevorratung ${mepZahl(x.effektiveWochen)} Wochen
+            · Ersparnis <b style="color:#15803d">${mepEur(x.ersparnisGes)}</b></div>
+        </div>
+        <div style="background:#08213f;color:#fff;padding:9px 15px;border-radius:12px;text-align:center;
+          min-width:96px;flex:none">
+          <div style="font-size:29px;font-weight:900;line-height:1">${mepZahl(x.kartons)}</div>
+          <div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.5px">Karton${x.kartons>1?"s":""}</div>
+          <div style="font-size:10.5px;opacity:.85">${mepZahl(x.stueckEmpf)} St.</div>
+        </div>
+        <div style="border:1px dashed #cbd5e1;border-radius:8px;padding:5px 9px;background:#fff;flex:none">
+          <svg class="mepbc" data-code="${mepEsc(x.sap_artnr)}" style="width:130px;height:44px"></svg>
+        </div>
+        <button class="btn-green" style="width:auto;padding:8px 14px;font-size:13.5px;flex:none"
+          onclick="mepBevAbhaken('${mepEsc(x.sap_artnr)}')">✓ Erledigt</button>
+      </div>`).join("")
       :`<div class="small" style="padding:10px 0;font-style:italic">Für diese Auswahl ist nichts zu bevorraten.</div>`}
     </div>`;
 }
@@ -8736,10 +8792,20 @@ function mepKachelBefunde(){
   /* Ein Befund gilt fuer DIESEN Markt und DIESE Abteilung (Vorgabe 17.08.).
      Systembefunde stehen auf ebene='verwaltung' und erscheinen nur dort. */
   const verwaltung = mepZugang.markt==="Verwaltung";
+  /* Wer als einzelne Abteilung angemeldet ist, bekommt nur, was diese
+     Abteilung angeht. Befunde auf ebene='marktleitung' - etwa die Scanquote -
+     sind Sache der Marktleitung und tauchten vorher in jeder Abteilung auf
+     (Hinweis Benedikt Paul 18.08.2026). */
+  const z=mepZugang.bereich;
+  const nurAbteilung = z && z!=="Alle Bereiche" && z!=="Alle Märkte";
   const passt=f=>{
-    if(f.ebene==="verwaltung") return verwaltung;
-    if(f.markt && f.markt!==m) return false;
+    if(f.ebene==="verwaltung")   return verwaltung;
+    if(f.ebene==="marktleitung") return !nurAbteilung && (!f.markt || f.markt===m || mepAlleMaerkte());
+    if(f.markt && f.markt!==m && !mepAlleMaerkte()) return false;
     if(b && f.bereich && f.bereich!==b) return false;
+    /* Ein Befund ohne Bereich, aber mit Abteilung: nur zeigen, wenn die
+       Abteilung zum gewaehlten Bereich gehoert. */
+    if(b && !f.bereich && f.abteilung && !mepAbteilungen().includes(f.abteilung)) return false;
     return true;
   };
   const rang={alarm:0,warnung:1,hinweis:2,gut:3};
