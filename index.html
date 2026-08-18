@@ -25,7 +25,33 @@
    und werden notfalls zweizeilig, statt untereinander zu rutschen. */
 .tabs.drei{flex-wrap:nowrap}
 .tabs.drei .tab{flex:1 1 0;min-width:0;white-space:normal;line-height:1.2;font-size:clamp(12px,2.4vw,15px);padding:12px 6px;display:flex;align-items:center;justify-content:center}
-@media (max-width: 700px){.main{padding:12px}.tab{padding:10px 6px;font-size:13px;border-radius:10px}.tabs{gap:4px}.todo-tab,.dispo-tab,.backshop-tab,.werbung-tab,.analytics-tab,.admin-tab{flex:1 1 30%}}.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:14px}.metric-card{background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:16px}.metric-value{font-size:28px;font-weight:900;color:var(--blue-dark)}.locked{opacity:.75}.box{background:#fff;border-radius:14px;padding:18px;margin-bottom:18px;box-shadow:0 8px 24px rgba(0,0,0,.14)}.admin{border:3px solid var(--yellow)}.control-grid{display:grid;grid-template-columns:repeat(5,minmax(160px,1fr));gap:14px;align-items:end}label{font-weight:bold;font-size:14px;display:block;margin-bottom:6px}input,select,textarea,button{padding:12px;border-radius:8px;border:1px solid #b8c7d9;font-size:15px;width:100%}textarea{min-height:86px;resize:vertical}button{cursor:pointer;font-weight:bold;border:none}.btn-yellow{background:var(--yellow);color:var(--blue-dark)}.btn-blue{background:var(--blue);color:#fff}.btn-dark{background:var(--blue-dark);color:#fff}.btn-red{background:#c62828;color:#fff}.btn-green{background:#2e7d32;color:#fff}.task{padding:14px;border-radius:10px;margin-bottom:10px;border:1px solid var(--border);display:flex;gap:12px;align-items:flex-start}.high{background:#ffe5e5;border-color:#ffb3b3}.medium{background:#fff5cc;border-color:#ffe480}.low{background:#e8f5e9;border-color:#bde8c3}.info{background:#e0f2fe;border-color:#7dd3fc}.done{text-decoration:line-through;color:#6b7280}.pill{display:inline-block;padding:3px 8px;border-radius:999px;color:#fff;font-size:12px;font-weight:bold;margin-left:6px}.high-p{background:var(--red)}.medium-p{background:var(--orange)}.low-p{background:var(--green)}.open-p{background:#64748b}.done-p{background:var(--green)}.info-p{background:#0284c7}.small{font-size:13px;color:#64748b;margin-top:4px}.days label,.months label{display:inline-flex;align-items:center;gap:6px;margin:6px 12px 6px 0;font-weight:normal}.days input,.months input{width:auto}.admin-actions{display:flex;gap:8px;flex-wrap:wrap}.admin-actions button{width:auto}.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px}table{border-collapse:collapse;width:100%;min-width:900px;background:#fff}th,td{border:1px solid #e1e8f0;padding:9px;text-align:left;font-size:13px}th{background:#f1f5f9}.footer{background:var(--yellow);color:var(--blue-dark);text-align:center;padding:18px;font-weight:bold;margin-top:30px}
+@media (max-width: 700px){.main{padding:12px}.tab{padding:10px 6px;font-size:13px;border-radius:10px}.tabs{gap:4px}.todo-tab,.dispo-tab,.backshop-tab,.werbung-tab,.analytics-tab,.admin-tab{flex:1 1 30%}}.metric-grid{display:grid;grid-template-columns:repeat(4,minmax(160px,1fr));gap:14px}.metric-card{background:#f8fafc;border:1px solid var(--border);border-radius:12px;padding:16px}.metric-value{font-size:28px;font-weight:900;color:var(--blue-dark)}.locked{opacity:.75}.box{background:#fff;border-radius:14px;padding:18px;margin-bottom:18px;box-shadow:0 8px 24px rgba(0,0,0,.14)}.admin{border:3px solid var(--yellow)}.control-grid{display:grid;grid-template-columns:repeat(5,minmax(160px,1fr));gap:14px;align-items:end}label{font-weight:bold;font-size:14px;display:block;margin-bottom:6px}input,select,textarea,button{padding:12px;border-radius:8px;border:1px solid #b8c7d9;font-size:15px;width:100%}textarea{min-height:86px;resize:vertical}button{cursor:pointer;font-weight:bold;border:none}.btn-yellow{background:var(--yellow);color:var(--blue-dark)}.btn-blue{background:var(--blue);color:#fff}.btn-dark{background:var(--blue-dark);color:#fff}.btn-red{background:#c62828;color:#fff}.btn-green{background:#2e7d32;color:#fff}.task{padding:14px;border-radius:10px;margin-bottom:10px;border:1px solid var(--border);display:flex;gap:12px;align-items:flex-start}.high{background:#ffe5e5;border-color:#ffb3b3}.medium{background:#fff5cc;border-color:#ffe480}.low{background:#e8f5e9;border-color:#bde8c3}.info{background:#e0f2fe;border-color:#7dd3fc}.done{text-decoration:line-through;color:#6b7280}.pill{display:inline-block;padding:3px 8px;border-radius:999px;color:#fff;font-size:12px;font-weight:bold;margin-left:6px}.high-p{background:var(--red)}.medium-p{background:var(--orange)}.low-p{background:var(--green)}.open-p{background:#64748b}.done-p{background:var(--green)}.info-p{background:#0284c7}.small{font-size:13px;color:#64748b;margin-top:4px}.days label,.months label{display:inline-flex;align-items:center;gap:6px;margin:6px 12px 6px 0;font-weight:normal}.days input,.months input{width:auto}.admin-actions{display:flex;gap:8px;flex-wrap:wrap}.admin-actions button{width:auto}.table-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:12px}table{border-collapse:collapse;width:100%;min-width:900px;background:#fff}
+/* ---------------------------------------------------------------------
+   TABELLEN AUF DEM HANDY (18.08.2026)
+
+   Vorher galt min-width:900px fuer alle 20 Tabellen, und nur 7 steckten in
+   einem .table-wrap. Auf einem 360-Pixel-Bildschirm war die Tabelle damit
+   zweieinhalb Bildschirme breit - und bei den 13 Tabellen ohne Behaelter
+   verschob sich die GANZE SEITE seitlich, nicht nur die Tabelle.
+
+   Unter 700 Pixel wird deshalb umgestellt: aus jeder Zeile wird ein Block,
+   die Spaltenueberschrift steht per data-spalte vor dem Wert. Damit ist
+   nichts mehr breiter als der Bildschirm.
+
+   WICHTIG fuer neue Tabellen: Die <td> brauchen ein data-spalte-Attribut,
+   sonst fehlt auf dem Handy die Beschriftung. mepZelle() unten setzt es.
+   --------------------------------------------------------------------- */
+@media (max-width:700px){
+  table{min-width:0 !important}
+  .table-wrap{overflow-x:visible;border:0;border-radius:0}
+  table, thead, tbody, tr, th, td{display:block;width:auto}
+  thead{position:absolute;left:-9999px}          /* Kopfzeile ausblenden, nicht loeschen */
+  tr{border:1px solid var(--border);border-radius:10px;margin-bottom:10px;padding:4px 8px;background:#fff}
+  td{border:0;border-bottom:1px solid #eef2f7;padding:7px 2px;display:flex;gap:10px;align-items:baseline;font-size:14px}
+  tr td:last-child{border-bottom:0}
+  td::before{content:attr(data-spalte);flex:0 0 42%;font-weight:bold;color:#475569;font-size:13px}
+  td:not([data-spalte])::before{content:"";flex:0}
+}th,td{border:1px solid #e1e8f0;padding:9px;text-align:left;font-size:13px}th{background:#f1f5f9}.footer{background:var(--yellow);color:var(--blue-dark);text-align:center;padding:18px;font-weight:bold;margin-top:30px}
     .kpi-block .kpi-cards{display:none}
     .kpi-mobile-card{background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px}
     .kpi-mobile-card h3{margin:0 0 8px;font-size:16px;color:var(--blue-dark)}
@@ -578,7 +604,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.18-18"; // Individuelle PINs je Markt und Bereich
+const APP_VERSION = "v2026.08.18-19"; // RLS, Regal-Parser, Tabellen fuer das Handy
 const APP_VERSION_DATE = "17.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -612,6 +638,58 @@ function closePdfViewer(){
   if(frame) frame.src = "";
   if(modal) modal.style.display = "none";
 }
+/* ---------------------------------------------------------------------
+   TABELLEN FUER DAS HANDY VORBEREITEN (18.08.2026)
+
+   Die 20 Tabellen entstehen an rund 20 Stellen im Skript. Statt jede
+   einzeln umzubauen - und die naechste neue wieder zu vergessen - laeuft
+   das hier zentral:
+
+   1. jede Tabelle bekommt einen .table-wrap, falls sie keinen hat
+      (13 der 20 hatten keinen; dadurch verschob sich die ganze Seite)
+   2. jede Zelle bekommt aus der Kopfzeile ihr data-spalte, damit unter
+      700 Pixel die Beschriftung vor dem Wert steht
+
+   Ein Beobachter fasst nach, wenn eine Kachel neu gezeichnet wird.
+   --------------------------------------------------------------------- */
+function tabellenFuerHandy(wurzel){
+  const bereich = wurzel || document;
+  bereich.querySelectorAll("table").forEach(t => {
+    // 1. Behaelter nachruesten
+    if(!t.closest(".table-wrap")){
+      const h = document.createElement("div");
+      h.className = "table-wrap";
+      t.parentNode.insertBefore(h, t);
+      h.appendChild(t);
+    }
+    // 2. Spaltennamen an die Zellen haengen
+    let kopfZellen = t.querySelectorAll("thead th");
+    if(!kopfZellen.length){
+      const erste = t.querySelector("tr");
+      if(erste && erste.querySelector("th")) kopfZellen = erste.querySelectorAll("th");
+    }
+    if(!kopfZellen.length) return;
+    const namen = [...kopfZellen].map(th => th.textContent.trim());
+    t.querySelectorAll("tr").forEach(tr => {
+      if(tr.querySelector("th")) return;            // Kopfzeile ueberspringen
+      [...tr.children].forEach((td, i) => {
+        if(namen[i] && !td.hasAttribute("data-spalte")) td.setAttribute("data-spalte", namen[i]);
+      });
+    });
+  });
+}
+if(typeof MutationObserver !== "undefined"){
+  let wartet = null;
+  const beobachter = new MutationObserver(() => {
+    clearTimeout(wartet);
+    wartet = setTimeout(() => tabellenFuerHandy(), 120);   // sammeln, nicht bei jeder Zeile laufen
+  });
+  document.addEventListener("DOMContentLoaded", () => {
+    tabellenFuerHandy();
+    beobachter.observe(document.body, {childList:true, subtree:true});
+  });
+}
+
 // Version sofort ins UI rendern (sobald DOM bereit)
 if(typeof document !== "undefined"){
   document.addEventListener("DOMContentLoaded", () => {
@@ -908,16 +986,18 @@ async function prepareAnalytics(){
   if(analyticsAccess) return;
   const savedHash = localStorage.getItem("analyticsAuthHash");
   if(!savedHash) return;
+  /* Hier wurden bis 18.08.2026 mit select("*").limit(20) ALLE Zeilen aus
+     access_codes in den Browser geladen - samt Passwoertern im Klartext.
+     Wer die Seite oeffnete, hatte sie im Netzwerkmitschnitt. Jetzt prueft
+     die Datenbank den Hash und gibt nur die Rolle zurueck. */
   try{
-    const {data} = await db.from("access_codes").select("*").limit(20);
+    const {data,error} = await db.rpc("access_pruefen_hash", {p_hash: savedHash});
+    if(error) throw error;
     if(data && data.length){
-      const match = data.find(r => appPwdHash(r.password) === savedHash);
-      if(match){
-        analyticsAccess = {role: match.role || "global"};
-        document.getElementById("analyticsDashboard").style.display = "block";
-        loadAnalytics();
-        return;
-      }
+      analyticsAccess = {role: data[0].role || "global"};
+      document.getElementById("analyticsDashboard").style.display = "block";
+      loadAnalytics();
+      return;
     }
     // Passwort wurde in der DB geaendert -> gespeicherten Hash entfernen
     localStorage.removeItem("analyticsAuthHash");
@@ -1052,7 +1132,9 @@ async function loginAnalytics(){
   const msg=document.getElementById("analyticsLoginMsg");
   msg.innerHTML="";
   if(!password){alert("Bitte Passwort eingeben.");return;}
-  const {data,error}=await db.from("access_codes").select("*").eq("password",password).limit(1);
+  // Geprueft wird in der Datenbank (access_pruefen). Die Tabelle access_codes
+  // ist gesperrt - abfragbar ist nur, ob DIESES Passwort stimmt.
+  const {data,error}=await db.rpc("access_pruefen",{p_passwort:password});
   if(error){msg.innerHTML="Fehler: "+error.message;return;}
   if(!data||!data.length){msg.innerHTML="Passwort falsch.";return;}
   analyticsAccess={role:data[0].role||"global"};
@@ -6008,16 +6090,36 @@ async function uploadRegaldaten(){
     const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, defval:null, raw:false});
     if(rows.length < 3){ msg.style.color="#c62828"; msg.innerHTML="Datei hat zu wenig Zeilen."; return; }
 
-    // Spalten ueber die Kopfzeile finden, nicht ueber feste Nummern
-    const kopf = (rows[0]||[]).map(c => String(c==null?"":c).trim().toLowerCase());
-    const sp = (n) => kopf.findIndex(k => k.startsWith(n));
-    const cMarkt=sp("markt"), cRegal=sp("regal"), cArt=sp("artikel"), cGtin=sp("gtin"), cUms=sp("umsatz");
-    if(cMarkt<0||cRegal<0||cArt<0){
+    /* Die Kopfzeile steht NICHT zwingend in Zeile 1. Im BO-Export vom
+       18.08.2026 steht sie in Zeile 4 - darueber stehen Titel und Leerzeilen.
+       Der Parser hat deshalb monatelang jede Datei abgewiesen, obwohl sie
+       taeglich ankam: artikel_regal blieb leer.
+       Deshalb wird die Kopfzeile jetzt gesucht statt angenommen. */
+    let kopfZeile = -1, kopf = [];
+    for(let z=0; z<Math.min(rows.length,15); z++){
+      const k = (rows[z]||[]).map(c => String(c==null?"":c).trim().toLowerCase());
+      if(k.some(x=>x.startsWith("markt")) && k.some(x=>x.startsWith("artikel"))){ kopfZeile=z; kopf=k; break; }
+    }
+    if(kopfZeile<0){
       msg.style.color="#c62828";
-      msg.innerHTML="Kopfzeile passt nicht. Erwartet: Markt, Regalnummer, Artikel. Gefunden: "+escapeHtml(kopf.join(" | "));
+      msg.innerHTML="Keine Kopfzeile mit „Markt“ und „Artikel“ in den ersten 15 Zeilen gefunden.";
       return;
     }
-    const cBez = (cArt+1<kopf.length && !kopf[cArt+1]) ? cArt+1 : cArt+1;   // Bezeichnung steht rechts vom Artikel
+    const sp = (n) => kopf.findIndex(k => k.startsWith(n));
+    const cMarkt=sp("markt"), cArt=sp("artikel"), cGtin=sp("gtin"), cUms=sp("umsatz");
+    /* Die Regalspalte heisst im Export nicht „Regalnummer“, sondern schlicht
+       „Column1“. Drei Wege, in dieser Reihenfolge: richtiger Name, „column“,
+       sonst die Spalte direkt hinter dem Markt - dort steht sie im Aufbau
+       des Berichts immer. */
+    let cRegal = sp("regal");
+    if(cRegal<0) cRegal = kopf.findIndex(k => k.startsWith("column"));
+    if(cRegal<0 && cMarkt>=0) cRegal = cMarkt+1;
+    if(cMarkt<0||cRegal<0||cArt<0){
+      msg.style.color="#c62828";
+      msg.innerHTML="Kopfzeile passt nicht. Erwartet: Markt, Regal, Artikel. Gefunden: "+escapeHtml(kopf.join(" | "));
+      return;
+    }
+    const cBez = cArt+1;   // Bezeichnung steht rechts vom Artikel („Artikel2“)
 
     // Stand aus dem Metadatenblatt, sonst heute
     let stand = new Date().toISOString().slice(0,10);
@@ -6035,7 +6137,7 @@ async function uploadRegaldaten(){
     const saetze = [];
     const maerkte = new Set();
     let uebersprungen = 0;
-    for(let i=1;i<rows.length;i++){
+    for(let i=kopfZeile+1;i<rows.length;i++){
       const r = rows[i] || [];
       const markt = String(r[cMarkt]==null?"":r[cMarkt]).trim();
       const regal = String(r[cRegal]==null?"":r[cRegal]).trim();
