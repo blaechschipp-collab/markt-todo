@@ -546,7 +546,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.18-11"; // Scanquote ohne Ausblendbedingung, Flop ohne Mindestumsatz und im Fenster vollstaendig
+const APP_VERSION = "v2026.08.18-12"; // Scanquote: Zeitraum als Ueberlappung, Sichtbarkeit an der Anmeldung, alle Kassen
 const APP_VERSION_DATE = "17.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -7577,7 +7577,13 @@ async function mepScanLaden(){
     const g=mepZeitraumGrenzen(mepZeitraum);
     let q=db.from("scanquote")
       .select("markt,kassierer,quote,positionen,pos_scan,pos_manuell,pos_wdh,pos_wg,periode_von,periode_bis")
-      .gte("periode_von",g.von).lte("periode_bis",g.bis);
+      /* UEBERLAPPUNG, nicht Enthaltensein. Die Berichtswoche laeuft von
+         Dienstag bis Montag (11.-17.08.), meine "letzte Woche" von Montag bis
+         Sonntag (10.-16.08.). Mit .lte("periode_bis", bis) fiel die Woche
+         deshalb heraus und die Kachel war leer - genau der Fehler, den
+         Benedikt Paul gemeldet hat (18.08.2026). Jetzt zaehlt jede Woche,
+         die sich mit dem Zeitraum ueberschneidet. */
+      .lte("periode_von",g.bis).gte("periode_bis",g.von);
     if(!mepAlleMaerkte()) q=q.eq("markt",mepMk());
     const {data}=await q;
     const roh=data||[];
@@ -7602,19 +7608,26 @@ async function mepScanLaden(){
 /* mepSetzeScanZeit und mepZeitLeisteAlt sind mit der einheitlichen
    Zeitraumwahl entfallen - die Auswahl laeuft jetzt ueber mepSetzeZeitraum. */
 function mepKachelScanquote(){
-  /* KEINE Ausblendbedingung mehr ausser dem Hausmeister.
-     Sie hat drei Runden lang dafuer gesorgt, dass die Kachel mal da war und
-     mal nicht - je nachdem, was im Bereichsfeld stand. Die Scanquote ist eine
-     Kennzahl des Marktes; sie gehoert in jede Ansicht, auch wenn eine
-     Abteilung gewaehlt ist. Lieber einmal zu viel gezeigt als noch einmal
-     unsichtbar (18.08.2026). */
-  if(mepIstHausmeister()) return "";
+  /* Sichtbar fuer Marktleitung und Verwaltung, nicht fuer eine einzelne
+     Abteilung - die Kasse ist nicht deren Aufgabe (Vorgabe Benedikt Paul
+     18.08.2026).
+
+     Entscheidend ist die ANMELDUNG, nicht das Auswahlfeld: Wer sich als
+     Abteilung anmeldet, hat in mepZugang.bereich einen konkreten Bereich
+     stehen. Vorher hing es am Feldwert - und der ist je nach Anmeldung mal
+     leer, mal "Alle Bereiche", mal ein Bereichsname. Genau daran ist die
+     Kachel dreimal verschwunden. */
+  const z=mepZugang.bereich;
+  const nurAbteilung = z && z!=="Alle Bereiche" && z!=="Alle Märkte";
+  if(nurAbteilung||mepIstHausmeister()) return "";
   if(!mepScan.length){
     return `<div class="box"><h2>Scanquote</h2>${mepZeitraumHinweis()}
       <div class="small" style="padding:10px 0;font-style:italic">Für diesen Zeitraum liegen keine
       Zahlen vor. Der Bericht „Scanquote“ wird im Admin-Bereich eingespielt.</div></div>`;
   }
-  const mitPos=mepScan.filter(x=>(x.positionen||0)>=200);   // Kassen mit zu wenig Bons sagen nichts
+  /* Keine Mindestgrenze: es werden immer fuenf gezeigt. Kassen mit wenigen
+     Positionen stehen in Grau - ausgeblendet wird nichts. */
+  const mitPos=mepScan;
   const schwach=mitPos.slice().sort((a,b)=>(a.quote??100)-(b.quote??100)).slice(0,5);
   const schnitt=mitPos.length
     ? mitPos.reduce((s,x)=>s+(x.pos_scan||0),0)   // wird unten nicht gebraucht, nur Platzhalter
@@ -7627,8 +7640,8 @@ function mepKachelScanquote(){
     <span style="font-weight:normal;font-size:14px;color:#64748b">${mepZahl(mepScan.length)} Kassen</span>
     ${mepAbsprung("mepZeigeScanquote()","alle Kassierer")}</h2>
     ${mepZeitraumHinweis()}
-    <div class="small">Anteil gescannter Positionen. Die fünf schwächsten Kassen mit mindestens
-      200 Positionen – darunter ist die Quote Zufall.
+    <div class="small">Anteil der Positionen mit Artikelbezug. Die fünf schwächsten Kassen.
+      Wenige Positionen heißt: die Quote schwankt stark – solche Kassen stehen in Grau.
       ${gesamtQuote!=null?`Insgesamt <b>${mepPrz(gesamtQuote)}</b> bei
       ${mepZahl(gesamtMan)} Handeingaben auf ${mepZahl(gesamtPos)} Positionen.`:""}</div>
     <table style="width:100%;border-collapse:collapse;font-size:13.5px;margin-top:10px">
@@ -7639,13 +7652,15 @@ function mepKachelScanquote(){
         <th style="text-align:right;padding:8px">Positionen</th>
         <th style="text-align:right;padding:8px">von Hand</th>
         <th style="text-align:right;padding:8px">Wiederholungen</th></tr></thead><tbody>
-      ${schwach.map(x=>`<tr style="border-top:1px solid #eef3f9">
+      ${schwach.map(x=>{const wenig=(x.positionen||0)<200;
+        return `<tr style="border-top:1px solid #eef3f9">
         ${mepAlleMaerkte()?`<td style="padding:8px;color:#64748b">${mepEsc(x.markt)}</td>`:""}
-        <td style="padding:8px;font-weight:600">${mepEsc(x.kassierer)}</td>
-        <td style="text-align:right"><b style="color:${farbe(x.quote)}">${mepPrz(x.quote)}</b></td>
+        <td style="padding:8px;font-weight:600">${mepEsc(x.kassierer)}${
+          wenig?`<span style="display:block;font-size:10px;color:#94a3b8">wenige Positionen</span>`:""}</td>
+        <td style="text-align:right"><b style="color:${wenig?"#94a3b8":farbe(x.quote)}">${mepPrz(x.quote)}</b></td>
         <td style="text-align:right">${mepZahl(x.positionen)}</td>
         <td style="text-align:right"><b>${mepZahl(x.pos_manuell)}</b></td>
-        <td style="text-align:right;color:#64748b">${mepZahl(x.pos_wdh)}</td></tr>`).join("")}
+        <td style="text-align:right;color:#64748b">${mepZahl(x.pos_wdh)}</td></tr>`;}).join("")}
       </tbody></table>
     <div class="small" style="margin-top:9px">Handeingaben kosten Zeit an der Kasse und sind die
       häufigste Ursache für falsch kassierte Artikel – das taucht später als Inventurdifferenz auf.
