@@ -524,7 +524,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.17-16"; // Dispo entdoppelt, Wochenauswahl nach Kalender, Dorfladen mit Downloads, Uebersicht mit Markt
+const APP_VERSION = "v2026.08.18-1"; // Flop-Artikel-Kachel, Zeitraumwahl, Spannen-Absprung je Bereich, Verwaltung ohne Aufgaben und Dispo
 const APP_VERSION_DATE = "17.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -6224,6 +6224,77 @@ let mepKz=[], mepSpanne=[], mepBefunde=[], mepFeedback={}, mepBereichsMap={}, me
 let mepArtikel=[], mepDispo=[], mepAufgaben=[], mepMetrics=[], mepStand=null, mepSort="umsatz";
 let mepWerbung=[], mepWerbungErledigt={}, mepWerbungKW=null, mepWerbungDateien=[], mepWerbungWochen=[];
 
+/* ---------- Zeiträume ----------
+   Gewuenscht waren letzte Woche, letzter Monat, aktueller Monat und laufendes
+   Jahr. Geliefert werden die Berichte aber nicht in diesem Zuschnitt:
+
+     kennzahlen          laufendes Jahr und die abgelaufene Woche
+     spannenanalyse      nur die abgelaufene Woche
+     artikel_kennzahlen  nur das laufende Quartal (01.07.-30.09.)
+
+   Deshalb wird hier nichts erfunden. Die Auswahl zeigt genau die Zeitraeume,
+   die in den Daten wirklich stehen, mit ihrem echten Datum. Kommen die
+   Berichte spaeter monatlich, erscheinen die Monate von selbst - ohne dass
+   an dieser Stelle etwas geaendert werden muss.
+   Ein Filter, der einen Monat vorgaukelt und in Wahrheit ein Quartal zeigt,
+   waere die schlechtere Loesung: man wuerde ihm glauben. */
+let mepPerioden={kennzahlen:[],artikel:[],spannen:[]};
+let mepZeit={kennzahlen:null,artikel:null,spannen:null,flop:null};
+
+function mepPeriodeSchluessel(p){ return p.von+"_"+p.bis; }
+function mepPeriodeName(p){
+  const von=new Date(p.von+"T00:00:00"), bis=new Date(p.bis+"T00:00:00");
+  const tage=Math.round((bis-von)/86400000)+1;
+  const jetzt=new Date(); jetzt.setHours(0,0,0,0);
+  const de=d=>d.toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"});
+  const monate=["Januar","Februar","März","April","Mai","Juni","Juli","August",
+                "September","Oktober","November","Dezember"];
+  if(tage<=8){
+    const abstand=Math.round((jetzt-bis)/86400000);
+    return (abstand<=8?"letzte Woche":"Woche")+" · "+de(von)+"–"+de(bis);
+  }
+  if(tage>=360) return "laufendes Jahr · ab "+de(von);
+  if(tage>=85&&tage<=95) return "Quartal · "+monate[von.getMonth()].slice(0,3)+"–"+monate[bis.getMonth()].slice(0,3);
+  if(tage>=28&&tage<=31){
+    const lauf=von.getMonth()===jetzt.getMonth()&&von.getFullYear()===jetzt.getFullYear();
+    return (lauf?"aktueller Monat · ":"Monat · ")+monate[von.getMonth()];
+  }
+  return de(von)+"–"+de(bis);
+}
+/* Vorauswahl: der laengste vorhandene Zeitraum ist "laufendes Jahr" im Sinne
+   der Vorgabe. Fuer die Flop-Artikel ist die kuerzeste, juengste Periode
+   gemeint - dort war "letzte Woche" gewuenscht. */
+function mepPeriodeStandard(liste,kurz){
+  if(!liste||!liste.length) return null;
+  const sortiert=liste.slice().sort((a,b)=>{
+    const l=x=>Math.round((new Date(x.bis)-new Date(x.von))/86400000);
+    return kurz ? (l(a)-l(b))||(b.bis<a.bis?-1:1) : (l(b)-l(a));
+  });
+  return mepPeriodeSchluessel(sortiert[0]);
+}
+function mepZeitLeiste(quelle,feld){
+  const liste=mepPerioden[quelle]||[];
+  if(liste.length<1) return "";
+  const aktiv=mepZeit[feld];
+  const sortiert=liste.slice().sort((a,b)=>
+    (new Date(b.bis)-new Date(a.bis))||(new Date(a.von)-new Date(b.von)));
+  return `<div style="display:flex;gap:7px;align-items:center;margin:9px 0 2px;flex-wrap:wrap">
+    ${sortiert.map(p=>{const s=mepPeriodeSchluessel(p), an=s===aktiv;
+      return `<button onclick="mepSetzeZeit('${feld}','${s}')"
+        style="border:1px solid ${an?"#004f9e":"#dbe6f3"};background:${an?"#004f9e":"#fff"};
+        color:${an?"#fff":"#334155"};border-radius:7px;padding:4px 11px;font-size:12px;
+        font-weight:${an?"700":"500"};cursor:pointer">${mepEsc(mepPeriodeName(p))}</button>`;}).join("")}
+    ${liste.length<3?`<span class="small" style="margin-left:2px">Mehr Zeiträume gibt es erst,
+      wenn die Berichte auch monatlich kommen.</span>`:""}
+  </div>`;
+}
+function mepSetzeZeit(feld,schluessel){ mepZeit[feld]=schluessel; mepZeichnen(); }
+function mepZeitPasst(x,feld){
+  const s=mepZeit[feld];
+  if(!s) return true;
+  return (x.periode_von+"_"+x.periode_bis)===s;
+}
+
 const mepEur=n=>n==null?"–":Math.round(n).toLocaleString("de-DE")+" €";
 const mepZahl=n=>n==null?"–":Math.round(n).toLocaleString("de-DE");
 const mepPrz=n=>n==null?"–":n.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2})+" %";
@@ -6407,6 +6478,21 @@ async function mepNeuLaden(){
       .order("metric_date").order("area"))
   ]);
   mepKz=kzD||[]; mepArtikel=ar||[]; mepDispo=dz||[]; mepAufgaben=auf||[]; mepMetrics=met||[];
+  // Welche Zeitraeume liegen wirklich vor? Direkt aus den geladenen Zeilen -
+  // dann stimmt die Auswahl immer mit dem ueberein, was gezeigt werden kann.
+  const sammle=(rows)=>{
+    const m={};
+    (rows||[]).forEach(x=>{ if(x.periode_von&&x.periode_bis)
+      m[x.periode_von+"_"+x.periode_bis]={von:x.periode_von,bis:x.periode_bis}; });
+    return Object.values(m);
+  };
+  mepPerioden.kennzahlen=sammle(mepKz);
+  mepPerioden.artikel=sammle(mepArtikel);
+  mepPerioden.spannen=sammle(mepSpanne.filter(x=>x.markt===mepMk()));
+  if(!mepZeit.kennzahlen) mepZeit.kennzahlen=mepPeriodeStandard(mepPerioden.kennzahlen,false);
+  if(!mepZeit.artikel)    mepZeit.artikel   =mepPeriodeStandard(mepPerioden.artikel,false);
+  if(!mepZeit.spannen)    mepZeit.spannen   =mepPeriodeStandard(mepPerioden.spannen,false);
+  if(!mepZeit.flop)       mepZeit.flop      =mepPeriodeStandard(mepPerioden.artikel,true);
   await Promise.all([mepWerbungLaden(), mepLogsLaden(), mepVerwaltungLaden()]);
   const jahr=mepKz.filter(x=>x.periode_von==="2026-01-01");
   if(jahr.length) mepStand=jahr[0].stand;
@@ -6886,14 +6972,21 @@ function mepJahresanteil(){
   return ((s-new Date(j,0,1))/86400000+1)/(((j%4===0&&j%100!==0)||j%400===0)?366:365);
 }
 
+/* Die Verwaltung arbeitet die Aufgaben und die Dispo nicht selbst ab - dafuer
+   sind die Maerkte da. Beide Kacheln entfallen dort deshalb; was offen ist,
+   steht in der Uebersicht "Was ist wo offen"
+   (Vorgabe Benedikt Paul 18.08.2026). */
+const mepVerw=(fn)=> mepZugang.markt==="Verwaltung" ? "" : fn();
+
 function mepZeichnen(){
   const z=document.getElementById("mepKacheln"); if(!z) return;
   z.innerHTML = mepIstHausmeister()
     ? mepKachelAufgaben()+mepKachelBefunde()
     : mepAlleMaerkte()
-      ? mepKachelVerwaltung()+mepKachelOffen()+mepKachelAufgaben()+mepKachelDispo()+mepKachelBefunde()
+      ? mepKachelVerwaltung()+mepKachelOffen()+mepVerw(mepKachelAufgaben)+mepVerw(mepKachelDispo)+mepKachelBefunde()
       : mepKachelVerwaltung()+mepKachelKennzahlen()+mepKachelOffen()+mepKachelSpannen()+mepKachelBefunde()
-        +mepKachelWerbung()+mepKachelArtikel()+mepKachelAufgaben()+mepKachelDispo();
+        +mepKachelWerbung()+mepKachelFlop()+mepKachelArtikel()
+        +mepVerw(mepKachelAufgaben)+mepVerw(mepKachelDispo);
   mepBarcodes();
 }
 
@@ -6915,13 +7008,20 @@ function mepZeigeKennzahlen(){
   const r=mepVerlaufsreihe();
   if(r.length<3){ mepModal("Verlauf","<div class=\"small\">Zu wenige Wochen für einen Verlauf.</div>"); return; }
   const proz = r.map((x,i)=> i ? (r[i-1].umsatz? 100*(x.umsatz-r[i-1].umsatz)/r[i-1].umsatz : 0) : 0);
-  mepModal(`Verläufe · ${mepMk()}${mepBl()?" · "+mepBl():""}`,
-    `<div class="small" style="margin-bottom:12px">${r.length} Kalenderwochen.
-       Der Umsatz ist auf die erste Woche bezogen (100 %), damit die Entwicklung sichtbar wird
-       und nicht die Höhe.</div>
-     ${mepLinie(r.map(x=>x.umsatz), r.map(x=>"KW "+x.kw), "Umsatzentwicklung, erste Woche = 100 %", true)}
-     <div style="height:18px"></div>
-     ${mepLinie(proz, r.map(x=>"KW "+x.kw), "Veränderung zur Vorwoche in Prozent", false)}`);
+  /* Ueber jeder Grafik steht jetzt ausdruecklich, WELCHE Kennzahl sie zeigt.
+     Vorher stand nur "Verläufe" darueber und man musste es sich erschliessen
+     (Vorgabe Benedikt Paul 18.08.2026). */
+  mepModal(`Verläufe · Umsatz · ${mepMk()}${mepBl()?" · "+mepBl():""}`,
+    `<div class="small" style="margin-bottom:12px"><b>Kennzahl: Umsatz</b> (VK brutto), Wochenwerte aus
+       ${r.length} Kalenderwochen. Andere Kennzahlen sind hier noch nicht darstellbar – in der
+       Wochenreihe steht bisher nur der Umsatz.</div>
+     <div style="font-weight:700;font-size:13.5px;margin-bottom:2px">Umsatz – Entwicklung</div>
+     ${mepLinie(r.map(x=>x.umsatz), r.map(x=>"KW "+x.kw),
+       "Umsatz je Kalenderwoche, erste Woche = 100 %", true)}
+     <div style="height:20px"></div>
+     <div style="font-weight:700;font-size:13.5px;margin-bottom:2px">Umsatz – Veränderung zur Vorwoche</div>
+     ${mepLinie(proz, r.map(x=>"KW "+x.kw),
+       "Umsatz gegenüber der Vorwoche in Prozent", false)}`);
 }
 
 /* Schlanke Liniengrafik als SVG. Bewusst ohne Diagramm-Bibliothek von einem
@@ -7158,9 +7258,185 @@ function mepKachelSpannen(){
 let mepRichtung="top";   // "top" = die Besten oben, "flop" = die Schlechtesten oben
 function mepSetzeRichtung(r){ mepRichtung=r; mepZeichnen(); }
 
+/* ---------- Flop-Artikel: wo Spanne verloren geht ----------
+   Ausdruecklich nur Flops, keine Umschaltung auf Top (Vorgabe Benedikt Paul
+   18.08.2026). Der Grund fuer die eigene Kachel: Abschriften kamen bisher zu
+   kurz - sie standen nur als eine Zahl "Minderung" da.
+
+   ZWEI TEILE, BEWUSST GETRENNT:
+
+   1. GEMELDET - je Abteilung. "Abschriften VK [br]" und "Vollabschriften
+      VK [br]" stehen so im Umsatzbericht, der Anteil am Umsatz ist die
+      EDEKA-Kennzahl "Ant. Abschr. VK [br] am Umsatz %". Nichts gerechnet,
+      nichts geschaetzt.
+
+   2. GERECHNET - je Artikel. Einen Artikelbericht MIT Abschriften gibt es
+      nicht; je Artikel stehen nur Umsatz, Menge, Umsatz- und
+      Nettoertragsspanne. Der Spannenverlust ergibt sich daraus so:
+
+          Verlust EUR  ~ (Umsatz brutto / 1,10) * (Umsatzsp. - Nettoertragssp.) / 100
+          Anteil am VK  = Verlust EUR * 100 / Umsatz brutto
+
+      Der Teiler 1,10 ist ein Mischwert fuer die Mehrwertsteuer ueber alle
+      Abteilungen - 7 % bei Lebensmitteln, 19 % bei Getraenken und Tabak.
+
+      ERSTER VERSUCH WAR FALSCH (18.08.2026): Zuerst hatte ich den Nettoumsatz
+      aus Warenrohgewinn / Umsatzspanne zurueckgerechnet. Die Gegenprobe an
+      Billigheim ergab einen Radler mit 66 EUR Umsatz und 3.561 EUR Verlust,
+      also 5.399 % - unbrauchbar. Genau davor warnt KENNZAHLEN_EDEKA.md:
+      bei kleiner Spanne sprengt der Nenner das Ergebnis.
+
+   Der gerechnete Wert umfasst Abschriften, Inventur UND Rechnungspruefung
+   zusammen. Trennen laesst sich das je Artikel erst, wenn der Artikelbericht
+   die Abschriften mitliefert. Deshalb steht dort "Spannenverlust" und nicht
+   "Abschriften". */
+let mepFlopMass="anteil";     // "anteil" = Anteil am VK brutto (Vorgabe), "euro" = Betrag
+let mepFlopAbteilung="";      // "" = alle Abteilungen des gewaehlten Bereichs
+function mepSetzeFlopMass(m){ mepFlopMass=m; mepZeichnen(); }
+function mepSetzeFlopAbteilung(a){ mepFlopAbteilung=a; mepZeichnen(); }
+
+const MEP_FLOP_MINDESTUMSATZ=250;   // darunter ist der Prozentwert nur Rauschen
+function mepFlopWerte(x){
+  const usp=x.umsatzsp, nsp=x.nettoertragssp;
+  if(usp==null||nsp==null) return null;
+  const minderung=nsp-usp;                     // negativ = Verlust
+  if(minderung>=0) return null;
+  if(!(x.umsatz>=MEP_FLOP_MINDESTUMSATZ)) return null;
+  const nettoumsatz=x.umsatz/1.10;             // Mischsatz, siehe Kopfkommentar
+  const verlust=nettoumsatz*Math.abs(minderung)/100;
+  const anteil=verlust*100/x.umsatz;
+  return {verlust:verlust, anteil:anteil, minderung:minderung};
+}
+/* Die gemeldeten Abschriften je Abteilung - aus dem Umsatzbericht, ungerechnet.
+   wochentag "Ergebnis" ist die Summenzeile ueber alle Wochentage. */
+function mepAbschriftenAbteilung(){
+  const abt=new Set(mepAbteilungen());
+  const roh=mepKz.filter(x=>x.wochentag==="Ergebnis"&&(!mepBl()||abt.has(x.abteilung))
+    &&mepZeitPasst(x,"flop"));
+  const m={};
+  roh.forEach(x=>{
+    const a=m[x.abteilung]=m[x.abteilung]||{abteilung:x.abteilung};
+    if(x.kennzahl==="Abschriften VK [br]")      a.abschr=Math.abs(Number(x.wert));
+    if(x.kennzahl==="Vollabschriften VK [br]")  a.voll=Math.abs(Number(x.wert));
+    if(x.kennzahl==="Abschriften VK [br] Vj")   a.abschrVj=Math.abs(Number(x.wert));
+    if(x.kennzahl==="Umsatz")                   a.umsatz=Math.abs(Number(x.wert));
+  });
+  return Object.values(m).filter(a=>a.abschr!=null&&a.umsatz>0)
+    .map(a=>({...a, anteil:a.abschr*100/a.umsatz,
+      anteilVj:(a.abschrVj!=null&&a.umsatz)?a.abschrVj*100/a.umsatz:null,
+      umbew:(a.abschr!=null&&a.voll!=null)?Math.max(0,a.abschr-a.voll):null}))
+    .sort((x,y)=>y.anteil-x.anteil);
+}
+function mepKachelFlop(){
+  const alle=mepArtikel.filter(x=>mepZeitPasst(x,"flop"));
+  const abteilungen=[...new Set(alle.map(x=>x.abteilung).filter(Boolean))].sort();
+  let l=alle
+    .filter(x=>!mepFlopAbteilung||x.abteilung===mepFlopAbteilung)
+    .map(x=>({...x,f:mepFlopWerte(x)}))
+    .filter(x=>x.f);
+  const gesamtVerlust=l.reduce((s,x)=>s+x.f.verlust,0);
+  const gesamtUmsatz=l.reduce((s,x)=>s+(x.umsatz||0),0);
+  const abschr=mepAbschriftenAbteilung();
+  l.sort((a,b)=> mepFlopMass==="euro" ? b.f.verlust-a.f.verlust : (b.f.anteil||0)-(a.f.anteil||0));
+  const zeig=l.slice(0,12);
+  const knopf=(aktiv,klick,text)=>`<button onclick="${klick}" style="border:1px solid #d8e2ef;
+    background:${aktiv?"#b91c1c":"#fff"};color:${aktiv?"#fff":"#64748b"};
+    border-radius:13px;padding:4px 12px;font-size:12px;cursor:pointer;font-weight:bold">${text}</button>`;
+  return `<div class="box" style="border-left:4px solid #b91c1c">
+    <h2>Flop-Artikel · wo Spanne verloren geht
+      <span style="font-weight:normal;font-size:14px;color:#64748b">${mepZahl(l.length)} Artikel</span>
+      ${mepAbsprung("mepZeigeFlop()","mehr")}</h2>
+    ${mepZeitLeiste("artikel","flop")}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;align-items:center">
+      ${knopf(mepFlopMass==="anteil","mepSetzeFlopMass('anteil')","Anteil am VK brutto")}
+      ${knopf(mepFlopMass==="euro","mepSetzeFlopMass('euro')","Betrag in Euro")}
+      <span style="width:14px"></span>
+      <select onchange="mepSetzeFlopAbteilung(this.value)" style="width:auto;min-width:180px;
+        padding:4px 8px;font-size:12.5px">
+        <option value="">alle Abteilungen</option>
+        ${abteilungen.map(a=>`<option ${mepFlopAbteilung===a?"selected":""}>${mepEsc(a)}</option>`).join("")}
+      </select>
+    </div>
+    ${abschr.length?`
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b;margin:14px 0 5px">
+      Gemeldete Abschriften je Abteilung</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13.5px">
+      <thead><tr style="text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">
+        <th style="padding:7px">Abteilung</th>
+        <th style="text-align:right;padding:7px">Anteil am Umsatz</th>
+        <th style="text-align:right;padding:7px">Vorjahr</th>
+        <th style="text-align:right;padding:7px">Abschriften VK br.</th>
+        <th style="text-align:right;padding:7px">davon Vollabschr.</th>
+        <th style="text-align:right;padding:7px">Umbewertung</th></tr></thead><tbody>
+      ${abschr.slice(0,8).map(a=>`<tr style="border-top:1px solid #eef3f9">
+        <td style="padding:7px">${mepEsc(a.abteilung)}</td>
+        <td style="text-align:right"><b style="color:${a.anteil>2?"#b91c1c":a.anteil>1?"#b45309":"#08213f"}">${
+          mepPrz(a.anteil)}</b></td>
+        <td style="text-align:right;color:#64748b">${a.anteilVj!=null?mepPrz(a.anteilVj):"–"}</td>
+        <td style="text-align:right">${mepEur(a.abschr)}</td>
+        <td style="text-align:right;color:#64748b">${a.voll!=null?mepEur(a.voll):"–"}</td>
+        <td style="text-align:right;color:#64748b">${a.umbew!=null?mepEur(a.umbew):"–"}</td></tr>`).join("")}
+      </tbody></table>
+    <div class="small" style="margin-top:6px">Diese Zahlen stehen so im Umsatzbericht – nichts gerechnet.
+      Vollabschriften heißt: Ware war unverkäuflich. Umbewertung heißt: Ware ging noch weg,
+      aber zu schlecht.</div>`:""}
+
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b;margin:16px 0 5px">
+      Artikel mit dem größten Spannenverlust</div>
+    <div class="small">Sortiert nach ${mepFlopMass==="euro"?"dem Verlustbetrag":"dem Anteil am Bruttoumsatz"}.
+      Zusammen ${mepEur(gesamtVerlust)}${gesamtUmsatz>0?` – das sind ${
+        mepPrz(gesamtVerlust*100/gesamtUmsatz)} des Bruttoumsatzes dieser Artikel`:""}.
+      <b>Hier wird gerechnet, nicht gemeldet:</b> der Wert umfasst Abschriften, Inventur und
+      Rechnungsprüfung zusammen. Trennen lässt sich das je Artikel erst, wenn der Artikelbericht
+      die Abschriften mitliefert.</div>
+    ${zeig.length?zeig.map(x=>{
+      const dp=mepDispo.find(d=>d.artikelnr===String(x.sap_artnr));
+      return `<div style="display:flex;gap:12px;align-items:center;padding:9px 0;
+        border-bottom:1px solid #f1f5f9;flex-wrap:wrap">
+      <svg class="mepbc" data-code="${mepEsc(x.sap_artnr)}" style="width:112px;height:40px;flex:none"></svg>
+      <div style="flex:1 1 220px;min-width:0;font-size:13.5px;line-height:1.35">${mepEsc(x.bezeichnung)}
+        <span style="display:block;font-size:10.5px;color:#94a3b8;margin-top:2px">${mepEsc(x.abteilung)} ·
+          Art.-Nr. ${mepEsc(x.sap_artnr)} · Umsatz ${mepEur(x.umsatz)} ·
+          Spanne ${mepPrz(x.umsatzsp)} → ${mepPrz(x.nettoertragssp)}${
+          dp?` · <b style="color:#b45309">offene Dispo</b>`:""}</span></div>
+      <div style="text-align:right;flex:none;white-space:nowrap">
+        <div style="font-weight:bold;font-size:15px;color:#b91c1c">${
+          mepFlopMass==="euro"?mepEur(x.f.verlust):mepPrz(x.f.anteil)}</div>
+        <div style="font-size:11px;color:#94a3b8">${
+          mepFlopMass==="euro"?mepPrz(x.f.anteil)+" vom Umsatz":mepEur(x.f.verlust)}</div>
+      </div></div>`;}).join("")
+      :`<div class="small" style="padding:10px 0;font-style:italic">Für diese Auswahl liegen keine
+        Artikel mit Spannenverlust vor.</div>`}
+    <div class="small" style="margin-top:9px">Artikel unter ${MEP_FLOP_MINDESTUMSATZ} € Umsatz bleiben außen vor:
+      bei kleinem Umsatz wird der Prozentwert zum Zufallswert. <b>Eine Auswahl nach Regal fehlt noch –</b>
+      die Regalnummer steht in keinem der gelieferten Berichte.</div>
+    </div>`;
+}
+function mepZeigeFlop(){
+  const l=mepArtikel.filter(x=>mepZeitPasst(x,"flop"))
+    .filter(x=>!mepFlopAbteilung||x.abteilung===mepFlopAbteilung)
+    .map(x=>({...x,f:mepFlopWerte(x)})).filter(x=>x.f)
+    .sort((a,b)=> mepFlopMass==="euro" ? b.f.verlust-a.f.verlust : (b.f.anteil||0)-(a.f.anteil||0));
+  let h=`<div class="small" style="margin-bottom:10px">${mepMk()}${mepBl()?" · "+mepBl():""}${
+    mepFlopAbteilung?" · "+mepEsc(mepFlopAbteilung):""} · ${mepZahl(l.length)} Artikel mit Spannenverlust.</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13.5px">${
+    mepTh("Artikel","Abteilung","Umsatz br.","Umsatzsp.","Nettoertrag","Verlust €","Anteil am VK")}<tbody>`;
+  l.slice(0,300).forEach(x=>{ h+=`<tr style="border-top:1px solid #eef3f9">
+    <td style="padding:8px">${mepEsc(x.bezeichnung)}
+      <span style="display:block;font-size:10.5px;color:#94a3b8">Art.-Nr. ${mepEsc(x.sap_artnr)}</span></td>
+    <td style="color:#64748b">${mepEsc(x.abteilung||"–")}</td>
+    <td style="text-align:right">${mepEur(x.umsatz)}</td>
+    <td style="text-align:right">${mepPrz(x.umsatzsp)}</td>
+    <td style="text-align:right">${mepPrz(x.nettoertragssp)}</td>
+    <td style="text-align:right"><b>${mepEur(x.f.verlust)}</b></td>
+    <td style="text-align:right"><b style="color:#b91c1c">${mepPrz(x.f.anteil)}</b></td></tr>`; });
+  mepModal(`Flop-Artikel · Spannenverlust`, h+`</tbody></table>
+    ${l.length>300?`<div class="small" style="margin-top:8px">Angezeigt sind die ersten 300.</div>`:""}`);
+}
+
 function mepKachelArtikel(){
   const G=[["umsatz","Umsatz"],["menge","Menge"],["spanne","Spanne"],["verlust","Minderung"]];
-  let l=mepArtikel.filter(x=>x.umsatz>0);
+  let l=mepArtikel.filter(x=>x.umsatz>0&&mepZeitPasst(x,"artikel"));
   // "gut" heisst je Groesse etwas anderes: viel Umsatz ist gut, viel Minderung schlecht
   const wertVon=x=>mepSort==="umsatz"?(x.umsatz||0)
     :mepSort==="menge"?(x.menge||0)
@@ -7185,6 +7461,7 @@ function mepKachelArtikel(){
     border-radius:13px;padding:4px 12px;font-size:12px;cursor:pointer;font-weight:bold">${text}</button>`;
   return `<div class="box"><h2>${top?"Top":"Flop"}-Artikel
     ${mepAbsprung("mepZeigeArtikel()","mehr")}</h2>
+    ${mepZeitLeiste("artikel","artikel")}
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;align-items:center">
       ${G.map(([k,t])=>knopf(mepSort===k,`mepSetzeSort('${k}')`,t)).join("")}
       <span style="width:14px"></span>
@@ -7489,10 +7766,20 @@ const mepTh=(...s)=>`<thead><tr style="text-align:left;color:#64748b;font-size:1
   s.map(x=>`<th style="padding:8px${x.startsWith("~")?";text-align:right":""}">${x.replace(/^~/,"")}</th>`).join("")}</tr></thead>`;
 
 function mepZeigeSpannen(){
-  const t=mepSpanne.filter(x=>x.markt===mepMk()&&x.abteilung!=="Gesamtergebnis")
+  /* Nur die Abteilungen des gewaehlten Bereichs. Vorher stand hier der ganze
+     Markt - wer als Bereichsleitung auf "mehr" klickt, will seine eigenen
+     Abteilungen sehen, nicht die der anderen
+     (Vorgabe Benedikt Paul 18.08.2026). */
+  const abt=new Set(mepAbteilungen());
+  const t=mepSpanne.filter(x=>x.markt===mepMk()&&x.abteilung!=="Gesamtergebnis"
+      &&(!mepBl()||abt.has(x.abteilung))
+      &&mepZeitPasst(x,"spannen"))
     .map(x=>({...x,m:(x.umsatzsp!=null&&x.nettoertragssp!=null)?x.nettoertragssp-x.umsatzsp:null}))
     .sort((a,b)=>(a.m??0)-(b.m??0));
-  let h=`<table style="width:100%;border-collapse:collapse;font-size:13.5px">${
+  let h=`${mepZeitLeiste("spannen","spannen")}
+    <div class="small" style="margin:6px 0 10px">${mepMk()}${mepBl()?" · "+mepEsc(mepBl()):" · ganzer Markt"} ·
+      Beträge zu Einstandspreisen · sortiert nach der Minderung, schlechteste oben.</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13.5px">${
     mepTh("Abteilung","~Umsatzspanne","~Vorjahr","~Nettoertrag","~Vorjahr","~Minderung","~Abschriften","~Inventur")}<tbody>`;
   t.forEach(x=>{ h+=`<tr style="border-top:1px solid #eef3f9"><td style="padding:8px">${mepEsc(x.abteilung)}</td>
     <td style="text-align:right">${mepPrz(x.umsatzsp)}</td>
@@ -7502,7 +7789,9 @@ function mepZeigeSpannen(){
     <td style="text-align:right;color:${x.m!=null&&x.m<-2?"#b91c1c":"inherit"}"><b>${mepPP(x.m)}</b></td>
     <td style="text-align:right">${mepEur(x.abschr_ek)}</td>
     <td style="text-align:right">${mepEur(x.inventur_ek)}</td></tr>`; });
-  mepModal(`Spannenanalyse · ${mepMk()} · ${t.length} Abteilungen`, h+`</tbody></table>`);
+  mepModal(`Spannenanalyse · ${mepBl()||mepMk()} · ${t.length} Abteilungen`,
+    h+`</tbody></table>${t.length?"":`<div class="small" style="padding:10px 0;font-style:italic">
+      Für diesen Zeitraum liegen keine Spannenwerte vor.</div>`}`);
 }
 
 function mepZeigeArtikel(){
