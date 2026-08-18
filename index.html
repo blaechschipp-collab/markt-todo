@@ -189,7 +189,15 @@
 </div>
 <header class="header"><div class="brand" onclick="reloadApp()" title="Tippen zum Neuladen" style="cursor:pointer"><img src="logo.png" alt="EDEKA Paul Logo" class="logo" onerror="this.style.display='none';document.getElementById('fallbackBrand').style.display='block';"><div id="fallbackBrand" style="display:none"><div class="brand-title">Paul.</div><div class="brand-subtitle">Regional. Frisch. Freundlich.</div></div></div></header>
 <main class="main">
-  <div class="tabs"><button id="todoTab" class="tab active todo-tab" onclick="showTab('todo')">☑ ToDo</button><button id="dispoTab" class="tab dispo-tab" onclick="showTab('dispo')">📦 Dispo</button><button id="backshopTab" class="tab backshop-tab" onclick="showTab('backshop')">🥐 Backshop</button><button id="werbungTab" class="tab werbung-tab" onclick="showTab('werbung')">💰 Bevorratung</button><button id="analyticsTab" class="tab analytics-tab" onclick="showTab('analytics')">📊 Auswertungen</button><button id="mepTab" class="tab mep-tab" onclick="showTab('mep')">🍏 Mein EDEKA Paul</button><button id="adminTab" class="tab admin-tab" onclick="openAdminPin()">🔒 Admin</button></div>
+  <!-- Reiter ab 18.08.2026: Meine Bäckerei, Mein EDEKA Paul, Admin.
+       Die alten Reiter (ToDo, Dispo, Bevorratung, Auswertungen) sind
+       ausgeblendet, nicht geloescht - ihre Funktionen werden weiter
+       gebraucht: Die Kacheln in "Mein EDEKA Paul" haken ueber dieselben
+       Funktionen ab und rechnen mit derselben Bevorratungslogik.
+       Zurueckdrehen: MEP_NUR_DREI_REITER auf false setzen. -->
+  <div class="tabs">
+    <button id="backshopTab" class="tab active backshop-tab" onclick="showTab('backshop')">🥐 Meine Bäckerei</button><button id="mepTab" class="tab mep-tab" onclick="showTab('mep')">🍏 Mein EDEKA Paul</button><button id="adminTab" class="tab admin-tab" onclick="openAdminPin()">🔒 Admin</button><button id="todoTab" class="tab todo-tab alt-reiter" onclick="showTab('todo')">☑ ToDo</button><button id="dispoTab" class="tab dispo-tab alt-reiter" onclick="showTab('dispo')">📦 Dispo</button><button id="werbungTab" class="tab werbung-tab alt-reiter" onclick="showTab('werbung')">💰 Bevorratung</button><button id="analyticsTab" class="tab analytics-tab alt-reiter" onclick="showTab('analytics')">📊 Auswertungen</button>
+  </div>
   <section id="todoSection">
     <div class="box"><div class="control-grid"><div><label>Dein Name</label><input id="name" placeholder="Dein Name"></div><div><label>Markt</label><select id="marketFilter" onchange="handleMarketChange()"><option value="ALLE">Alle Märkte</option><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="areaFilter" onchange="handleAreaChange()"><option value="">Alle Bereiche außer Hausmeister</option></select></div><div id="dayControl"><label>Tag</label><select id="day" onchange="loadTasks()"></select></div><div id="monthControl" style="display:none"><label>Monat</label><input id="monthFilter" type="month" onchange="loadTasks()"></div><div><label>Erledigte</label><select id="todoDoneFilter" onchange="handleDoneFilterChange()"><option value="hide">Ausblenden</option><option value="show">Anzeigen</option><option value="only">Nur erledigte</option></select></div><div><label>&nbsp;</label><button class="btn-yellow" onclick="loadTasks()">Aktualisieren</button></div></div></div>
     <div id="tasks" class="box"></div>
@@ -364,6 +372,13 @@
       <div style="color:#94a3b8;font-size:12px">Diese Anzeige hilft beim Bestätigen, dass die aktuelle App-Version geladen ist.</div>
     </div>
     <div class="sub-tabs">
+      <!-- Die alten Reiter sind seit 18.08.2026 ausgeblendet. Ihre Inhalte
+           werden weiter gebraucht - etwa die Vorgaben der Bevorratung
+           (Schwelle, Wochen, Frische) und die volle Dispo-Liste. Ueber
+           diesen Knopf sind sie fuer die Verwaltung erreichbar, ohne dass
+           sie fuer alle im Markt sichtbar waeren. -->
+      <button class="sub-tab" onclick="alteReiterAnzeigen(true);this.textContent='ToDo, Dispo, Bevorratung und Auswertungen sind jetzt oben sichtbar'"
+        style="background:#fff7ed;border-color:#b45309;color:#b45309">⚙ Alte Reiter einblenden</button>
       <button id="adminSubTabTodo" class="sub-tab active" onclick="showAdminSubTab('todopflege')">📋 ToDo-Pflege</button>
       <button id="adminSubTabUploads" class="sub-tab" onclick="showAdminSubTab('uploads')">📥 Uploads</button>
       <button class="sub-tab" onclick="adminAbmelden()" style="margin-left:auto">🔓 Abmelden</button>
@@ -546,7 +561,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.18-15"; // Frische je Abteilung aus der Datenbank statt Stichwortsuche im Namen
+const APP_VERSION = "v2026.08.18-16"; // Drei Reiter: Meine Baeckerei, Mein EDEKA Paul, Admin
 const APP_VERSION_DATE = "17.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -589,6 +604,13 @@ if(typeof document !== "undefined"){
     if(d) d.textContent = APP_VERSION_DATE;
     // Angemeldet-bleiben-Merker dieses Geraets pruefen (ergaenzt 15.08.2026)
     if(typeof adminGeraetPruefen === "function") adminGeraetPruefen();
+    /* Drei Reiter statt sieben (18.08.2026). Der Startreiter ist die
+       Baeckerei - sie steht in der Reihenfolge vorn und wird am haeufigsten
+       am Tablet geoeffnet. */
+    if(typeof MEP_NUR_DREI_REITER !== "undefined" && MEP_NUR_DREI_REITER){
+      alteReiterAnzeigen(false);
+      if(typeof showTab === "function" && APP_VIEW !== "backshop") showTab("backshop");
+    }
   });
 }
 
@@ -1482,6 +1504,27 @@ function handleControlMarketChange(){
   applyAreaRules();
   loadControlTasks();
 }
+/* ==========================================================================
+   Drei Reiter statt sieben - Vorgabe Benedikt Paul 18.08.2026
+   ==========================================================================
+   Sichtbar sind: Meine Baeckerei, Mein EDEKA Paul, Admin.
+
+   Die alten Reiter bleiben im Code und sind ueber den Admin-Bereich
+   erreichbar. Ihre Funktionen werden weiter gebraucht - die Kacheln in
+   "Mein EDEKA Paul" haken ueber dieselben Funktionen ab (toggleTask,
+   toggleDispoItem) und rechnen mit derselben Bevorratungslogik. Sie zu
+   loeschen haette bedeutet, all das nachzubauen.
+
+   Faellt beim Einfuehren auf, dass etwas fehlt: hier auf false setzen,
+   Skript 22 starten, und alles ist wieder da. */
+const MEP_NUR_DREI_REITER = true;
+
+function alteReiterAnzeigen(zeigen){
+  document.querySelectorAll(".alt-reiter").forEach(b=>{
+    b.style.display = zeigen ? "" : "none";
+  });
+}
+
 function showTab(tab){
   document.getElementById("todoSection").style.display=tab==="todo"?"block":"none";
   document.getElementById("dispoSection").style.display=tab==="dispo"?"block":"none";
