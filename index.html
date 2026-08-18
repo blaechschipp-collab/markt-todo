@@ -557,14 +557,15 @@
   <section id="mepSection" style="display:none">
     <div class="box" id="mepTor">
       <h2>Mein EDEKA Paul</h2>
-      <div class="small">Bitte Markt und Bereich wählen. Der Code schützt vor
-        versehentlichem Aufrufen, er ist kein Zugriffsschutz.</div>
+      <div class="small">Markt und Bereich wählen, dann die persönliche PIN
+        eingeben. Die PIN entscheidet, was du zu sehen bekommst.</div>
       <div class="control-grid" style="margin-top:14px">
         <div><label>Markt</label>
           <select id="mepTorMarkt" onchange="mepTorBereiche()"></select></div>
         <div><label>Bereich</label><select id="mepTorBereich"></select></div>
-        <div><label>Code</label>
-          <input id="mepPin" type="password" inputmode="numeric" placeholder="••"
+        <div><label>PIN</label>
+          <input id="mepPin" type="password" inputmode="numeric" autocomplete="off"
+                 placeholder="•••••"
                  onkeydown="if(event.key==='Enter')mepPruefePin()"></div>
         <div><label>&nbsp;</label><button class="btn-yellow" onclick="mepPruefePin()">Öffnen</button></div>
       </div>
@@ -577,7 +578,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.18-17"; // Drei Reiter stehen nebeneinander statt untereinander
+const APP_VERSION = "v2026.08.18-18"; // Individuelle PINs je Markt und Bereich
 const APP_VERSION_DATE = "17.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -6537,7 +6538,9 @@ applyAppViewMode();
    - Aggregierte Spannen kommen aus der Tabelle spannenanalyse, nie aus
      hochgerechneten Artikelwerten (das war am 17.08. um 10 Punkte daneben)
    ===================================================================== */
-const MEP_PIN_HASH="5967e6";
+/* Hier stand bis 18.08.2026 EIN Code fuer alle, als Hash im Quelltext der
+   oeffentlichen Seite - zweistellig. Ersetzt durch 18 einzelne PINs in der
+   Tabelle "zugang", geprueft in der Datenbank. */
 const MEP_MAERKTE={
   "Billigheim-Ingenheim":["Alle Bereiche","Bäckerei","Bedienungstheke","Gekühlte Frische",
                           "Getränke","Markt","Obst, Gemüse und Pflanzen","Hausmeister"],
@@ -6768,23 +6771,82 @@ function mepZugangLesen(){
   for(const s of [localStorage,sessionStorage]){
     try{ const w=s.getItem("mep_zugang"); if(!w) continue;
       const o=JSON.parse(w);
-      if(o.bis && o.bis>Date.now()) return o;
+      /* Ohne "rolle" stammt der Eintrag aus der Zeit vor dem 18.08.2026, als
+         ein einziger Code galt und jeder Markt und Bereich frei waehlen
+         konnte. Solche Staende werden verworfen - sonst behielte jemand eine
+         Ansicht, die ihm nach dem neuen Zuschnitt nicht mehr zusteht. */
+      if(o.bis && o.bis>Date.now() && o.rolle) return o;
       s.removeItem("mep_zugang");
     }catch(x){}
   }
   return null;
 }
-function mepPruefePin(){
+
+/* -------------------------------------------------------------------------
+   Die PIN setzt den Rahmen, die Auswahl im Fenster darf sich darin bewegen.
+
+   Vorher galt ein einziger Code fuer alle, und Markt und Bereich waehlte
+   jeder selbst - auch "Verwaltung". Vorgabe Benedikt Paul war ausdruecklich
+   das Gegenteil: "Ganz wichtig, Verwaltung darf der Marktleiter nicht
+   oeffnen."
+
+   Die Auswahlfelder bleiben stehen (Vorgabe 18.08.2026). Sie wirken dort,
+   wo der Zugang Spielraum laesst:
+     Verwaltung    - sieht ohnehin alles, die Auswahl steuert sie im Fenster
+     Marktleitung  - Markt steht fest, der Bereich ist frei waehlbar
+     Bereich       - beides steht fest
+     Hausmeister   - Bereich steht fest, Markt waehlt er im Fenster
+   Wer etwas waehlt, das seine PIN nicht deckt, landet still in seinem
+   eigenen Zuschnitt - keine Fehlermeldung fuer etwas, das niemandem hilft.
+   ------------------------------------------------------------------------- */
+function mepZugangAus(z, gewMarkt, gewBereich){
+  if(z.rolle==="marktleitung"){
+    const erlaubt = MEP_MAERKTE[z.markt] || ["Alle Bereiche"];
+    return { markt: z.markt,
+             bereich: erlaubt.includes(gewBereich) ? gewBereich : "Alle Bereiche",
+             rolle: z.rolle };
+  }
+  // Verwaltung, Hausmeister und die Bereiche bekommen genau das, was in der
+  // Datenbank steht.
+  return { markt:z.markt, bereich:z.bereich, rolle:z.rolle };
+}
+
+/* Geprueft wird in der Datenbank (Funktion zugang_pruefen). Die Tabelle
+   "zugang" selbst ist gesperrt: beantwortet wird nur "ist DIESE PIN
+   gueltig", die Liste der PINs gibt die Datenbank nicht heraus. */
+async function mepPruefePin(){
   const e=document.getElementById("mepPin");
-  if(mepHash(e.value.trim())!==MEP_PIN_HASH){
-    document.getElementById("mepPinFehler").textContent="Code stimmt nicht.";
+  const f=document.getElementById("mepPinFehler");
+  const knopf=document.querySelector("#mepTor button.btn-yellow");
+  const pin=e.value.trim();
+  if(!pin){ f.style.color="#c62828"; f.textContent="Bitte die PIN eingeben."; e.focus(); return; }
+  f.style.color="#64748b"; f.textContent="Einen Moment …";
+  if(knopf) knopf.disabled=true;
+  let z=null;
+  try{
+    const {data,error}=await db.rpc("zugang_pruefen",{p_pin:pin});
+    if(error) throw error;
+    z=(data && data.length) ? data[0] : null;
+  }catch(x){
+    console.error("zugang_pruefen",x);
+    f.style.color="#c62828";
+    f.textContent="Die PIN konnte nicht geprüft werden. Besteht eine Verbindung?";
+    if(knopf) knopf.disabled=false;
+    return;
+  }
+  if(knopf) knopf.disabled=false;
+  if(!z){
+    f.style.color="#c62828"; f.textContent="Diese PIN stimmt nicht.";
     e.value=""; e.focus(); return;
   }
-  mepZugang={markt:document.getElementById("mepTorMarkt").value,
-             bereich:document.getElementById("mepTorBereich").value};
+  f.textContent="";
+  mepZugang = mepZugangAus(z,
+                document.getElementById("mepTorMarkt").value,
+                document.getElementById("mepTorBereich").value);
   const tage=document.getElementById("mepMerken").checked?7:0;
   try{ (tage>0?localStorage:sessionStorage)
         .setItem("mep_zugang",JSON.stringify({...mepZugang,bis:Date.now()+(tage||1)*864e5})); }catch(x){}
+  e.value="";
   mepOeffnen();
 }
 function mepAbmelden(){
@@ -6812,7 +6874,10 @@ function mepStart(){
     mepTorBereiche();
   }
   const o=mepZugangLesen();
-  if(o && !mepGeladen){ mepZugang={markt:o.markt,bereich:o.bereich}; mepOeffnen(); }
+  if(o && !mepGeladen){
+    mepZugang={markt:o.markt,bereich:o.bereich,rolle:o.rolle};
+    mepOeffnen();
+  }
 }
 async function mepOeffnen(){
   document.getElementById("mepTor").style.display="none";
