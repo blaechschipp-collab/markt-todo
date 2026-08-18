@@ -546,7 +546,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.18-10"; // Zeitwahl NUR im mehr-Fenster, Kachel nur mit Hinweis; Ausfall durch entferntes mepZeit behoben
+const APP_VERSION = "v2026.08.18-11"; // Scanquote ohne Ausblendbedingung, Flop ohne Mindestumsatz und im Fenster vollstaendig
 const APP_VERSION_DATE = "17.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -7602,7 +7602,13 @@ async function mepScanLaden(){
 /* mepSetzeScanZeit und mepZeitLeisteAlt sind mit der einheitlichen
    Zeitraumwahl entfallen - die Auswahl laeuft jetzt ueber mepSetzeZeitraum. */
 function mepKachelScanquote(){
-  if(mepIstHausmeister()||mepBl()) return "";   // Kassenthema, kein Bereichsthema
+  /* KEINE Ausblendbedingung mehr ausser dem Hausmeister.
+     Sie hat drei Runden lang dafuer gesorgt, dass die Kachel mal da war und
+     mal nicht - je nachdem, was im Bereichsfeld stand. Die Scanquote ist eine
+     Kennzahl des Marktes; sie gehoert in jede Ansicht, auch wenn eine
+     Abteilung gewaehlt ist. Lieber einmal zu viel gezeigt als noch einmal
+     unsichtbar (18.08.2026). */
+  if(mepIstHausmeister()) return "";
   if(!mepScan.length){
     return `<div class="box"><h2>Scanquote</h2>${mepZeitraumHinweis()}
       <div class="small" style="padding:10px 0;font-style:italic">Für diesen Zeitraum liegen keine
@@ -7823,8 +7829,11 @@ function mepZeigeKennzahlen(){
      Kurve. Ein Verlauf ueber vier Wochen sagt etwas anderes als einer ueber
      ein Jahr - beides nebeneinander unbeschriftet war verwirrend
      (Durchsicht 18.08.2026). */
-  const leiste=mepZeitLeisteModal(null,null,"mepZeigeKennzahlen")
-    +`<div class="small" style="margin-bottom:4px">Länge der Kurve:</div>
+  /* Hier steht bewusst NUR die Kurvenlaenge. Die allgemeine Zeitraumwahl war
+     hier ohne Wirkung - der Verlauf kommt aus der Wochenreihe und nicht aus
+     den Berichtsperioden. Zwei Knopfbaender, von denen eines nichts tut,
+     sind schlimmer als eines (Vorgabe Benedikt Paul 18.08.2026). */
+  const leiste=`<div class="small" style="margin-bottom:4px">Länge der Kurve:</div>
      <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px">
     ${knopf(4,"4 Wochen")}${knopf(8,"8 Wochen")}${knopf(13,"13 Wochen")}
     ${knopf(0,"alle")}
@@ -8164,7 +8173,11 @@ function mepSetzeFlopMass(m){ mepFlopMass=m; mepZeichnen(); }
 function mepSetzeFlopAbteilung(a){ mepFlopAbteilung=a; mepZeichnen(); }
 function mepSetzeFlopRegal(r){ mepFlopRegal=r; mepZeichnen(); }
 
-const MEP_FLOP_MINDESTUMSATZ=250;   // darunter ist der Prozentwert nur Rauschen
+/* Kein Mindestumsatz mehr (Vorgabe Benedikt Paul 18.08.2026): Die Tabelle
+   zeigt immer fuenf Artikel, egal wie klein der Umsatz ist. Dass ein
+   Prozentwert bei winzigem Umsatz wenig aussagt, steht als Hinweis an der
+   Zeile - ausblenden ist die schlechtere Loesung, weil dann nichts dasteht. */
+const MEP_FLOP_HINWEIS_UMSATZ=250;   // darunter wird der Prozentwert markiert
 function mepFlopWerte(x){
   /* Sobald der erweiterte Artikelbericht Abschriften mitliefert, wird nicht
      mehr geschaetzt: dann steht hier die gemeldete Zahl und der Anteil ist
@@ -8181,7 +8194,7 @@ function mepFlopWerte(x){
   if(usp==null||nsp==null) return null;
   const minderung=nsp-usp;                     // negativ = Verlust
   if(minderung>=0) return null;
-  if(!(x.umsatz>=MEP_FLOP_MINDESTUMSATZ)) return null;
+  if(!(x.umsatz>0)) return null;
   const nettoumsatz=x.umsatz/1.10;             // Mischsatz, siehe Kopfkommentar
   const verlust=nettoumsatz*Math.abs(minderung)/100;
   const anteil=verlust*100/x.umsatz;
@@ -8296,32 +8309,42 @@ function mepKachelFlop(){
       </div></div>`;}).join("")
       :`<div class="small" style="padding:10px 0;font-style:italic">Für diese Auswahl liegen keine
         Artikel mit Spannenverlust vor.</div>`}
-    <div class="small" style="margin-top:9px">Artikel unter ${MEP_FLOP_MINDESTUMSATZ} € Umsatz bleiben außen vor:
-      bei kleinem Umsatz wird der Prozentwert zum Zufallswert.
+    <div class="small" style="margin-top:9px">Bei Artikeln unter ${MEP_FLOP_HINWEIS_UMSATZ} € Umsatz ist der Prozentwert mit Vorsicht zu lesen –
+      er steht dann in Grau. Ausgeblendet wird nichts.
       ${regale.length?"Die Regalauswahl greift, sobald der Regalbericht eingespielt ist – Regalnummern ab 990000 sind Zweitplatzierungen."
         :"<b>Die Regalauswahl erscheint, sobald der Regalbericht eingespielt ist</b> – die Tabelle artikel_regal ist derzeit leer."}</div>
     </div>`;
 }
+/* Im Fenster stehen ALLE Artikel des Zeitraums - auch die guten, auch die
+   ohne Spannenverlust (Vorgabe Benedikt Paul 18.08.2026). Die Kachel zeigt
+   die fuenf schlechtesten, hier soll man alles durchsehen und selbst
+   entscheiden koennen. Sortiert bleibt es nach der schlechtesten Kennzahl. */
 function mepZeigeFlop(){
   const l=mepArtikel.filter(x=>mepZeitPasst(x,"flop"))
     .filter(x=>(!mepFlopAbteilung||x.abteilung===mepFlopAbteilung)
-             &&(!mepFlopRegal||x.regal_nr===mepFlopRegal))   // Regalfilter fehlte hier
-    .map(x=>({...x,f:mepFlopWerte(x)})).filter(x=>x.f)
-    .sort((a,b)=> mepFlopMass==="euro" ? b.f.verlust-a.f.verlust : (b.f.anteil||0)-(a.f.anteil||0));
+             &&(!mepFlopRegal||x.regal_nr===mepFlopRegal))
+    .map(x=>({...x,f:mepFlopWerte(x)}))
+    .sort((a,b)=>{
+      const wert=x=>x.f ? (mepFlopMass==="euro" ? x.f.verlust : (x.f.anteil||0)) : -1;
+      return wert(b)-wert(a);
+    });
   let h=`${mepZeitLeisteModal("artikel","flop","mepZeigeFlop")}
     <div class="small" style="margin-bottom:10px">${mepMk()}${mepBl()?" · "+mepBl():""}${
-    mepFlopAbteilung?" · "+mepEsc(mepFlopAbteilung):""} · ${mepZahl(l.length)} Artikel mit Spannenverlust.</div>
+    mepFlopAbteilung?" · "+mepEsc(mepFlopAbteilung):""} · ${mepZahl(l.length)} Artikel,
+    davon ${mepZahl(l.filter(x=>x.f).length)} mit Spannenverlust. Sortiert: schlechteste zuerst.</div>
     <table style="width:100%;border-collapse:collapse;font-size:13.5px">${
-    mepTh("Artikel","Abteilung","Umsatz br.","Umsatzsp.","Nettoertrag","Verlust €","Anteil am VK")}<tbody>`;
-  l.slice(0,300).forEach(x=>{ h+=`<tr style="border-top:1px solid #eef3f9">
+    mepTh("Artikel","Abteilung","Regal","Umsatz br.","Umsatzsp.","Nettoertrag","Verlust €","Anteil am VK")}<tbody>`;
+  l.slice(0,500).forEach(x=>{ const klein=(x.umsatz||0)<MEP_FLOP_HINWEIS_UMSATZ;
+    h+=`<tr style="border-top:1px solid #eef3f9">
     <td style="padding:8px">${mepEsc(x.bezeichnung)}
       <span style="display:block;font-size:10.5px;color:#94a3b8">Art.-Nr. ${mepEsc(x.sap_artnr)}</span></td>
     <td style="color:#64748b">${mepEsc(x.abteilung||"–")}</td>
+    <td style="color:#64748b">${x.regal_nr?mepEsc(x.regal_nr):"–"}</td>
     <td style="text-align:right">${mepEur(x.umsatz)}</td>
     <td style="text-align:right">${mepPrz(x.umsatzsp)}</td>
     <td style="text-align:right">${mepPrz(x.nettoertragssp)}</td>
-    <td style="text-align:right"><b>${mepEur(x.f.verlust)}</b></td>
-    <td style="text-align:right"><b style="color:#b91c1c">${mepPrz(x.f.anteil)}</b></td></tr>`; });
+    <td style="text-align:right">${x.f?`<b>${mepEur(x.f.verlust)}</b>`:'<span style="color:#15803d">kein Verlust</span>'}</td>
+    <td style="text-align:right">${x.f?`<b style="color:${klein?"#94a3b8":"#b91c1c"}">${mepPrz(x.f.anteil)}</b>`:"–"}</td></tr>`; });
   mepModal(`Flop-Artikel · Spannenverlust`, h+`</tbody></table>
     ${l.length>300?`<div class="small" style="margin-top:8px">Angezeigt sind die ersten 300.</div>`:""}`);
 }
