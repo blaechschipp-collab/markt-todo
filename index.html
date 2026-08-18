@@ -546,7 +546,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.18-9"; // Vier feste Zeitraeume ueberall, Scanquote gerechnet statt gelesen und schlechteste oben
+const APP_VERSION = "v2026.08.18-10"; // Zeitwahl NUR im mehr-Fenster, Kachel nur mit Hinweis; Ausfall durch entferntes mepZeit behoben
 const APP_VERSION_DATE = "17.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -6526,23 +6526,8 @@ function mepZeitraumGrenzen(id){
   const j=new Date(heute.getFullYear(),0,1);
   return {von:iso(j), bis:iso(heute), text:"laufendes Jahr"};
 }
-async function mepSetzeZeitraum(id){
-  mepZeitraum=id;
-  await Promise.all([mepScanLaden(), mepBestandLaden()]);
-  mepZeichnen();
-}
-function mepZeitraumLeiste(hinweis){
-  const g=mepZeitraumGrenzen(mepZeitraum);
-  const de=s=>s.split("-").reverse().join(".");
-  return `<div style="display:flex;gap:7px;align-items:center;margin:9px 0 4px;flex-wrap:wrap">
-    ${MEP_ZEITRAEUME.map(z=>{const an=z.id===mepZeitraum;
-      return `<button onclick="mepSetzeZeitraum('${z.id}')"
-        style="border:1px solid ${an?"#004f9e":"#dbe6f3"};background:${an?"#004f9e":"#fff"};
-        color:${an?"#fff":"#334155"};border-radius:7px;padding:4px 11px;font-size:12px;
-        font-weight:${an?"700":"500"};cursor:pointer">${z.text}</button>`;}).join("")}
-    <span class="small" style="margin-left:2px">${de(g.von)}–${de(g.bis)}</span>
-  </div>${hinweis?`<div class="small" style="color:#b45309;margin-bottom:6px">${hinweis}</div>`:""}`;
-}
+/* Der Kachel-Weg der Zeitwahl (Knopfband + eigener Umschalter) ist
+   entfallen: Die Auswahl steht nur noch im "mehr"-Fenster. */
 /* Welche gelieferte Periode passt am besten zum gewaehlten Zeitraum, und wie
    ehrlich ist die Zuordnung? Gibt Schluessel und einen Hinweistext zurueck. */
 function mepPassendePeriode(quelle){
@@ -6565,8 +6550,8 @@ function mepPassendePeriode(quelle){
       `Der Bericht liefert diesen Zeitraum nicht. Gezeigt wird ${de(beste.von)}–${de(beste.bis)} – das ist, was vorliegt.`};
 }
 
+
 let mepPerioden={kennzahlen:[],artikel:[],spannen:[],abschriften:[]};
-let mepZeit={kennzahlen:null,artikel:null,spannen:null,flop:null,abschriften:null};
 
 function mepPeriodeSchluessel(p){ return p.von+"_"+p.bis; }
 /* mepPeriodeName ist mit der einheitlichen Zeitraumwahl entfallen. */
@@ -6583,25 +6568,31 @@ function mepPeriodeStandard(liste,kurz){
 }
 /* Die alte, an die gelieferten Perioden gebundene Leiste. Sie zeigt jetzt die
    vier festen Zeitraeume und stellt intern die passende Periode ein. */
-function mepZeitLeiste(quelle,feld){
-  const p=mepPassendePeriode(quelle);
-  if(p.schluessel) mepZeit[feld]=p.schluessel;
-  return mepZeitraumLeiste(p.hinweis);
+/* In der KACHEL steht nur, welcher Zeitraum gerade gilt - eine Zeile, kein
+   Knopfband. Die Auswahl gehoert in das "mehr"-Fenster; so war es von Anfang
+   an gesagt und ich hatte es falsch gebaut (korrigiert 18.08.2026).
+   Die Kachel ist der Ueberblick, das Fenster das Werkzeug. */
+function mepZeitraumHinweis(quelle){
+  const g=mepZeitraumGrenzen(mepZeitraum);
+  const de=s=>s.split("-").reverse().join(".");
+  const p=quelle?mepPassendePeriode(quelle):null;
+  return `<div class="small" style="margin:6px 0 2px">Zeitraum: <b>${g.text}</b>
+    (${de(g.von)}–${de(g.bis)}) · änderbar unter „mehr“${
+    p&&p.hinweis?` <span style="color:#b45309">${p.hinweis}</span>`:""}</div>`;
 }
-function mepSetzeZeit(feld,schluessel){ mepZeit[feld]=schluessel; mepZeichnen(); }
+/* mepSetzeZeit entfaellt - die Auswahl laeuft ueber mepZeitraum. */
 /* Im Absprung reicht mepZeichnen() nicht: Das Modal liegt darueber und wuerde
    den alten Stand weiter anzeigen. Deshalb wird es nach dem Umschalten neu
    aufgebaut (18.08.2026). */
 function mepZeitLeisteModal(quelle,feld,fn){
-  const p=mepPassendePeriode(quelle);
-  if(p.schluessel) mepZeit[feld]=p.schluessel;
+  const p=quelle?mepPassendePeriode(quelle):{hinweis:""};
   const g=mepZeitraumGrenzen(mepZeitraum);
   const de=s=>s.split("-").reverse().join(".");
   return `<div style="display:flex;gap:7px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
     ${MEP_ZEITRAEUME.map(z=>{const an=z.id===mepZeitraum;
       return `<button onclick="mepSetzeZeitraumModal('${z.id}','${fn}')"
         style="border:1px solid ${an?"#004f9e":"#dbe6f3"};background:${an?"#004f9e":"#fff"};
-        color:${an?"#fff":"#334155"};border-radius:7px;padding:4px 11px;font-size:12px;
+        color:${an?"#fff":"#334155"};border-radius:7px;padding:5px 12px;font-size:12.5px;
         font-weight:${an?"700":"500"};cursor:pointer">${z.text}</button>`;}).join("")}
     <span class="small" style="margin-left:2px">${de(g.von)}–${de(g.bis)}</span>
   </div>
@@ -6626,10 +6617,19 @@ function mepWochenkopf(){
     return d.toLocaleDateString("de-DE");};
   return `${de(p.von)}–${de(p.bis)} · Vj ${vj(p.von)}–${vj(p.bis)}`;
 }
+/* Passt ein Datensatz zum gewaehlten Zeitraum?
+   Ohne Nebenwirkung: die passende Berichtsperiode wird hier ermittelt, nicht
+   beim Zeichnen gesetzt. Vorher hat das Rendern einer Kachel die Auswahl
+   still veraendert - dadurch zeigten Kachel und "mehr" verschiedene Staende
+   (korrigiert 18.08.2026). */
 function mepZeitPasst(x,feld){
-  const s=mepZeit[feld];
-  if(!s) return true;
-  return (x.periode_von+"_"+x.periode_bis)===s;
+  const quelle={flop:"artikel",artikel:"artikel",spannen:"spannen",
+                abschriften:"abschriften",kennzahlen:"kennzahlen"}[feld]||feld;
+  const p=mepPassendePeriode(quelle);
+  /* Ohne passende Periode NICHTS durchlassen. Ein "true" haette alle Perioden
+     gleichzeitig gezaehlt - Umsaetze doppelt und dreifach (Durchsicht 18.08.). */
+  if(!p.schluessel) return false;
+  return (x.periode_von+"_"+x.periode_bis)===p.schluessel;
 }
 
 const mepEur=n=>n==null?"–":Math.round(n).toLocaleString("de-DE")+" €";
@@ -6698,9 +6698,8 @@ function mepAbmelden(){
   mepKz=[]; mepArtikel=[]; mepDispo=[]; mepAufgaben=[]; mepMetrics=[];
   mepSpanne=[]; mepBefunde=[]; mepBestand=[]; mepBestandStand={}; mepScan=[];
   mepRegale={}; mepWerbung=[]; mepWerbungDateien=[]; mepWerbungWochen=[];
-  mepWerbungErledigt={}; mepWerbungKW=null; mepScanWochen=[]; mepScanZeit=null;
+  mepWerbungErledigt={}; mepWerbungKW=null; mepScanWochen=[];
   mepPerioden={kennzahlen:[],artikel:[],spannen:[],abschriften:[]};
-  mepZeit={kennzahlen:null,artikel:null,spannen:null,flop:null,abschriften:null};
   mepErledigtHeute=new Set(); mepStand=null;
   mepArtAbteilung=""; mepArtRegal=""; mepFlopAbteilung=""; mepFlopRegal="";
   document.getElementById("mepTor").style.display="block";
@@ -6882,16 +6881,12 @@ async function mepNeuLaden(){
      zeigt ein Klick auf "letzte Woche" eine leere Tabelle und man haelt es
      fuer einen Fehler (geprueft am 18.08.2026). */
   mepPerioden.abschriften=sammle(mepKz.filter(x=>x.kennzahl==="Abschriften VK [br]"));
-  if(!mepZeit.kennzahlen) mepZeit.kennzahlen=mepPeriodeStandard(mepPerioden.kennzahlen,false);
-  if(!mepZeit.artikel)    mepZeit.artikel   =mepPeriodeStandard(mepPerioden.artikel,false);
-  if(!mepZeit.spannen)    mepZeit.spannen   =mepPeriodeStandard(mepPerioden.spannen,false);
-  /* Zwei getrennte Zeitbezuege in der Flop-Kachel, weil zwei verschiedene
-     Quellen dahinterstehen: die gemeldeten Abschriften kommen aus den
-     Kennzahlen (Jahr und Woche), die Artikelwerte aus dem Artikelbericht
-     (bisher nur Quartal). Ein gemeinsamer Filter haette bei "letzte Woche"
-     die Artikelliste leer gelassen - der Fehler war am 18.08. drin. */
-  if(!mepZeit.flop)       mepZeit.flop      =mepPeriodeStandard(mepPerioden.artikel,true);
-  if(!mepZeit.abschriften)mepZeit.abschriften=mepPeriodeStandard(mepPerioden.abschriften,true);
+  /* Hier standen bis zum 18.08.2026 fuenf Zuweisungen an ein Objekt mepZeit,
+     das es nach dem Umbau nicht mehr gibt. Der Fehler haette die ganze Seite
+     lahmgelegt: mepNeuLaden waere an dieser Stelle abgebrochen, noch vor dem
+     Zeichnen - die Kacheln waeren dauerhaft auf "Zahlen werden geladen"
+     stehengeblieben. Welche Periode zu welchem Zeitraum passt, entscheidet
+     jetzt mepPassendePeriode beim Lesen, nicht eine gemerkte Auswahl. */
   await Promise.all([mepWerbungLaden(), mepLogsLaden(), mepVerwaltungLaden(),
                      mepScanLaden(), mepBestandLaden()]);
   const jahr=mepKz.filter(x=>x.periode_von==="2026-01-01");
@@ -7435,7 +7430,7 @@ function mepKachelBestand(){
   };
   return `<div class="box"><h2>Bestandsverlauf über die Woche
     ${mepAbsprung("mepZeigeBestand()","alle Abteilungen")}</h2>
-    ${mepZeitraumLeiste("")}
+    ${mepZeitraumHinweis()}
     <div class="small">Sortiert nach dem <b>Bestandspotenzial</b>: dem Anteil des Bestands, der länger
       liegt, als der Lieferrhythmus es verlangt – gemessen am Wochenabgang. 1.000 € Überhang sind bei
       10.000 € Wochenabgang 10 %, bei 2.000 € dagegen 50 %.
@@ -7501,7 +7496,8 @@ function mepBestandTage(abteilung,markt){
 }
 function mepZeigeBestand(){
   const l=mepBestandMuster().sort((a,b)=>(b.relativ??0)-(a.relativ??0));
-  let h=`<div class="small" style="margin-bottom:12px">${mepMk()}${mepBl()?" · "+mepEsc(mepBl()):""} ·
+  let h=`${mepZeitLeisteModal(null,null,"mepZeigeBestand")}
+    <div class="small" style="margin-bottom:12px">${mepMk()}${mepBl()?" · "+mepEsc(mepBl()):""} ·
       ${l.length} Abteilungen. Oben die Wochenform, darunter der tatsächliche Verlauf der letzten
       Wochen. <b style="color:#b45309">Braun</b> Aufbau, <b style="color:#15803d">grün</b> Abbau,
       <b style="color:#b91c1c">rot umrandet</b>: der Aufbau vom Wochenanfang steht am Freitag oder
@@ -7562,7 +7558,7 @@ function mepZeigeBestand(){
    Abstand zwischen 99,9 und 99,0 sieht winzig aus, ist aber der Faktor zehn
    an Handeingaben. Deshalb steht neben der Quote immer die Zahl der
    Handeingaben - die ist das, was Zeit kostet und Fehler macht. */
-let mepScan=[], mepScanWochen=[], mepScanZeit=null;
+let mepScan=[], mepScanWochen=[];
 /* Scanquote ueber den gewaehlten Zeitraum. Der Bericht kommt je Woche;
    fuer Monat, Quartal und Jahr werden die Wochen zusammengezaehlt.
 
@@ -7605,15 +7601,10 @@ async function mepScanLaden(){
 }
 /* mepSetzeScanZeit und mepZeitLeisteAlt sind mit der einheitlichen
    Zeitraumwahl entfallen - die Auswahl laeuft jetzt ueber mepSetzeZeitraum. */
-function mepScanLeiste(){
-  return mepZeitraumLeiste(mepScanWochen.length
-    ? (mepScanWochen.length>1?`Zusammengezählt aus ${mepScanWochen.length} Wochenberichten.`:"")
-    : "Für diesen Zeitraum liegt kein Wochenbericht vor.");
-}
 function mepKachelScanquote(){
   if(mepIstHausmeister()||mepBl()) return "";   // Kassenthema, kein Bereichsthema
   if(!mepScan.length){
-    return `<div class="box"><h2>Scanquote</h2>${mepScanLeiste()}
+    return `<div class="box"><h2>Scanquote</h2>${mepZeitraumHinweis()}
       <div class="small" style="padding:10px 0;font-style:italic">Für diesen Zeitraum liegen keine
       Zahlen vor. Der Bericht „Scanquote“ wird im Admin-Bereich eingespielt.</div></div>`;
   }
@@ -7629,7 +7620,7 @@ function mepKachelScanquote(){
   return `<div class="box"><h2>Scanquote${mepAlleMaerkte()?" · alle Märkte":""}
     <span style="font-weight:normal;font-size:14px;color:#64748b">${mepZahl(mepScan.length)} Kassen</span>
     ${mepAbsprung("mepZeigeScanquote()","alle Kassierer")}</h2>
-    ${mepScanLeiste()}
+    ${mepZeitraumHinweis()}
     <div class="small">Anteil gescannter Positionen. Die fünf schwächsten Kassen mit mindestens
       200 Positionen – darunter ist die Quote Zufall.
       ${gesamtQuote!=null?`Insgesamt <b>${mepPrz(gesamtQuote)}</b> bei
@@ -7659,7 +7650,8 @@ function mepZeigeScanquote(){
   const farbe=q=>q==null?"#08213f":q>=99.8?"#15803d":q>=99.4?"#b45309":"#b91c1c";
   const g=mepZeitraumGrenzen(mepZeitraum);
   const von=g.von, bis=g.bis;
-  let h=`<div class="small" style="margin-bottom:10px">${mepAlleMaerkte()?"alle Märkte":mepMk()} ·
+  let h=`${mepZeitLeisteModal(null,null,"mepZeigeScanquote")}
+    <div class="small" style="margin-bottom:10px">${mepAlleMaerkte()?"alle Märkte":mepMk()} ·
       ${von?von.split("-").reverse().join("."):""}–${bis?bis.split("-").reverse().join("."):""} ·
       ${l.length} Kassen, schwächste oben.</div>
     <table style="width:100%;border-collapse:collapse;font-size:13.5px">${
@@ -7826,9 +7818,16 @@ function mepZeigeKennzahlen(){
     return `<button onclick="mepSetzeVerlauf(${w})" style="border:1px solid ${an?"#004f9e":"#dbe6f3"};
       background:${an?"#004f9e":"#fff"};color:${an?"#fff":"#334155"};border-radius:7px;
       padding:4px 11px;font-size:12px;font-weight:${an?"700":"500"};cursor:pointer">${t}</button>`;};
-  const leiste=`<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px">
-    ${knopf(4,"letzte 4 Wochen")}${knopf(8,"letzte 8 Wochen")}${knopf(13,"letztes Quartal")}
-    ${knopf(0,"laufendes Jahr")}
+  /* Hier gibt es bewusst ZWEI Auswahlen, und sie werden auch so beschriftet:
+     oben der Zeitraum wie in allen anderen Berichten, darunter die Laenge der
+     Kurve. Ein Verlauf ueber vier Wochen sagt etwas anderes als einer ueber
+     ein Jahr - beides nebeneinander unbeschriftet war verwirrend
+     (Durchsicht 18.08.2026). */
+  const leiste=mepZeitLeisteModal(null,null,"mepZeigeKennzahlen")
+    +`<div class="small" style="margin-bottom:4px">Länge der Kurve:</div>
+     <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px">
+    ${knopf(4,"4 Wochen")}${knopf(8,"8 Wochen")}${knopf(13,"13 Wochen")}
+    ${knopf(0,"alle")}
     <span class="small" style="margin-left:4px">${gesamt} Wochen liegen vor.</span></div>`;
   if(r.length<3){ mepModal("Verlauf · Umsatz",
     leiste+"<div class=\"small\">Zu wenige Wochen für einen Verlauf.</div>"); return; }
@@ -7998,7 +7997,7 @@ function mepKachelKennzahlen(){
         jahr.uA>mJahr.uA?"läuft besser":jahr.uA<mJahr.uA?"läuft schlechter":"läuft gleich"}.` : "";
   return `<div class="box"><h2>Kennzahlen · ${mepEsc(B||"Ganzer Markt")}
     ${mepAbsprung("mepZeigeKennzahlen()","Verläufe")}</h2>
-    ${mepZeitraumLeiste("Die Kennzahlen kommen als Jahres- und Wochenwert; beide Spalten stehen unten immer nebeneinander.")}
+    ${mepZeitraumHinweis()}
     <div class="small">Grün heißt: besser als der Markt insgesamt. Rot: schlechter.
       ${B?"":"Ohne Bereichsauswahl ist der Vorjahresvergleich selbst der Maßstab."}</div>
 
@@ -8074,7 +8073,7 @@ function mepKachelSpannen(){
       :`<span style="color:#94a3b8">${mepEur(v)}</span>`;
   return `<div class="box"><h2>Spannenanalyse · wohin die Spanne geht
     ${mepAbsprung("mepZeigeSpannen()","mehr")}</h2>
-    ${mepZeitLeiste("spannen","spannen")}
+    ${mepZeitraumHinweis("spannen")}
     <div class="small">${per} · Beträge zu <b>Einstands</b>preisen.
       Abschriften heißt: Ware wurde entwertet, ist aber erfasst.
       Inventur heißt: Ware ist nicht mehr da – Fehlbuchung, unbelegte Umlagerung,
@@ -8229,7 +8228,7 @@ function mepKachelFlop(){
     <h2>Flop-Artikel · wo Spanne verloren geht
       <span style="font-weight:normal;font-size:14px;color:#64748b">${mepZahl(l.length)} Artikel</span>
       ${mepAbsprung("mepZeigeFlop()","mehr")}</h2>
-    ${mepZeitLeiste("artikel","flop")}
+    ${mepZeitraumHinweis()}
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;align-items:center">
       ${knopf(mepFlopMass==="anteil","mepSetzeFlopMass('anteil')","Anteil am VK brutto")}
       ${knopf(mepFlopMass==="euro","mepSetzeFlopMass('euro')","Betrag in Euro")}
@@ -8243,7 +8242,7 @@ function mepKachelFlop(){
     </div>
     <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b;margin:14px 0 0">
       Gemeldete Abschriften je Abteilung</div>
-    ${mepZeitLeiste("abschriften","abschriften")}
+    ${mepZeitraumHinweis("abschriften")}
     ${abschr.length?`
     <table style="width:100%;border-collapse:collapse;font-size:13.5px">
       <thead><tr style="text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">
@@ -8358,7 +8357,7 @@ function mepKachelArtikel(){
     border-radius:13px;padding:4px 12px;font-size:12px;cursor:pointer;font-weight:bold">${text}</button>`;
   return `<div class="box"><h2>${top?"Top":"Flop"}-Artikel
     ${mepAbsprung("mepZeigeArtikel()","mehr")}</h2>
-    ${mepZeitLeiste("artikel","artikel")}
+    ${mepZeitraumHinweis()}
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;align-items:center">
       ${G.map(([k,t])=>knopf(mepSort===k,`mepSetzeSort('${k}')`,t)).join("")}
       <span style="width:14px"></span>
