@@ -546,7 +546,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.18-8"; // Bestandspotenzial, Durchsicht: Regalzuordnung wirksam, Perioden aus Daten, Zeitfilter durchgaengig
+const APP_VERSION = "v2026.08.18-9"; // Vier feste Zeitraeume ueberall, Scanquote gerechnet statt gelesen und schlechteste oben
 const APP_VERSION_DATE = "17.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -6473,29 +6473,103 @@ let mepRegale={};   // sap_artnr -> {regal_nr, zweitplatzierung}, Stand des letz
    an dieser Stelle etwas geaendert werden muss.
    Ein Filter, der einen Monat vorgaukelt und in Wahrheit ein Quartal zeigt,
    waere die schlechtere Loesung: man wuerde ihm glauben. */
+/* ==========================================================================
+   EINHEITLICHE ZEITRAUMWAHL - Neubau 18.08.2026
+   ==========================================================================
+   Vorgabe Benedikt Paul, nach mehrfacher Meldung: In JEDEM Bericht sollen
+   letzte Woche, letzter Monat, letztes Quartal und laufendes Jahr waehlbar
+   sein - immer die vier, immer sichtbar.
+
+   Mein bisheriger Ansatz war falsch gedacht: Ich habe nur die Zeitraeume
+   angeboten, die der jeweilige Bericht mitliefert. Beim Artikelbericht war
+   das genau einer (das Quartal), bei der Spannenanalyse genau einer (die
+   Woche) - also erschien ein einzelner Knopf oder gar keiner, und es sah aus
+   wie "keine Auswahl vorhanden". Fuer den Anwender ist das nicht zu
+   unterscheiden von "nicht eingebaut".
+
+   Jetzt stehen die vier Zeitraeume fest. Was ein Bericht dafuer liefern kann,
+   entscheidet er selbst:
+     - Taegliche Daten (Bestandsverlauf) werden auf den Zeitraum gerechnet.
+     - Wochendaten (Scanquote) werden ueber die Wochen des Zeitraums summiert.
+     - Berichte mit fester Periode (Kennzahlen, Spannen, Artikel) nehmen die
+       Periode, die dem Zeitraum am naechsten kommt - und schreiben dazu,
+       welcher Zeitraum tatsaechlich dahintersteht.
+   So ist die Auswahl ueberall gleich, und niemand haelt eine Quartalszahl
+   fuer einen Wochenwert. */
+const MEP_ZEITRAEUME=[
+  {id:"woche",   text:"letzte Woche"},
+  {id:"monat",   text:"letzter Monat"},
+  {id:"quartal", text:"letztes Quartal"},
+  {id:"jahr",    text:"laufendes Jahr"}
+];
+let mepZeitraum="jahr";
+function mepZeitraumGrenzen(id){
+  const heute=new Date(); heute.setHours(0,0,0,0);
+  const iso=d=>formatDate(d);
+  if(id==="woche"){
+    const mo=new Date(heute); const wt=(mo.getDay()+6)%7;   // 0=Mo
+    mo.setDate(mo.getDate()-wt-7);                           // Montag der Vorwoche
+    const so=new Date(mo); so.setDate(mo.getDate()+6);
+    return {von:iso(mo), bis:iso(so), text:"letzte Woche"};
+  }
+  if(id==="monat"){
+    const erst=new Date(heute.getFullYear(), heute.getMonth()-1, 1);
+    const letzt=new Date(heute.getFullYear(), heute.getMonth(), 0);
+    return {von:iso(erst), bis:iso(letzt), text:"letzter Monat"};
+  }
+  if(id==="quartal"){
+    const q=Math.floor(heute.getMonth()/3);                  // 0..3
+    const erst=new Date(heute.getFullYear(), (q-1)*3, 1);
+    const letzt=new Date(heute.getFullYear(), q*3, 0);
+    return {von:iso(erst), bis:iso(letzt), text:"letztes Quartal"};
+  }
+  const j=new Date(heute.getFullYear(),0,1);
+  return {von:iso(j), bis:iso(heute), text:"laufendes Jahr"};
+}
+async function mepSetzeZeitraum(id){
+  mepZeitraum=id;
+  await Promise.all([mepScanLaden(), mepBestandLaden()]);
+  mepZeichnen();
+}
+function mepZeitraumLeiste(hinweis){
+  const g=mepZeitraumGrenzen(mepZeitraum);
+  const de=s=>s.split("-").reverse().join(".");
+  return `<div style="display:flex;gap:7px;align-items:center;margin:9px 0 4px;flex-wrap:wrap">
+    ${MEP_ZEITRAEUME.map(z=>{const an=z.id===mepZeitraum;
+      return `<button onclick="mepSetzeZeitraum('${z.id}')"
+        style="border:1px solid ${an?"#004f9e":"#dbe6f3"};background:${an?"#004f9e":"#fff"};
+        color:${an?"#fff":"#334155"};border-radius:7px;padding:4px 11px;font-size:12px;
+        font-weight:${an?"700":"500"};cursor:pointer">${z.text}</button>`;}).join("")}
+    <span class="small" style="margin-left:2px">${de(g.von)}–${de(g.bis)}</span>
+  </div>${hinweis?`<div class="small" style="color:#b45309;margin-bottom:6px">${hinweis}</div>`:""}`;
+}
+/* Welche gelieferte Periode passt am besten zum gewaehlten Zeitraum, und wie
+   ehrlich ist die Zuordnung? Gibt Schluessel und einen Hinweistext zurueck. */
+function mepPassendePeriode(quelle){
+  const liste=mepPerioden[quelle]||[];
+  if(!liste.length) return {schluessel:null, hinweis:"Für diesen Bericht liegen keine Werte vor."};
+  const g=mepZeitraumGrenzen(mepZeitraum);
+  const zielVon=new Date(g.von), zielBis=new Date(g.bis);
+  const zielTage=Math.round((zielBis-zielVon)/86400000)+1;
+  let beste=null, besteNaehe=Infinity;
+  liste.forEach(p=>{
+    const tage=Math.round((new Date(p.bis)-new Date(p.von))/86400000)+1;
+    const naehe=Math.abs(tage-zielTage);
+    if(naehe<besteNaehe){ besteNaehe=naehe; beste=p; }
+  });
+  const de=s=>s.split("-").reverse().join(".");
+  const tage=Math.round((new Date(beste.bis)-new Date(beste.von))/86400000)+1;
+  const passt=Math.abs(tage-zielTage)<=3;
+  return {schluessel:mepPeriodeSchluessel(beste),
+    hinweis: passt ? "" :
+      `Der Bericht liefert diesen Zeitraum nicht. Gezeigt wird ${de(beste.von)}–${de(beste.bis)} – das ist, was vorliegt.`};
+}
+
 let mepPerioden={kennzahlen:[],artikel:[],spannen:[],abschriften:[]};
 let mepZeit={kennzahlen:null,artikel:null,spannen:null,flop:null,abschriften:null};
 
 function mepPeriodeSchluessel(p){ return p.von+"_"+p.bis; }
-function mepPeriodeName(p){
-  const von=new Date(p.von+"T00:00:00"), bis=new Date(p.bis+"T00:00:00");
-  const tage=Math.round((bis-von)/86400000)+1;
-  const jetzt=new Date(); jetzt.setHours(0,0,0,0);
-  const de=d=>d.toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"});
-  const monate=["Januar","Februar","März","April","Mai","Juni","Juli","August",
-                "September","Oktober","November","Dezember"];
-  if(tage<=8){
-    const abstand=Math.round((jetzt-bis)/86400000);
-    return (abstand<=8?"letzte Woche":"Woche")+" · "+de(von)+"–"+de(bis);
-  }
-  if(tage>=360) return "laufendes Jahr · ab "+de(von);
-  if(tage>=85&&tage<=95) return "Quartal · "+monate[von.getMonth()].slice(0,3)+"–"+monate[bis.getMonth()].slice(0,3);
-  if(tage>=28&&tage<=31){
-    const lauf=von.getMonth()===jetzt.getMonth()&&von.getFullYear()===jetzt.getFullYear();
-    return (lauf?"aktueller Monat · ":"Monat · ")+monate[von.getMonth()];
-  }
-  return de(von)+"–"+de(bis);
-}
+/* mepPeriodeName ist mit der einheitlichen Zeitraumwahl entfallen. */
 /* Vorauswahl: der laengste vorhandene Zeitraum ist "laufendes Jahr" im Sinne
    der Vorgabe. Fuer die Flop-Artikel ist die kuerzeste, juengste Periode
    gemeint - dort war "letzte Woche" gewuenscht. */
@@ -6507,50 +6581,37 @@ function mepPeriodeStandard(liste,kurz){
   });
   return mepPeriodeSchluessel(sortiert[0]);
 }
+/* Die alte, an die gelieferten Perioden gebundene Leiste. Sie zeigt jetzt die
+   vier festen Zeitraeume und stellt intern die passende Periode ein. */
 function mepZeitLeiste(quelle,feld){
-  const liste=mepPerioden[quelle]||[];
-  /* Frueher kam hier bei fehlenden Perioden eine leere Zeichenkette zurueck -
-     die Auswahl verschwand dann kommentarlos, und es sah aus, als haette ich
-     sie nie eingebaut (dreimal gemeldet, 18.08.2026). Jetzt steht immer da,
-     welcher Zeitraum gilt oder warum keiner angeboten wird. */
-  if(!liste.length) return `<div class="small" style="margin:8px 0 2px;color:#94a3b8">
-    Kein Zeitraum in den Daten – für diese Auswahl liegen keine Berichtswerte vor.</div>`;
-  const aktiv=mepZeit[feld];
-  const sortiert=liste.slice().sort((a,b)=>
-    (new Date(b.bis)-new Date(a.bis))||(new Date(a.von)-new Date(b.von)));
-  return `<div style="display:flex;gap:7px;align-items:center;margin:9px 0 2px;flex-wrap:wrap">
-    ${sortiert.map(p=>{const s=mepPeriodeSchluessel(p), an=s===aktiv;
-      return `<button onclick="mepSetzeZeit('${feld}','${s}')"
-        style="border:1px solid ${an?"#004f9e":"#dbe6f3"};background:${an?"#004f9e":"#fff"};
-        color:${an?"#fff":"#334155"};border-radius:7px;padding:4px 11px;font-size:12px;
-        font-weight:${an?"700":"500"};cursor:pointer">${mepEsc(mepPeriodeName(p))}</button>`;}).join("")}
-    ${liste.length<3?`<span class="small" style="margin-left:2px">Mehr Zeiträume gibt es erst,
-      wenn die Berichte auch monatlich kommen.</span>`:""}
-  </div>`;
+  const p=mepPassendePeriode(quelle);
+  if(p.schluessel) mepZeit[feld]=p.schluessel;
+  return mepZeitraumLeiste(p.hinweis);
 }
 function mepSetzeZeit(feld,schluessel){ mepZeit[feld]=schluessel; mepZeichnen(); }
 /* Im Absprung reicht mepZeichnen() nicht: Das Modal liegt darueber und wuerde
    den alten Stand weiter anzeigen. Deshalb wird es nach dem Umschalten neu
    aufgebaut (18.08.2026). */
-function mepSetzeZeitModal(feld,schluessel,fn){
-  mepZeit[feld]=schluessel;
-  mepZeichnen();
-  if(typeof window[fn]==="function") window[fn]();
-}
 function mepZeitLeisteModal(quelle,feld,fn){
-  const liste=mepPerioden[quelle]||[];
-  if(!liste.length) return `<div class="small" style="margin-bottom:8px">Für diesen Bericht liegt
-    bisher nur ein Zeitraum vor.</div>`;
-  const aktiv=mepZeit[feld];
-  const sortiert=liste.slice().sort((a,b)=>
-    (new Date(b.bis)-new Date(a.bis))||(new Date(a.von)-new Date(b.von)));
-  return `<div style="display:flex;gap:7px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
-    ${sortiert.map(p=>{const s=mepPeriodeSchluessel(p), an=s===aktiv;
-      return `<button onclick="mepSetzeZeitModal('${feld}','${s}','${fn}')"
+  const p=mepPassendePeriode(quelle);
+  if(p.schluessel) mepZeit[feld]=p.schluessel;
+  const g=mepZeitraumGrenzen(mepZeitraum);
+  const de=s=>s.split("-").reverse().join(".");
+  return `<div style="display:flex;gap:7px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+    ${MEP_ZEITRAEUME.map(z=>{const an=z.id===mepZeitraum;
+      return `<button onclick="mepSetzeZeitraumModal('${z.id}','${fn}')"
         style="border:1px solid ${an?"#004f9e":"#dbe6f3"};background:${an?"#004f9e":"#fff"};
         color:${an?"#fff":"#334155"};border-radius:7px;padding:4px 11px;font-size:12px;
-        font-weight:${an?"700":"500"};cursor:pointer">${mepEsc(mepPeriodeName(p))}</button>`;}).join("")}
-  </div>`;
+        font-weight:${an?"700":"500"};cursor:pointer">${z.text}</button>`;}).join("")}
+    <span class="small" style="margin-left:2px">${de(g.von)}–${de(g.bis)}</span>
+  </div>
+  ${p.hinweis?`<div class="small" style="color:#b45309;margin-bottom:8px">${p.hinweis}</div>`:""}`;
+}
+async function mepSetzeZeitraumModal(id,fn){
+  mepZeitraum=id;
+  await Promise.all([mepScanLaden(), mepBestandLaden()]);
+  mepZeichnen();
+  if(typeof window[fn]==="function") window[fn]();
 }
 /* Der Spaltenkopf der Wochenspalte stand bis 18.08. fest im Text - beim
    naechsten Berichtswechsel haette dort ein falsches Datum gestanden, ohne
@@ -7230,9 +7291,11 @@ let mepBestand=[], mepBestandStand={};
 async function mepBestandLaden(){
   mepBestand=[]; mepBestandStand={};
   try{
+    // Bestandsverlauf auf den gewaehlten Zeitraum begrenzen
+    const g=mepZeitraumGrenzen(mepZeitraum);
     const d=await fetchAllPaged(()=>mepFiltMarkt(db.from("bestandsverlauf")
       .select("markt,abteilung,tag,anfangsbestand_ek,zugang_ek,abgang_ek,veraenderung_ek"),"markt")
-      .gte("tag","2026-01-01").order("tag").order("abteilung"));
+      .gte("tag",g.von).lte("tag",g.bis).order("tag").order("abteilung"));
     mepBestand=d||[];
     /* Fortgeschriebener Bestand und Reichweite kommen aus der Sicht
        bestand_fortgeschrieben - dort wird der Bestand vom letzten gemeldeten
@@ -7372,6 +7435,7 @@ function mepKachelBestand(){
   };
   return `<div class="box"><h2>Bestandsverlauf über die Woche
     ${mepAbsprung("mepZeigeBestand()","alle Abteilungen")}</h2>
+    ${mepZeitraumLeiste("")}
     <div class="small">Sortiert nach dem <b>Bestandspotenzial</b>: dem Anteil des Bestands, der länger
       liegt, als der Lieferrhythmus es verlangt – gemessen am Wochenabgang. 1.000 € Überhang sind bei
       10.000 € Wochenabgang 10 %, bei 2.000 € dagegen 50 %.
@@ -7499,41 +7563,52 @@ function mepZeigeBestand(){
    an Handeingaben. Deshalb steht neben der Quote immer die Zahl der
    Handeingaben - die ist das, was Zeit kostet und Fehler macht. */
 let mepScan=[], mepScanWochen=[], mepScanZeit=null;
+/* Scanquote ueber den gewaehlten Zeitraum. Der Bericht kommt je Woche;
+   fuer Monat, Quartal und Jahr werden die Wochen zusammengezaehlt.
+
+   NICHT der Mittelwert der Quoten, sondern die Quote aus den Summen: eine
+   Kasse mit 10.000 Positionen wiegt schwerer als eine mit 300.
+
+   Quote = 100 minus Anteil der Positionen ohne Artikelbezug (WG-Verkauf).
+   So rechnet der Bericht selbst - gegengeprueft am 18.08.2026 an Billigheim:
+   Kasse 4 mit 414 Positionen und 4 WG-Verkaeufen ergibt 99,03 %, genau der
+   Wert aus dem Bericht. Die gelieferte Spalte "Scanquote" wurde vom Parser
+   nie getroffen und war in allen 50 Zeilen leer - daher die Striche in jeder
+   Ansicht. Sie wird jetzt gerechnet und nicht mehr gelesen. */
 async function mepScanLaden(){
   mepScan=[]; mepScanWochen=[];
   try{
-    const {data:w}=await db.from("scanquote").select("periode_von,periode_bis")
-      .order("periode_von",{ascending:false}).limit(500);
-    const gesehen=new Set();
-    (w||[]).forEach(x=>{ const s=x.periode_von+"_"+x.periode_bis;
-      if(!gesehen.has(s)){ gesehen.add(s); mepScanWochen.push({von:x.periode_von,bis:x.periode_bis}); } });
-    mepScanWochen=mepScanWochen.slice(0,8);
-    if(!mepScanWochen.length) return;
-    if(!mepScanZeit||!mepScanWochen.some(p=>p.von+"_"+p.bis===mepScanZeit))
-      mepScanZeit=mepScanWochen[0].von+"_"+mepScanWochen[0].bis;
-    const [von,bis]=mepScanZeit.split("_");
-    // pos_scan gehoert mit dazu - die Spalte "gescannt" im Absprung zeigte
-    // sonst dauerhaft einen Strich (Durchsicht 18.08.2026).
-    let q=db.from("scanquote").select("markt,kassierer,quote,positionen,pos_scan,pos_manuell,pos_wdh,periode_von,periode_bis")
-      .eq("periode_von",von).eq("periode_bis",bis);
+    const g=mepZeitraumGrenzen(mepZeitraum);
+    let q=db.from("scanquote")
+      .select("markt,kassierer,quote,positionen,pos_scan,pos_manuell,pos_wdh,pos_wg,periode_von,periode_bis")
+      .gte("periode_von",g.von).lte("periode_bis",g.bis);
     if(!mepAlleMaerkte()) q=q.eq("markt",mepMk());
-    const {data}=await q.order("quote");
-    mepScan=data||[];
+    const {data}=await q;
+    const roh=data||[];
+    const gesehen=new Set();
+    roh.forEach(x=>{ const s=x.periode_von+"_"+x.periode_bis;
+      if(!gesehen.has(s)){ gesehen.add(s); mepScanWochen.push({von:x.periode_von,bis:x.periode_bis}); } });
+    const m={};
+    roh.forEach(x=>{
+      const k=x.markt+"|"+x.kassierer;
+      const a=m[k]=m[k]||{markt:x.markt,kassierer:x.kassierer,positionen:0,pos_scan:0,
+        pos_manuell:0,pos_wdh:0,pos_wg:0,wochen:0};
+      a.positionen+=Number(x.positionen||0); a.pos_scan+=Number(x.pos_scan||0);
+      a.pos_manuell+=Number(x.pos_manuell||0); a.pos_wdh+=Number(x.pos_wdh||0);
+      a.pos_wg+=Number(x.pos_wg||0); a.wochen++;
+    });
+    // Schlechteste Quote immer oben - in jeder Ansicht, auch in der Verwaltung
+    mepScan=Object.values(m).map(a=>({...a,
+      quote: a.positionen>0 ? 100-(a.pos_wg*100/a.positionen) : null}))
+      .sort((a,b)=>(a.quote==null?101:a.quote)-(b.quote==null?101:b.quote));
   }catch(err){ console.warn("Scanquote:",err); }
 }
-async function mepSetzeScanZeit(s){ mepScanZeit=s; await mepScanLaden(); mepZeichnen(); }
+/* mepSetzeScanZeit und mepZeitLeisteAlt sind mit der einheitlichen
+   Zeitraumwahl entfallen - die Auswahl laeuft jetzt ueber mepSetzeZeitraum. */
 function mepScanLeiste(){
-  if(mepScanWochen.length<1) return "";
-  return `<div style="display:flex;gap:7px;align-items:center;margin:9px 0 2px;flex-wrap:wrap">
-    ${mepScanWochen.map(p=>{const s=p.von+"_"+p.bis, an=s===mepScanZeit;
-      const de=d=>d.split("-").reverse().slice(0,2).join(".");
-      return `<button onclick="mepSetzeScanZeit('${s}')"
-        style="border:1px solid ${an?"#004f9e":"#dbe6f3"};background:${an?"#004f9e":"#fff"};
-        color:${an?"#fff":"#334155"};border-radius:7px;padding:4px 11px;font-size:12px;
-        font-weight:${an?"700":"500"};cursor:pointer">${de(p.von)}–${de(p.bis)}</button>`;}).join("")}
-    ${mepScanWochen.length<2?`<span class="small" style="margin-left:2px">Weitere Wochen kommen mit
-      jedem neuen Bericht dazu.</span>`:""}
-  </div>`;
+  return mepZeitraumLeiste(mepScanWochen.length
+    ? (mepScanWochen.length>1?`Zusammengezählt aus ${mepScanWochen.length} Wochenberichten.`:"")
+    : "Für diesen Zeitraum liegt kein Wochenbericht vor.");
 }
 function mepKachelScanquote(){
   if(mepIstHausmeister()||mepBl()) return "";   // Kassenthema, kein Bereichsthema
@@ -7582,7 +7657,8 @@ function mepKachelScanquote(){
 function mepZeigeScanquote(){
   const l=mepScan.slice().sort((a,b)=>(a.quote??100)-(b.quote??100));
   const farbe=q=>q==null?"#08213f":q>=99.8?"#15803d":q>=99.4?"#b45309":"#b91c1c";
-  const [von,bis]=(mepScanZeit||"_").split("_");
+  const g=mepZeitraumGrenzen(mepZeitraum);
+  const von=g.von, bis=g.bis;
   let h=`<div class="small" style="margin-bottom:10px">${mepAlleMaerkte()?"alle Märkte":mepMk()} ·
       ${von?von.split("-").reverse().join("."):""}–${bis?bis.split("-").reverse().join("."):""} ·
       ${l.length} Kassen, schwächste oben.</div>
@@ -7922,6 +7998,7 @@ function mepKachelKennzahlen(){
         jahr.uA>mJahr.uA?"läuft besser":jahr.uA<mJahr.uA?"läuft schlechter":"läuft gleich"}.` : "";
   return `<div class="box"><h2>Kennzahlen · ${mepEsc(B||"Ganzer Markt")}
     ${mepAbsprung("mepZeigeKennzahlen()","Verläufe")}</h2>
+    ${mepZeitraumLeiste("Die Kennzahlen kommen als Jahres- und Wochenwert; beide Spalten stehen unten immer nebeneinander.")}
     <div class="small">Grün heißt: besser als der Markt insgesamt. Rot: schlechter.
       ${B?"":"Ohne Bereichsauswahl ist der Vorjahresvergleich selbst der Maßstab."}</div>
 
@@ -7997,6 +8074,7 @@ function mepKachelSpannen(){
       :`<span style="color:#94a3b8">${mepEur(v)}</span>`;
   return `<div class="box"><h2>Spannenanalyse · wohin die Spanne geht
     ${mepAbsprung("mepZeigeSpannen()","mehr")}</h2>
+    ${mepZeitLeiste("spannen","spannen")}
     <div class="small">${per} · Beträge zu <b>Einstands</b>preisen.
       Abschriften heißt: Ware wurde entwertet, ist aber erfasst.
       Inventur heißt: Ware ist nicht mehr da – Fehlbuchung, unbelegte Umlagerung,
