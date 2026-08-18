@@ -615,7 +615,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.18-21"; // Handy: Unterreiter, Adminknoepfe, Befundkopf brechen um
+const APP_VERSION = "v2026.08.18-22"; // Dispo: Info-PDFs gelten nicht mehr als Fehlschlag
 const APP_VERSION_DATE = "18.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -4701,6 +4701,7 @@ async function uploadDispoPdfs(){
   msg.innerHTML = "Lese PDFs ...";
   const allInserts = [];
   const debug = [];
+  let dokumente = 0;      // als Download hinterlegte Info-PDFs (Dashboard, WE-Prognose)
   for(const file of inputEl.files){
     const ctx = dispoParseFilename(file.name);
     if(!ctx){ debug.push(`⚠️ ${file.name}: Dateiname nicht erkannt – wird übersprungen.`); continue; }
@@ -4731,6 +4732,7 @@ async function uploadDispoPdfs(){
           public_url: publicUrl
         });
         if(ins.error) throw ins.error;
+        dokumente++;
         debug.push(`📥 ${file.name} → ${ctx.market} / ${DISPO_DOC_TYPE_LABEL[ctx.listType] || ctx.listType} hochgeladen`);
       }catch(e){
         debug.push(`❌ ${file.name}: Download-Datei – ${e.message || e}`);
@@ -4756,8 +4758,23 @@ async function uploadDispoPdfs(){
       debug.push(`❌ ${file.name}: Fehler beim Parsen – ${e.message || e}`);
     }
   }
+  /* Schlussmeldung, wenn keine Artikelzeilen entstanden sind (18.08.2026).
+
+     Vorher stand hier immer "Keine verwertbaren PDFs." - auch dann, wenn
+     Info-PDFs (Dashboard, WE-Prognose) sauber als Download hinterlegt
+     wurden. Die Meldung war damit gleichzeitig richtig und falsch, und die
+     geplante Aufgabe "marktdaten-hochladen" prueft genau auf diesen Satz:
+     sie wertete jeden solchen Lauf als Fehlschlag und liess die Dateien
+     liegen. Am 18.08. haben sich so 42 Dispo-PDFs gestapelt, obwohl alle
+     drei WE-Prognosen nachweislich hochgeladen waren.
+
+     Deshalb: Wenn Dokumente hinterlegt wurden, ist der Lauf erfolgreich -
+     und die Meldung darf keines der Reizwoerter enthalten. */
+  window.__dispoErgebnis = {dokumente, gruppen: allInserts.length, zeilen: 0};
   if(!allInserts.length){
-    msg.innerHTML = "Keine verwertbaren PDFs.<br>" + debug.join("<br>");
+    msg.innerHTML = (dokumente > 0
+      ? `<b>${dokumente} Info-PDF(s) als Download hinterlegt.</b> Artikelzeilen entstehen daraus nicht – Dashboard und WE-Prognose werden bewusst nur abgelegt.<br>`
+      : "Keine verwertbaren PDFs.<br>") + debug.join("<br>");
     return;
   }
   // Pro (market, listType) eine neue Upload-Sequenz vergeben
