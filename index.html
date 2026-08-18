@@ -444,6 +444,28 @@
       <div id="werbungPdfMsg" class="small" style="margin-top:8px"></div>
     </div>
     <div class="box admin admin-uploads">
+      <h2>🗄️ Regaldaten – Artikel je Regal (täglich)</h2>
+      <div class="small">EDEKA-BO Umsatzbericht mit dem Merkmal <strong>Regalnummer</strong> – eine Datei für alle vier Märkte.
+        Es zählt immer der aktuelle Stand: Für jeden Markt in der Datei wird die bisherige Zuordnung gelöscht und neu geschrieben.
+        Regalnummern ab <code>990000</code> sind Zweitplatzierungen.</div>
+      <input id="regalFile" type="file" accept=".xlsx,.xls,.xlsm" style="margin-top:10px" />
+      <div style="margin-top:10px">
+        <button class="btn-green" style="width:auto" onclick="uploadRegaldaten()">Excel einlesen &amp; speichern</button>
+      </div>
+      <div id="regalMsg" class="small" style="margin-top:8px"></div>
+    </div>
+    <div class="box admin admin-uploads">
+      <h2>🛒 Scanquote je Kassierer (wöchentlich)</h2>
+      <div class="small">EDEKA-BO Bericht „Scanquote“ – eine Datei für alle vier Märkte.
+        Der Zeitraum wird aus dem Blatt „Filter“ gelesen; jede Woche kommt als eigener Satz dazu,
+        alte Wochen bleiben stehen.</div>
+      <input id="scanquoteFile" type="file" accept=".xlsx,.xls,.xlsm" style="margin-top:10px" />
+      <div style="margin-top:10px">
+        <button class="btn-green" style="width:auto" onclick="uploadScanquote()">Excel einlesen &amp; speichern</button>
+      </div>
+      <div id="scanquoteMsg" class="small" style="margin-top:8px"></div>
+    </div>
+    <div class="box admin admin-uploads">
       <h2>💰 Bevorratung – Umsatz-Excel hochladen (quartalsweise)</h2>
       <div class="small">EDEKA-BO Umsatzbericht als Kreuztabelle (Markt × Menge/Menge Aktion). Es wird nur der Normal-Absatz (Menge − Menge Aktion) je Markt gespeichert. Neuer Upload überschreibt bestehende Werte pro Artikel/Markt.</div>
       <input id="werbungUmsatzFile" type="file" accept=".xlsx,.xls,.xlsm" style="margin-top:10px" />
@@ -524,7 +546,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.18-2"; // Nachgearbeitet: Zeitwahl im Verlauf, Abschriften-Zeitbezug korrigiert, Abteilungs- und Regalfilter, Wochenkopf aus den Daten
+const APP_VERSION = "v2026.08.18-5"; // Scanquote, Bestandsfortschreibung mit Reichweite und markiertem Verlauf
 const APP_VERSION_DATE = "17.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -5716,6 +5738,8 @@ const AUTO_ZIELE = {
   dispo:         { feld: "dispoPdfFiles",     msg: "dispoUploadMsg",     fn: "uploadDispoPdfs",     text: "Dispo",                             mehrere: true  },
   werbung:       { feld: "werbungPdfFile",    msg: "werbungPdfMsg",      fn: "uploadWerbungPdf",    text: "Werbe-Aktions-PDF",                 mehrere: false },
   ordersatz:     { feld: "ordersatzPdfFile",  msg: "ordersatzUploadMsg", fn: "uploadOrdersatzPdf",  text: "Backshop-Ordersatz",                mehrere: false },
+  regaldaten:    { feld: "regalFile",         msg: "regalMsg",           fn: "uploadRegaldaten",    text: "Regaldaten (Artikel je Regal)",     mehrere: false },
+  scanquote:     { feld: "scanquoteFile",     msg: "scanquoteMsg",       fn: "uploadScanquote",     text: "Scanquote je Kassierer",            mehrere: false },
 };
 
 /* Erkennt, wohin eine Datei gehoert. Reihenfolge ist Absicht:
@@ -5742,6 +5766,14 @@ async function autoErkenne(file){
   }
   const flach = rows.map(r => (r||[]).map(c => String(c==null?"":c)).join(" ")).join(" | ").toLowerCase();
   const titel = String(((rows[0]||[])[0]) || "").toLowerCase();
+
+  /* Regaldaten zuerst pruefen: Die Datei heisst ebenfalls "UMSATZ..." und
+     wuerde sonst bei den Kennzahlen landen. Eindeutig ist die Kopfzeile -
+     "Regalnummer" kommt in keinem anderen Bericht vor. */
+  if(/regalnummer/.test(flach)) return {art:"regaldaten", grund:"Kopfzeile enthält „Regalnummer“"};
+  if(/regaldaten/i.test(name))  return {art:"regaldaten", grund:"Dateiname „Regaldaten“"};
+  if(/scanquote/.test(flach))   return {art:"scanquote", grund:"Titelzelle „Scanquote“"};
+  if(/scanquote/i.test(name))   return {art:"scanquote", grund:"Dateiname „Scanquote“"};
 
   // "Menge Aktion" gibt es nur im Artikelumsatz - das ist das eindeutigste Merkmal
   if(/menge aktion/.test(flach) && /(artikel|gtin)/.test(flach)) return {art:"artikelumsatz", grund:"Kopfzeile enthält „Menge Aktion“ und Artikel/GTIN"};
@@ -5842,6 +5874,208 @@ async function autoHochladen(){
   }
   msg.style.color = "#0c1f3c";
   msg.innerHTML = bericht;
+}
+
+/* ==========================================================================
+   Regaldaten - Artikel je Regal, taeglich (ab 18.08.2026)
+   ==========================================================================
+   Aufbau der Datei (eine fuer alle vier Maerkte):
+
+       Markt | Regalnummer | Artikel | <Bezeichnung> | GTIN | Umsatz
+
+   Zwischenzeilen mit "Ergebnis" oder "Gesamtergebnis" sind Summen und werden
+   uebersprungen.
+
+   ES ZAEHLT IMMER DER AKTUELLE STAND. Ein Artikel kann heute in Regal 100
+   liegen und naechste Woche in 250. Deshalb wird je Markt, der in der Datei
+   vorkommt, der alte Bestand geloescht und neu geschrieben. Kein Verschmelzen
+   - sonst laufen alte Regalnummern ewig mit und niemand merkt es.
+
+   Geloescht wird ERST, wenn die neuen Zeilen gelesen und geprueft sind. Der
+   umgekehrte Weg hat in diesem Projekt schon einmal Daten gekostet. */
+async function uploadRegaldaten(){
+  if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
+  const input = document.getElementById("regalFile");
+  const msg = document.getElementById("regalMsg");
+  if(!input || !input.files || !input.files.length){ alert("Bitte Regaldaten-Excel wählen."); return; }
+  const file = input.files[0];
+  msg.style.color = "#0c1f3c";
+  msg.innerHTML = "Lese Excel …";
+  try{
+    const wb = XLSX.read(await file.arrayBuffer(), {type:"array"});
+    const sheetName = wb.SheetNames.find(n => n.toLowerCase().includes("kreuztab")) || wb.SheetNames[0];
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], {header:1, defval:null, raw:false});
+    if(rows.length < 3){ msg.style.color="#c62828"; msg.innerHTML="Datei hat zu wenig Zeilen."; return; }
+
+    // Spalten ueber die Kopfzeile finden, nicht ueber feste Nummern
+    const kopf = (rows[0]||[]).map(c => String(c==null?"":c).trim().toLowerCase());
+    const sp = (n) => kopf.findIndex(k => k.startsWith(n));
+    const cMarkt=sp("markt"), cRegal=sp("regal"), cArt=sp("artikel"), cGtin=sp("gtin"), cUms=sp("umsatz");
+    if(cMarkt<0||cRegal<0||cArt<0){
+      msg.style.color="#c62828";
+      msg.innerHTML="Kopfzeile passt nicht. Erwartet: Markt, Regalnummer, Artikel. Gefunden: "+escapeHtml(kopf.join(" | "));
+      return;
+    }
+    const cBez = (cArt+1<kopf.length && !kopf[cArt+1]) ? cArt+1 : cArt+1;   // Bezeichnung steht rechts vom Artikel
+
+    // Stand aus dem Metadatenblatt, sonst heute
+    let stand = new Date().toISOString().slice(0,10);
+    const metaName = wb.SheetNames.find(n => n.toLowerCase().includes("metadaten"));
+    if(metaName){
+      const m = XLSX.utils.sheet_to_json(wb.Sheets[metaName], {header:1, defval:null, raw:false});
+      for(const r of m){
+        const z = (r||[]).map(c=>String(c==null?"":c)).join(" ");
+        const t = z.match(/Exportzeit:\s*(\d{2})-(\d{2})-(\d{4})/);
+        if(t){ stand = `${t[3]}-${t[2]}-${t[1]}`; break; }
+      }
+    }
+
+    const SUM = new Set(["ergebnis","gesamtergebnis",""]);
+    const saetze = [];
+    const maerkte = new Set();
+    let uebersprungen = 0;
+    for(let i=1;i<rows.length;i++){
+      const r = rows[i] || [];
+      const markt = String(r[cMarkt]==null?"":r[cMarkt]).trim();
+      const regal = String(r[cRegal]==null?"":r[cRegal]).trim();
+      const art   = String(r[cArt]==null?"":r[cArt]).trim();
+      if(SUM.has(markt.toLowerCase())||SUM.has(regal.toLowerCase())||SUM.has(art.toLowerCase())
+         || !/^\d{4,}$/.test(art)){ uebersprungen++; continue; }
+      let gtin = cGtin>=0 ? String(r[cGtin]==null?"":r[cGtin]).trim() : "";
+      if(gtin==="#") gtin="";
+      const umsatzRoh = cUms>=0 ? String(r[cUms]==null?"":r[cUms]).replace(/\./g,"").replace(",",".") : "";
+      maerkte.add(markt);
+      saetze.push({ markt, sap_artnr: art, regal_nr: regal,
+        bezeichnung: String(r[cBez]==null?"":r[cBez]).trim(),
+        gtin, umsatz: umsatzRoh===""?null:(isNaN(Number(umsatzRoh))?null:Number(umsatzRoh)),
+        stand });
+    }
+    if(!saetze.length){
+      msg.style.color="#c62828";
+      msg.innerHTML="Keine Artikelzeilen erkannt ("+uebersprungen+" Zeilen übersprungen).";
+      return;
+    }
+
+    const zweit = saetze.filter(s=>/^990000/.test(s.regal_nr)).length;
+    msg.innerHTML = `${saetze.length.toLocaleString("de-DE")} Zeilen gelesen aus ${maerkte.size} Markt/Märkten
+      – wird gespeichert …`;
+
+    // Erst jetzt loeschen, dann schreiben. Je Markt einzeln, damit eine
+    // Datei mit nur einem Markt nicht die anderen mitnimmt.
+    for(const m of maerkte){
+      const del = await db.from("artikel_regal").delete().eq("markt", m);
+      if(del.error) throw del.error;
+    }
+    for(let i=0;i<saetze.length;i+=500){
+      const teil = saetze.slice(i, i+500);
+      const {error} = await db.from("artikel_regal").upsert(teil, {onConflict:"markt,sap_artnr"});
+      if(error) throw error;
+      msg.innerHTML = `Gespeichert: ${Math.min(i+500, saetze.length).toLocaleString("de-DE")} von ${saetze.length.toLocaleString("de-DE")} …`;
+    }
+
+    // Gegenprobe: nachzaehlen, was wirklich in der Datenbank steht.
+    // Eine Erfolgsmeldung allein ist kein Nachweis.
+    let inDb = 0;
+    for(const m of maerkte){
+      const {count} = await db.from("artikel_regal").select("*", {count:"exact", head:true}).eq("markt", m);
+      inDb += (count||0);
+    }
+    msg.style.color = inDb===saetze.length ? "#15803d" : "#b45309";
+    msg.innerHTML = `${inDb.toLocaleString("de-DE")} Zeilen stehen in der Datenbank`
+      + (inDb===saetze.length ? "" : ` (gelesen: ${saetze.length.toLocaleString("de-DE")} – bitte nachsehen)`)
+      + `.<br>Märkte: ${[...maerkte].join(", ")} · davon ${zweit} Zweitplatzierungen (Regal ab 990000) · Stand ${stand}.`;
+  }catch(e){
+    msg.style.color="#c62828";
+    msg.innerHTML="Fehler: "+escapeHtml(e && e.message ? e.message : String(e));
+  }
+}
+
+/* ==========================================================================
+   Scanquote je Kassierer (ab 18.08.2026)
+   ==========================================================================
+   Aufbau: Titelzelle "Scanquote", ab Zeile 4 die Kopfzeile
+
+       Markt | Kassierer | Scanquote | Anz. Positionen | (Scan) | (Manuell) |
+       (Wdh.) | (WG-Verkauf) | (Webshop)
+
+   Der Markt steht nur in der ersten Zeile eines Blocks und gilt bis zum
+   naechsten - wie bei allen BO-Kreuztabellen. "Ergebnis" und
+   "Gesamtergebnis" sind Summen und werden uebersprungen.
+
+   Der Zeitraum steht im Blatt "Filter" hinter "Zeitfilter:" in der Form
+   "AJ: 11.08.2026 - 17.08.2026". Ohne Zeitraum wird nichts gespeichert -
+   sonst weiss spaeter niemand, welche Woche die Zahlen betreffen. */
+async function uploadScanquote(){
+  if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
+  const input = document.getElementById("scanquoteFile");
+  const msg = document.getElementById("scanquoteMsg");
+  if(!input || !input.files || !input.files.length){ alert("Bitte Scanquote-Excel wählen."); return; }
+  msg.style.color = "#0c1f3c"; msg.innerHTML = "Lese Excel …";
+  try{
+    const wb = XLSX.read(await input.files[0].arrayBuffer(), {type:"array"});
+    const datenBlatt = wb.SheetNames.find(n=>!/filter|metadaten/i.test(n)) || wb.SheetNames[0];
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[datenBlatt], {header:1, defval:null, raw:false});
+
+    // Zeitraum aus dem Filterblatt
+    let von=null, bis=null;
+    const fBlatt = wb.SheetNames.find(n=>/filter/i.test(n));
+    if(fBlatt){
+      const f = XLSX.utils.sheet_to_json(wb.Sheets[fBlatt], {header:1, defval:null, raw:false});
+      const text = f.map(r=>(r||[]).map(c=>String(c==null?"":c)).join(" ")).join(" ");
+      const m = text.match(/(\d{2})\.(\d{2})\.(\d{4})\s*-\s*(\d{2})\.(\d{2})\.(\d{4})/);
+      if(m){ von=`${m[3]}-${m[2]}-${m[1]}`; bis=`${m[6]}-${m[5]}-${m[4]}`; }
+    }
+    if(!von||!bis){
+      msg.style.color="#c62828";
+      msg.innerHTML="Im Blatt „Filter“ steht kein Zeitraum. Ohne Zeitraum wird nichts gespeichert – sonst ist später nicht klar, welche Woche gemeint ist.";
+      return;
+    }
+
+    // Kopfzeile suchen statt annehmen
+    let kopfZ=-1;
+    for(let i=0;i<Math.min(rows.length,12);i++){
+      const z=(rows[i]||[]).map(c=>String(c==null?"":c).toLowerCase());
+      if(z.some(c=>c.startsWith("kassierer"))&&z.some(c=>c.startsWith("markt"))){ kopfZ=i; break; }
+    }
+    if(kopfZ<0){ msg.style.color="#c62828"; msg.innerHTML="Kopfzeile mit „Markt“ und „Kassierer“ nicht gefunden."; return; }
+    const kopf=(rows[kopfZ]||[]).map(c=>String(c==null?"":c).replace(/\s+/g," ").toLowerCase());
+    const sp=(...n)=>kopf.findIndex(k=>n.some(x=>k.includes(x)));
+    const cM=sp("markt"), cK=sp("kassierer"), cQ=sp("scanquote"),
+          cP=kopf.findIndex(k=>/^anz\. positionen$/.test(k.trim())),
+          cS=sp("(scan"), cMan=sp("(manue"), cW=sp("(wdh"), cWG=sp("(wg"), cWeb=sp("(websh");
+    const zahl=v=>{ if(v==null) return null; const t=String(v).replace(/\./g,"").replace(",","."); const n=Number(t); return isNaN(n)?null:n; };
+
+    let markt=null; const saetze=[]; let uebersprungen=0;
+    for(let i=kopfZ+1;i<rows.length;i++){
+      const r=rows[i]||[];
+      const m0=String(r[cM]==null?"":r[cM]).trim();
+      if(m0) markt=m0;
+      const k=String(r[cK]==null?"":r[cK]).trim();
+      if(!markt||/gesamtergebnis/i.test(markt)||!k||/^ergebnis$/i.test(k)){ uebersprungen++; continue; }
+      saetze.push({markt, kassierer:k, periode_von:von, periode_bis:bis,
+        quote:zahl(r[cQ]), positionen:zahl(r[cP]), pos_scan:zahl(r[cS]),
+        pos_manuell:zahl(r[cMan]), pos_wdh:zahl(r[cW]), pos_wg:zahl(r[cWG]),
+        pos_webshop:zahl(r[cWeb]), stand:new Date().toISOString().slice(0,10)});
+    }
+    if(!saetze.length){ msg.style.color="#c62828"; msg.innerHTML="Keine Kassiererzeilen erkannt."; return; }
+
+    msg.innerHTML=`${saetze.length} Kassierer gelesen (${von.split("-").reverse().join(".")} bis ${bis.split("-").reverse().join(".")}) – wird gespeichert …`;
+    for(let i=0;i<saetze.length;i+=300){
+      const {error}=await db.from("scanquote").upsert(saetze.slice(i,i+300),
+        {onConflict:"markt,kassierer,periode_von,periode_bis"});
+      if(error) throw error;
+    }
+    const {count}=await db.from("scanquote").select("*",{count:"exact",head:true})
+      .eq("periode_von",von).eq("periode_bis",bis);
+    const maerkte=[...new Set(saetze.map(s=>s.markt))];
+    msg.style.color = (count===saetze.length) ? "#15803d" : "#b45309";
+    msg.innerHTML = `${count} Zeilen stehen in der Datenbank`
+      + (count===saetze.length ? "" : ` (gelesen: ${saetze.length} – bitte nachsehen)`)
+      + `.<br>Märkte: ${maerkte.join(", ")} · Zeitraum ${von.split("-").reverse().join(".")}–${bis.split("-").reverse().join(".")}.`;
+  }catch(e){
+    msg.style.color="#c62828";
+    msg.innerHTML="Fehler: "+escapeHtml(e && e.message ? e.message : String(e));
+  }
 }
 
 async function uploadWerbungUmsatz(){
@@ -6223,6 +6457,7 @@ let mepZugang={markt:null,bereich:null}, mepGeladen=false;
 let mepKz=[], mepSpanne=[], mepBefunde=[], mepFeedback={}, mepBereichsMap={}, mepBereiche=[], mepDokumente=[];
 let mepArtikel=[], mepDispo=[], mepAufgaben=[], mepMetrics=[], mepStand=null, mepSort="umsatz";
 let mepWerbung=[], mepWerbungErledigt={}, mepWerbungKW=null, mepWerbungDateien=[], mepWerbungWochen=[];
+let mepRegale={};   // sap_artnr -> {regal_nr, zweitplatzierung}, Stand des letzten Regalberichts
 
 /* ---------- Zeiträume ----------
    Gewuenscht waren letzte Woche, letzter Monat, aktueller Monat und laufendes
@@ -6490,6 +6725,23 @@ async function mepNeuLaden(){
       .eq("market",mepMk()).eq("metric_name","Umsatz").gte("metric_date","2026-01-01")
       .order("metric_date").order("area"))
   ]);
+  /* Regalzuordnung getrennt laden statt in artikel_kennzahlen zu schreiben.
+     Grund: sie aendert sich taeglich und gilt fuer alle Zeitraeume gleich.
+     Waere sie in die Kennzahlenzeilen kopiert, muesste man bei jedem neuen
+     Regalbericht alle alten Zeilen nachziehen - und wuerde es vergessen. */
+  mepRegale={};
+  if(!alleM){
+    try{
+      const rg=await fetchAllPaged(()=>db.from("artikel_regal")
+        .select("sap_artnr,regal_nr,zweitplatzierung").eq("markt",mepMk()).order("sap_artnr"));
+      (rg||[]).forEach(x=>{ mepRegale[String(x.sap_artnr)]=x; });
+    }catch(err){ console.warn("Regalzuordnung:",err); }
+  }
+  // Regalnummer an die Artikelzeilen haengen, damit Filter und Anzeige sie haben
+  mepArtikel=(mepArtikel||[]).map(x=>{
+    const r=mepRegale[String(x.sap_artnr)];
+    return r ? {...x, regal_nr:r.regal_nr, zweitplatzierung:r.zweitplatzierung} : x;
+  });
   mepKz=kzD||[]; mepArtikel=ar||[]; mepDispo=dz||[]; mepAufgaben=auf||[]; mepMetrics=met||[];
   // Welche Zeitraeume liegen wirklich vor? Direkt aus den geladenen Zeilen -
   // dann stimmt die Auswahl immer mit dem ueberein, was gezeigt werden kann.
@@ -6518,7 +6770,8 @@ async function mepNeuLaden(){
      die Artikelliste leer gelassen - der Fehler war am 18.08. drin. */
   if(!mepZeit.flop)       mepZeit.flop      =mepPeriodeStandard(mepPerioden.artikel,true);
   if(!mepZeit.abschriften)mepZeit.abschriften=mepPeriodeStandard(mepPerioden.abschriften,true);
-  await Promise.all([mepWerbungLaden(), mepLogsLaden(), mepVerwaltungLaden()]);
+  await Promise.all([mepWerbungLaden(), mepLogsLaden(), mepVerwaltungLaden(),
+                     mepScanLaden(), mepBestandLaden()]);
   const jahr=mepKz.filter(x=>x.periode_von==="2026-01-01");
   if(jahr.length) mepStand=jahr[0].stand;
   mepZeichnen();
@@ -6894,6 +7147,323 @@ function mepKachelVerwaltung(){
     </div>`;
 }
 
+/* ---------- Bestandsverlauf über die Woche ----------
+   Der Verdacht von Benedikt Paul (18.08.2026): Montag und Dienstag wird
+   Bestand aufgebaut, zum Wochenende abgebaut - schlecht für die Frische.
+
+   Die Daten geben ihm recht. Obst und Gemüse in Billigheim, Mittel über
+   30 Wochen: Montag +2.099 EUR, Samstag -1.732 EUR, dazwischen fast nichts.
+   Ware, die am Montag kommt, liegt also bis Freitag oder Samstag im Regal.
+
+   ZUR DATENLAGE, damit niemand die Zahlen ueberschaetzt:
+   "anfangsbestand_ek" steht im Bericht NUR mittwochs, an allen anderen Tagen
+   ist das Feld leer. Taeglich vorhanden sind Zugang, Abgang und Veraenderung.
+   Deshalb wird hier die VERAENDERUNG je Wochentag gemittelt und daraus der
+   Verlauf gebildet - nicht der absolute Bestand. Der Startpunkt der Kurve ist
+   damit willkuerlich, die Form ist es nicht. Genau die Form ist die Aussage. */
+const MEP_WT=["Mo","Di","Mi","Do","Fr","Sa"];
+/* Abteilungen, bei denen ein liegender Bestand unmittelbar auf die Qualitaet
+   schlaegt. Fuer sie gelten strengere Schwellen bei der Reichweite. */
+const MEP_FRISCHE=/obst|gem[üu]se|molkerei|fleisch|wurst|fisch|b[äa]ckerei|bake|k[äa]se|frische|convenience|tiefk/i;
+let mepBestand=[], mepBestandStand={};
+async function mepBestandLaden(){
+  mepBestand=[]; mepBestandStand={};
+  try{
+    const d=await fetchAllPaged(()=>mepFiltMarkt(db.from("bestandsverlauf")
+      .select("markt,abteilung,tag,anfangsbestand_ek,zugang_ek,abgang_ek,veraenderung_ek"),"markt")
+      .gte("tag","2026-01-01").order("tag").order("abteilung"));
+    mepBestand=d||[];
+    /* Fortgeschriebener Bestand und Reichweite kommen aus der Sicht
+       bestand_fortgeschrieben - dort wird der Bestand vom letzten gemeldeten
+       Anfangsbestand aus taeglich weitergerechnet und bei jedem neuen
+       gemeldeten Wert korrigiert. Hier nur der jeweils letzte Tag je
+       Abteilung, mehr braucht die Kachel nicht. */
+    const f=await fetchAllPaged(()=>mepFiltMarkt(db.from("bestand_fortgeschrieben")
+      .select("markt,abteilung,tag,bestand_ende,reichweite_tage,gemeldet,korrektur"),"markt")
+      .gte("tag","2026-06-01").order("abteilung").order("tag"));
+    (f||[]).forEach(x=>{ mepBestandStand[x.abteilung]=x; });   // letzter Tag gewinnt
+  }catch(err){ console.warn("Bestandsverlauf:",err); }
+}
+/* Ist die Reichweite belastbar? Nur wenn der fortgeschriebene Bestand
+   ueberhaupt plausibel ist. Ein negativer Bestand kann es nicht geben - dort
+   ist die Fortschreibung auseinandergelaufen und die Zahl waere geraten. */
+function mepReichweiteWert(abteilung){
+  const s=mepBestandStand[abteilung];
+  if(!s||s.bestand_ende==null||s.reichweite_tage==null) return null;
+  if(s.bestand_ende<0) return {wert:null, grund:"Bestand rechnerisch negativ"};
+  if(s.reichweite_tage>90) return {wert:s.reichweite_tage, grund:"unplausibel hoch"};
+  return {wert:s.reichweite_tage, grund:null};
+}
+function mepReichweiteFarbe(abteilung, tage){
+  if(tage==null) return "#94a3b8";
+  const frisch=MEP_FRISCHE.test(abteilung||"");
+  if(frisch)  return tage>4?"#b91c1c":tage>2.5?"#b45309":"#15803d";
+  return tage>21?"#b91c1c":tage>14?"#b45309":"#15803d";
+}
+function mepBestandMuster(){
+  const abt=new Set(mepAbteilungen());
+  const m={};
+  (mepBestand||[]).forEach(x=>{
+    if(mepBl()&&!abt.has(x.abteilung)) return;
+    const wt=new Date(x.tag+"T00:00:00").getDay();      // 0=So
+    if(wt===0) return;                                   // Sonntag: kein Regelgeschaeft
+    const i=wt-1;                                        // 0=Mo … 5=Sa
+    const a=m[x.abteilung]=m[x.abteilung]||{abteilung:x.abteilung,
+      summe:[0,0,0,0,0,0], anzahl:[0,0,0,0,0,0], bestand:0, bestandN:0, abgang:0, abgangN:0};
+    if(x.veraenderung_ek!=null){ a.summe[i]+=Number(x.veraenderung_ek); a.anzahl[i]++; }
+    if(x.anfangsbestand_ek!=null){ a.bestand+=Number(x.anfangsbestand_ek); a.bestandN++; }
+    if(x.abgang_ek!=null){ a.abgang+=Math.abs(Number(x.abgang_ek)); a.abgangN++; }
+  });
+  return Object.values(m).map(a=>{
+    const mittel=a.summe.map((s,i)=>a.anzahl[i]?s/a.anzahl[i]:null);
+    // Kumulierter Verlauf ueber die Woche, Start bei 0
+    const lauf=[]; let k=0;
+    mittel.forEach(v=>{ k+=(v||0); lauf.push(k); });
+    const hoch=Math.max(...lauf), tief=Math.min(...lauf);
+    const bestand=a.bestandN?a.bestand/a.bestandN:null;
+    const tagesabgang=a.abgangN?a.abgang/a.abgangN:null;
+    return {...a, mittel, lauf, spanne:hoch-tief,
+      aufbau:mittel.indexOf(Math.max(...mittel.map(v=>v==null?-1e9:v))),
+      abbau:mittel.indexOf(Math.min(...mittel.map(v=>v==null?1e9:v))),
+      bestand, tagesabgang,
+      reichweite:(bestand!=null&&tagesabgang)?bestand/tagesabgang:null,
+      // Ausschlag im Verhaeltnis zum Bestand - das macht Abteilungen vergleichbar
+      relativ:(bestand&&bestand>0)?(hoch-tief)/bestand:null};
+  }).filter(a=>a.anzahl.some(n=>n>3));
+}
+function mepKachelBestand(){
+  if(mepIstHausmeister()) return "";
+  const l=mepBestandMuster();
+  if(!l.length) return "";
+  l.sort((a,b)=>(b.relativ??0)-(a.relativ??0));
+  const zeig=l.slice(0,8);
+  const maxSpanne=Math.max(...zeig.map(a=>a.spanne||0),1);
+  const balken=(a)=>{
+    const h=34;
+    return `<div style="display:flex;gap:2px;align-items:flex-end;height:${h}px">
+      ${a.mittel.map((v,i)=>{
+        const anteil=Math.min(1,Math.abs(v||0)/maxSpanne);
+        const hoehe=Math.max(2,Math.round(anteil*h));
+        const auf=(v||0)>=0;
+        return `<div title="${MEP_WT[i]}: ${mepEur(v)}" style="width:9px;height:${hoehe}px;
+          background:${auf?"#b45309":"#15803d"};border-radius:2px" ></div>`;}).join("")}
+    </div>`;
+  };
+  return `<div class="box"><h2>Bestandsverlauf über die Woche
+    ${mepAbsprung("mepZeigeBestand()","alle Abteilungen")}</h2>
+    <div class="small">Mittlere Bestandsveränderung je Wochentag, in Einstandspreisen.
+      <b style="color:#b45309">Braun</b> heißt Aufbau, <b style="color:#15803d">grün</b> Abbau.
+      Wo Montag hoch und Samstag tief ist, liegt die Ware die ganze Woche –
+      bei Frische ist das der Weg in die Abschrift.</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13.5px;margin-top:12px">
+      <thead><tr style="text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">
+        <th style="padding:8px">Abteilung</th>
+        <th style="padding:8px">Mo Di Mi Do Fr Sa</th>
+        <th style="text-align:right;padding:8px">stärkster Aufbau</th>
+        <th style="text-align:right;padding:8px">stärkster Abbau</th>
+        <th style="text-align:right;padding:8px">Reichweite</th></tr></thead><tbody>
+      ${zeig.map(a=>{
+        const auf=a.mittel[a.aufbau], ab=a.mittel[a.abbau];
+        const kritisch=a.aufbau<=1&&a.abbau>=4;   // Anfang hoch, Ende tief
+        return `<tr style="border-top:1px solid #eef3f9">
+        <td style="padding:8px">${mepEsc(a.abteilung)}
+          ${kritisch?`<span style="display:block;font-size:10.5px;color:#b91c1c">Aufbau am Wochenanfang,
+            Abbau zum Wochenende</span>`:""}</td>
+        <td style="padding:8px">${balken(a)}</td>
+        <td style="text-align:right"><b style="color:#b45309">${MEP_WT[a.aufbau]} ${mepEur(auf)}</b></td>
+        <td style="text-align:right"><b style="color:#15803d">${MEP_WT[a.abbau]} ${mepEur(ab)}</b></td>
+        <td style="text-align:right">${(()=>{ const r=mepReichweiteWert(a.abteilung);
+          if(!r||r.wert==null) return `<span style="color:#94a3b8" title="${r?mepEsc(r.grund):""}">–</span>`;
+          return `<b style="color:${mepReichweiteFarbe(a.abteilung,r.wert)}">${
+            r.wert.toLocaleString("de-DE",{maximumFractionDigits:1})} Tage</b>${
+            r.grund?`<span style="display:block;font-size:10.5px;color:#94a3b8">${mepEsc(r.grund)}</span>`:""}`;})()}
+        </td></tr>`;}).join("")}
+      </tbody></table>
+    <div class="small" style="margin-top:9px">Reichweite = mittlerer Bestand geteilt durch mittleren
+      Tagesabgang. Der Bestand steht im Bericht nur mittwochs, deshalb ist die Reichweite ein
+      Wochenwert und kein Tageswert. Die Form des Verlaufs stammt aus den täglichen Veränderungen
+      und ist davon unabhängig.</div></div>`;
+}
+/* Im Absprung steht der tatsaechliche Bestandsverlauf der letzten Wochen,
+   nicht nur das Wochenmittel - und farblich markiert, wo er schlecht ist
+   (Vorgabe Benedikt Paul 18.08.2026).
+
+   "Schlecht" heisst hier nicht "hoch". Am Montag geht der Bestand in der
+   Frische aus guten Gruenden hoch: neue Werbeartikel, ein Wochenende, das
+   sich schwer schaetzen laesst. Schlecht ist es erst, wenn der Aufbau vom
+   Wochenanfang bis Freitag oder Samstag stehen bleibt - dann war die Menge
+   nicht fuer das Geschaeft, sondern fuer das Regal. Markiert wird deshalb
+   der Tag, an dem der Bestand noch ueber dem Montagsniveau liegt, obwohl die
+   Woche fast vorbei ist. */
+function mepBestandTage(abteilung){
+  return (mepBestand||[])
+    .filter(x=>x.abteilung===abteilung)
+    .slice(-42)
+    .map(x=>({tag:x.tag, wt:new Date(x.tag+"T00:00:00").getDay(),
+              ver:Number(x.veraenderung_ek||0), abgang:Math.abs(Number(x.abgang_ek||0))}));
+}
+function mepZeigeBestand(){
+  const l=mepBestandMuster().sort((a,b)=>(b.relativ??0)-(a.relativ??0));
+  let h=`<div class="small" style="margin-bottom:12px">${mepMk()}${mepBl()?" · "+mepEsc(mepBl()):""} ·
+      ${l.length} Abteilungen. Oben die Wochenform, darunter der tatsächliche Verlauf der letzten
+      Wochen. <b style="color:#b45309">Braun</b> Aufbau, <b style="color:#15803d">grün</b> Abbau,
+      <b style="color:#b91c1c">rot umrandet</b>: der Aufbau vom Wochenanfang steht am Freitag oder
+      Samstag noch im Regal.</div>`;
+  l.forEach(a=>{
+    const tage=mepBestandTage(a.abteilung);
+    // Bestand relativ zum jeweiligen Wochenmontag aufsummieren
+    let kum=0; const punkte=[];
+    tage.forEach(t=>{ if(t.wt===1) kum=0; kum+=t.ver; punkte.push({...t, kum}); });
+    const maxAbs=Math.max(1,...punkte.map(p=>Math.abs(p.kum)));
+    const r=mepReichweiteWert(a.abteilung);
+    const s=mepBestandStand[a.abteilung];
+    h+=`<div style="border-top:1px solid #eef3f9;padding:12px 0">
+      <div style="display:flex;gap:12px;align-items:baseline;flex-wrap:wrap">
+        <b style="font-size:14px">${mepEsc(a.abteilung)}</b>
+        ${r&&r.wert!=null?`<span style="font-size:12.5px">Reichweite
+          <b style="color:${mepReichweiteFarbe(a.abteilung,r.wert)}">${
+          r.wert.toLocaleString("de-DE",{maximumFractionDigits:1})} Tage</b></span>`:""}
+        ${s&&s.bestand_ende!=null?`<span class="small">Bestand ${mepEur(s.bestand_ende)}${
+          s.bestand_ende<0?" – rechnerisch negativ, siehe Hinweis unten":""}</span>`:""}
+        ${MEP_FRISCHE.test(a.abteilung)?`<span style="font-size:11px;color:#b45309;font-weight:700">Frische</span>`:""}
+      </div>
+      <div style="display:flex;gap:2px;align-items:flex-end;height:56px;margin-top:8px;overflow-x:auto">
+        ${punkte.map(p=>{
+          const hoehe=Math.max(2,Math.round(Math.abs(p.kum)/maxAbs*46));
+          const auf=p.kum>=0;
+          // Spät in der Woche noch deutlich über dem Montagsstart: das ist der Fall,
+          // den Benedikt Paul meint. Schwelle 1000 EUR, damit Kleinkram nicht rot wird.
+          const schlecht=(p.wt===5||p.wt===6)&&p.kum>1000;
+          return `<div title="${p.tag} · ${mepEur(p.kum)} über Montag"
+            style="width:7px;height:${hoehe}px;flex:none;border-radius:2px;
+            background:${auf?"#b45309":"#15803d"};
+            ${schlecht?"outline:2px solid #b91c1c;outline-offset:1px":""}"></div>`;}).join("")}
+      </div>
+      <div class="small" style="margin-top:5px">${punkte.length} Tage ·
+        Balken zeigen den Bestand gegenüber dem jeweiligen Montag.</div>
+    </div>`;
+  });
+  h+=`<div class="small" style="margin-top:14px;padding:9px 11px;background:#fff7ed;border-left:3px solid #b45309">
+    <b>Zur Belastbarkeit:</b> Ein gemeldeter Anfangsbestand steht in den Daten nur zum 31.12.2025.
+    Seitdem wird der Bestand aus den täglichen Veränderungen fortgeschrieben – über 229 Tage ohne
+    einen einzigen Korrekturpunkt. Bei 7 von 89 Abteilungen ist er dadurch rechnerisch negativ
+    geworden, was es nicht geben kann. Die <b>Form des Verlaufs</b> stimmt trotzdem, sie kommt aus
+    den täglichen Bewegungen. Die <b>Reichweite</b> wird erst verlässlich, wenn der Bericht den
+    Anfangsbestand regelmäßig mitliefert; die Rechnung korrigiert sich dann von selbst.</div>`;
+  mepModal("Bestandsverlauf je Abteilung", h);
+}
+
+/* ---------- Scanquote: die schwächsten Kassen ----------
+   Marktleitung sieht die schlechtesten fünf ihres Marktes, die Verwaltung
+   dieselbe Auswahl über alle Märkte, jeweils mit Absprung in die vollständige
+   Liste und Auswahl der Woche (Vorgabe Benedikt Paul 18.08.2026).
+
+   Warum nur fünf: Eine Liste mit 50 Kassennummern liest niemand. Fünf sind
+   die, mit denen man am Montag spricht.
+
+   Zur Einordnung der Zahlen: Die Quoten liegen alle knapp unter 100 %. Der
+   Abstand zwischen 99,9 und 99,0 sieht winzig aus, ist aber der Faktor zehn
+   an Handeingaben. Deshalb steht neben der Quote immer die Zahl der
+   Handeingaben - die ist das, was Zeit kostet und Fehler macht. */
+let mepScan=[], mepScanWochen=[], mepScanZeit=null;
+async function mepScanLaden(){
+  mepScan=[]; mepScanWochen=[];
+  try{
+    const {data:w}=await db.from("scanquote").select("periode_von,periode_bis")
+      .order("periode_von",{ascending:false}).limit(500);
+    const gesehen=new Set();
+    (w||[]).forEach(x=>{ const s=x.periode_von+"_"+x.periode_bis;
+      if(!gesehen.has(s)){ gesehen.add(s); mepScanWochen.push({von:x.periode_von,bis:x.periode_bis}); } });
+    mepScanWochen=mepScanWochen.slice(0,8);
+    if(!mepScanWochen.length) return;
+    if(!mepScanZeit||!mepScanWochen.some(p=>p.von+"_"+p.bis===mepScanZeit))
+      mepScanZeit=mepScanWochen[0].von+"_"+mepScanWochen[0].bis;
+    const [von,bis]=mepScanZeit.split("_");
+    let q=db.from("scanquote").select("markt,kassierer,quote,positionen,pos_manuell,pos_wdh,periode_von,periode_bis")
+      .eq("periode_von",von).eq("periode_bis",bis);
+    if(!mepAlleMaerkte()) q=q.eq("markt",mepMk());
+    const {data}=await q.order("quote");
+    mepScan=data||[];
+  }catch(err){ console.warn("Scanquote:",err); }
+}
+async function mepSetzeScanZeit(s){ mepScanZeit=s; await mepScanLaden(); mepZeichnen(); }
+function mepScanLeiste(){
+  if(mepScanWochen.length<1) return "";
+  return `<div style="display:flex;gap:7px;align-items:center;margin:9px 0 2px;flex-wrap:wrap">
+    ${mepScanWochen.map(p=>{const s=p.von+"_"+p.bis, an=s===mepScanZeit;
+      const de=d=>d.split("-").reverse().slice(0,2).join(".");
+      return `<button onclick="mepSetzeScanZeit('${s}')"
+        style="border:1px solid ${an?"#004f9e":"#dbe6f3"};background:${an?"#004f9e":"#fff"};
+        color:${an?"#fff":"#334155"};border-radius:7px;padding:4px 11px;font-size:12px;
+        font-weight:${an?"700":"500"};cursor:pointer">${de(p.von)}–${de(p.bis)}</button>`;}).join("")}
+    ${mepScanWochen.length<2?`<span class="small" style="margin-left:2px">Weitere Wochen kommen mit
+      jedem neuen Bericht dazu.</span>`:""}
+  </div>`;
+}
+function mepKachelScanquote(){
+  if(mepIstHausmeister()||mepBl()) return "";   // Kassenthema, kein Bereichsthema
+  if(!mepScan.length){
+    return `<div class="box"><h2>Scanquote</h2>${mepScanLeiste()}
+      <div class="small" style="padding:10px 0;font-style:italic">Für diesen Zeitraum liegen keine
+      Zahlen vor. Der Bericht „Scanquote“ wird im Admin-Bereich eingespielt.</div></div>`;
+  }
+  const mitPos=mepScan.filter(x=>(x.positionen||0)>=200);   // Kassen mit zu wenig Bons sagen nichts
+  const schwach=mitPos.slice().sort((a,b)=>(a.quote??100)-(b.quote??100)).slice(0,5);
+  const schnitt=mitPos.length
+    ? mitPos.reduce((s,x)=>s+(x.pos_scan||0),0)   // wird unten nicht gebraucht, nur Platzhalter
+    : 0;
+  const gesamtPos=mepScan.reduce((s,x)=>s+(x.positionen||0),0);
+  const gesamtMan=mepScan.reduce((s,x)=>s+(x.pos_manuell||0),0);
+  const gesamtQuote=gesamtPos?100-(gesamtMan*100/gesamtPos):null;
+  const farbe=q=>q==null?"#08213f":q>=99.8?"#15803d":q>=99.4?"#b45309":"#b91c1c";
+  return `<div class="box"><h2>Scanquote${mepAlleMaerkte()?" · alle Märkte":""}
+    <span style="font-weight:normal;font-size:14px;color:#64748b">${mepZahl(mepScan.length)} Kassen</span>
+    ${mepAbsprung("mepZeigeScanquote()","alle Kassierer")}</h2>
+    ${mepScanLeiste()}
+    <div class="small">Anteil gescannter Positionen. Die fünf schwächsten Kassen mit mindestens
+      200 Positionen – darunter ist die Quote Zufall.
+      ${gesamtQuote!=null?`Insgesamt <b>${mepPrz(gesamtQuote)}</b> bei
+      ${mepZahl(gesamtMan)} Handeingaben auf ${mepZahl(gesamtPos)} Positionen.`:""}</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13.5px;margin-top:10px">
+      <thead><tr style="text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">
+        ${mepAlleMaerkte()?"<th style=\"padding:8px\">Markt</th>":""}
+        <th style="padding:8px">Kasse</th>
+        <th style="text-align:right;padding:8px">Scanquote</th>
+        <th style="text-align:right;padding:8px">Positionen</th>
+        <th style="text-align:right;padding:8px">von Hand</th>
+        <th style="text-align:right;padding:8px">Wiederholungen</th></tr></thead><tbody>
+      ${schwach.map(x=>`<tr style="border-top:1px solid #eef3f9">
+        ${mepAlleMaerkte()?`<td style="padding:8px;color:#64748b">${mepEsc(x.markt)}</td>`:""}
+        <td style="padding:8px;font-weight:600">${mepEsc(x.kassierer)}</td>
+        <td style="text-align:right"><b style="color:${farbe(x.quote)}">${mepPrz(x.quote)}</b></td>
+        <td style="text-align:right">${mepZahl(x.positionen)}</td>
+        <td style="text-align:right"><b>${mepZahl(x.pos_manuell)}</b></td>
+        <td style="text-align:right;color:#64748b">${mepZahl(x.pos_wdh)}</td></tr>`).join("")}
+      </tbody></table>
+    <div class="small" style="margin-top:9px">Handeingaben kosten Zeit an der Kasse und sind die
+      häufigste Ursache für falsch kassierte Artikel – das taucht später als Inventurdifferenz auf.
+      Die Kassierer stehen als Nummer, nicht mit Namen.</div></div>`;
+}
+function mepZeigeScanquote(){
+  const l=mepScan.slice().sort((a,b)=>(a.quote??100)-(b.quote??100));
+  const farbe=q=>q==null?"#08213f":q>=99.8?"#15803d":q>=99.4?"#b45309":"#b91c1c";
+  const [von,bis]=(mepScanZeit||"_").split("_");
+  let h=`<div class="small" style="margin-bottom:10px">${mepAlleMaerkte()?"alle Märkte":mepMk()} ·
+      ${von?von.split("-").reverse().join("."):""}–${bis?bis.split("-").reverse().join("."):""} ·
+      ${l.length} Kassen, schwächste oben.</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13.5px">${
+    mepTh("Markt","Kasse","~Scanquote","~Positionen","~gescannt","~von Hand","~Wiederholungen")}<tbody>`;
+  l.forEach(x=>{ h+=`<tr style="border-top:1px solid #eef3f9">
+    <td style="padding:8px;color:#64748b">${mepEsc(x.markt)}</td>
+    <td style="padding:8px;font-weight:600">${mepEsc(x.kassierer)}</td>
+    <td style="text-align:right"><b style="color:${farbe(x.quote)}">${mepPrz(x.quote)}</b></td>
+    <td style="text-align:right">${mepZahl(x.positionen)}</td>
+    <td style="text-align:right;color:#64748b">${mepZahl(x.pos_scan)}</td>
+    <td style="text-align:right"><b>${mepZahl(x.pos_manuell)}</b></td>
+    <td style="text-align:right;color:#64748b">${mepZahl(x.pos_wdh)}</td></tr>`; });
+  mepModal("Scanquote · alle Kassierer", h+"</tbody></table>");
+}
+
 /* ---------- Was ist wo offen ----------
    Fuer Marktleitung und Verwaltung: eine Zeile je Bereich mit allem, was
    dort liegen geblieben ist. Gedacht als erster Blick am Morgen - wo muss ich
@@ -7008,8 +7578,10 @@ function mepZeichnen(){
   z.innerHTML = mepIstHausmeister()
     ? mepKachelAufgaben()+mepKachelBefunde()
     : mepAlleMaerkte()
-      ? mepKachelVerwaltung()+mepKachelOffen()+mepVerw(mepKachelAufgaben)+mepVerw(mepKachelDispo)+mepKachelBefunde()
+      ? mepKachelVerwaltung()+mepKachelOffen()+mepKachelScanquote()+mepKachelBestand()
+        +mepVerw(mepKachelAufgaben)+mepVerw(mepKachelDispo)+mepKachelBefunde()
       : mepKachelVerwaltung()+mepKachelKennzahlen()+mepKachelOffen()+mepKachelSpannen()+mepKachelBefunde()
+        +mepKachelScanquote()+mepKachelBestand()
         +mepKachelWerbung()+mepKachelFlop()+mepKachelArtikel()
         +mepVerw(mepKachelAufgaben)+mepVerw(mepKachelDispo);
   mepBarcodes();
@@ -7309,6 +7881,9 @@ function mepSetzeArtRegal(r){ mepArtRegal=r; mepZeichnen(); }
    der Datenbank bereits angelegt (18.08.2026) - der Filter schaltet sich von
    selbst frei, sobald der erweiterte Bericht eintrifft.
    Mehrfachplatzierungen sind laut Merkmalskatalog an 990000XXXX zu erkennen. */
+const mepRegalText=(x)=> x.regal_nr
+  ? ` · Regal ${mepEsc(x.regal_nr)}${x.zweitplatzierung?" <b style=\"color:#7c3aed\">Zweitplatzierung</b>":""}`
+  : "";
 function mepRegalWahl(regale,aktiv,fn){
   if(!regale||!regale.length) return "";
   return `<select onchange="${fn}(this.value)" style="width:auto;min-width:140px;
@@ -7479,7 +8054,7 @@ function mepKachelFlop(){
       <svg class="mepbc" data-code="${mepEsc(x.sap_artnr)}" style="width:112px;height:40px;flex:none"></svg>
       <div style="flex:1 1 220px;min-width:0;font-size:13.5px;line-height:1.35">${mepEsc(x.bezeichnung)}
         <span style="display:block;font-size:10.5px;color:#94a3b8;margin-top:2px">${mepEsc(x.abteilung)} ·
-          Art.-Nr. ${mepEsc(x.sap_artnr)} · Umsatz ${mepEur(x.umsatz)} ·
+          Art.-Nr. ${mepEsc(x.sap_artnr)}${mepRegalText(x)} · Umsatz ${mepEur(x.umsatz)} ·
           Spanne ${mepPrz(x.umsatzsp)} → ${mepPrz(x.nettoertragssp)}${
           dp?` · <b style="color:#b45309">offene Dispo</b>`:""}</span></div>
       <div style="text-align:right;flex:none;white-space:nowrap">
@@ -7570,7 +8145,8 @@ function mepKachelArtikel(){
       <svg class="mepbc" data-code="${mepEsc(x.sap_artnr)}" style="width:112px;height:40px;flex:none"></svg>
       <div style="flex:1 1 220px;min-width:0;font-size:13.5px;line-height:1.35">${mepEsc(x.bezeichnung)}
         <span style="display:block;font-size:10.5px;color:#94a3b8;margin-top:2px">${mepEsc(x.abteilung)} ·
-          Art.-Nr. ${mepEsc(x.sap_artnr)}${dp?` · <b style="color:#b45309">offene Dispo</b>`:""}</span></div>
+          Art.-Nr. ${mepEsc(x.sap_artnr)}${mepRegalText(x)}${
+          dp?` · <b style="color:#b45309">offene Dispo</b>`:""}</span></div>
       <div style="font-weight:bold;text-align:right;font-size:14px;white-space:nowrap;flex:none">${w(x)}</div></div>`;}).join("")
       :`<div class="small" style="padding:10px 0;font-style:italic">Keine Artikeldaten für diese Auswahl.</div>`}
     <div class="small" style="margin-top:9px">Quartalswerte, täglich mit Stand Vortag.
