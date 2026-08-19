@@ -628,7 +628,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.19-1"; // Bestandsverlauf-Import, Dispo-Protokoll, Kachelhinweise
+const APP_VERSION = "v2026.08.19-2"; // Liquiditaet 14 Tage, Umbuchungshinweis, Bewerber-Zaehlung
 const APP_VERSION_DATE = "18.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -7725,11 +7725,24 @@ function mepKachelVerwaltung(){
   }
   const b=mepVerwaltung.bewerbungen||{}, l=mepVerwaltung.liquiditaet||{};
   const ampelFarbe={gruen:"#15803d",gelb:"#b45309",rot:"#b91c1c"}[l.ampel]||"#64748b";
+  /* Umbuchungsbedarf getrennt von der Ampel (19.08.2026).
+
+     In Summe kann das Geld reichen und ein einzelnes Konto trotzdem ins Soll
+     laufen. Am 19.08. war genau das der Fall: gesamt 424.077 EUR gegen
+     57.000 EUR Puffer – aber Billigheim am 30.08. bei −91.299 EUR. Die
+     Ampel sagte „reicht" und damit das Richtige, nur nicht das Wichtige.
+
+     Vorgabe Benedikt Paul: „Es sollte jetzt heißen: reicht, Umbuchung
+     notwendig." */
+  const tage=l.vorschau_tage||14;
+  const umb=(l.umbuchung&&l.umbuchung.length)?l.umbuchung:[];
   const ampelText={
-    gruen:"Das Geld reicht die nächsten 7 Tage – die Puffergrenze bleibt gewahrt.",
-    gelb:"Es wird knapp: in den nächsten 7 Tagen wird die Puffergrenze unterschritten.",
-    rot:"Achtung: in den nächsten 7 Tagen rutscht der Saldo ins Minus."
+    gruen:`Das Geld reicht die nächsten ${tage} Tage – die Puffergrenze bleibt gewahrt.`,
+    gelb:`Es wird knapp: in den nächsten ${tage} Tagen wird die Puffergrenze unterschritten.`,
+    rot:`Achtung: in den nächsten ${tage} Tagen rutscht der Saldo ins Minus.`
   }[l.ampel]||"Keine Aussage möglich.";
+  const umbText=umb.map(u=>`<b>${mepEsc(u.konto)}</b> braucht bis ${formatDateDE(u.tag)}
+      rund ${mepZahl(u.fehlt)} €`).join("; ");
   const feld=(titel,wert,farbe,zusatz,absprung)=>
     `<div style="flex:1 1 190px;border:1px solid #e6eef8;border-radius:10px;padding:12px 14px;background:#fff">
       <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b">${titel}</div>
@@ -7750,9 +7763,16 @@ function mepKachelVerwaltung(){
         "neu eingegangen, noch nicht geöffnet","")}
       ${feld("Termine heute",t?mepZahl(t):"keine",t?"#004f9e":"#64748b",
         t?"Gespräch, Probetag oder Eintritt":"nichts eingetragen","")}
-      ${feld("Liquidität 7 Tage",
-        l.ampel==="gruen"?"reicht":l.ampel==="gelb"?"knapp":l.ampel==="rot"?"reicht nicht":"–",
-        ampelFarbe, ampelText, link("liqui","Liquiditäts-Dashboard"))}
+      ${feld(`Liquidität ${tage} Tage`,
+        l.ampel==="gruen"
+          ? (l.umbuchung_noetig ? "reicht, Umbuchung nötig" : "reicht")
+          : l.ampel==="gelb"?"knapp":l.ampel==="rot"?"reicht nicht":"–",
+        l.umbuchung_noetig&&l.ampel==="gruen" ? "#b45309" : ampelFarbe,
+        umb.length
+          ? `${ampelText}<br><b style="color:#b45309">Aber ein Konto läuft ins Soll:</b> ${umbText}.
+             Bitte rechtzeitig umbuchen.`
+          : ampelText,
+        link("liqui","Liquiditäts-Dashboard"))}
     </div>
     <div class="small" style="margin-top:10px">${l.tiefster_tag
       ? `Tiefster Punkt am ${formatDateDE(l.tiefster_tag)}, gerechnet über ${mepZahl(l.konten_gezaehlt)} Konten.`
