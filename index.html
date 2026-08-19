@@ -534,6 +534,19 @@
       <div id="scanquoteMsg" class="small" style="margin-top:8px"></div>
     </div>
     <div class="box admin admin-uploads">
+      <h2>📉 Bestandsverlauf je Abteilung (wöchentlich)</h2>
+      <div class="small">EDEKA-BO Bericht „Bestandsverlauf“ – eine Datei für alle vier Märkte.
+        Enthält je Abteilung und Tag Anfangsbestand, Zugang, Abgang, Endbestand und Veränderung.
+        Kopfzeile steht in Zeile 4, Ergebniszeilen werden übersprungen.
+        Gleiche Kombination aus Markt, Abteilung und Tag wird überschrieben, neue Tage kommen dazu,
+        alte bleiben stehen.</div>
+      <input id="bestandFile" type="file" accept=".xlsx,.xls,.xlsm" style="margin-top:10px" />
+      <div style="margin-top:10px">
+        <button class="btn-green" style="width:auto" onclick="uploadBestandsverlauf()">Excel einlesen &amp; speichern</button>
+      </div>
+      <div id="bestandMsg" class="small" style="margin-top:8px"></div>
+    </div>
+    <div class="box admin admin-uploads">
       <h2>💰 Bevorratung – Umsatz-Excel hochladen (quartalsweise)</h2>
       <div class="small">EDEKA-BO Umsatzbericht als Kreuztabelle (Markt × Menge/Menge Aktion). Es wird nur der Normal-Absatz (Menge − Menge Aktion) je Markt gespeichert. Neuer Upload überschreibt bestehende Werte pro Artikel/Markt.</div>
       <input id="werbungUmsatzFile" type="file" accept=".xlsx,.xls,.xlsm" style="margin-top:10px" />
@@ -615,7 +628,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.18-25"; // Liefertage aus Vorgabe; Leergut und ausgelaufene Abteilungen gesondert
+const APP_VERSION = "v2026.08.19-1"; // Bestandsverlauf-Import, Dispo-Protokoll, Kachelhinweise
 const APP_VERSION_DATE = "18.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -5951,6 +5964,7 @@ const AUTO_ZIELE = {
   ordersatz:     { feld: "ordersatzPdfFile",  msg: "ordersatzUploadMsg", fn: "uploadOrdersatzPdf",  text: "Backshop-Ordersatz",                mehrere: false },
   regaldaten:    { feld: "regalFile",         msg: "regalMsg",           fn: "uploadRegaldaten",    text: "Regaldaten (Artikel je Regal)",     mehrere: false },
   scanquote:     { feld: "scanquoteFile",     msg: "scanquoteMsg",       fn: "uploadScanquote",     text: "Scanquote je Kassierer",            mehrere: false },
+  bestandsverlauf:{feld: "bestandFile",       msg: "bestandMsg",         fn: "uploadBestandsverlauf", text: "Bestandsverlauf je Abteilung",    mehrere: false },
 };
 
 /* Erkennt, wohin eine Datei gehoert. Reihenfolge ist Absicht:
@@ -5981,6 +5995,14 @@ async function autoErkenne(file){
   /* Regaldaten zuerst pruefen: Die Datei heisst ebenfalls "UMSATZ..." und
      wuerde sonst bei den Kennzahlen landen. Eindeutig ist die Kopfzeile -
      "Regalnummer" kommt in keinem anderen Bericht vor. */
+  /* Bestandsverlauf VOR den Regaldaten pruefen. Beide Berichte tragen eine
+     Kopfzeile mit "Markt" und "Abteilung"; eindeutig ist nur der Titel in
+     Zeile 1 bzw. die Spalte "Anfangsbestand". Ergaenzt 19.08.2026 - vorher
+     gab es fuer diesen Bericht gar keinen Zweig, er landete deshalb seit
+     Wochen unerkannt in unvollstaendig/. */
+  if(/^bestandsverlauf/.test(titel))                 return {art:"bestandsverlauf", grund:"Titelzelle „Bestandsverlauf“"};
+  if(/anfangs\s*-?\s*bestand/.test(flach))           return {art:"bestandsverlauf", grund:"Kopfzeile enthält „Anfangsbestand“"};
+  if(/bestandsverlauf/i.test(name))                  return {art:"bestandsverlauf", grund:"Dateiname „Bestandsverlauf“"};
   if(/regalnummer/.test(flach)) return {art:"regaldaten", grund:"Kopfzeile enthält „Regalnummer“"};
   if(/regaldaten/i.test(name))  return {art:"regaldaten", grund:"Dateiname „Regaldaten“"};
   if(/scanquote/.test(flach))   return {art:"scanquote", grund:"Titelzelle „Scanquote“"};
@@ -6129,6 +6151,120 @@ function zahlAusZelle(roh, text){
   }
   const n = Number(s);
   return isFinite(n) ? n : null;
+}
+
+/* ---------- Bestandsverlauf je Abteilung (19.08.2026) ----------
+
+   Der Bericht kam seit Wochen an und wurde von autoErkenne NICHT erkannt -
+   es gab schlicht keinen Zweig dafuer. Er landete deshalb in
+   unvollstaendig/, und in der Tabelle bestandsverlauf standen 84
+   Anfangsbestaende, alle vom 31.12.2025. Ein einziger Anker fuer die
+   Fortschreibung; 7 von 89 Abteilungen waren dadurch rechnerisch negativ.
+
+   AUFBAU DER DATEI (geprueft am 18.08.2026):
+     Zeile 1: "Bestandsverlauf"
+     Zeile 4: Markt | Abteilung | Kalendertag | Anfangsbestand EK | Zugang EK
+              | Abgang EK | Endbestand EK | Bestandsveraenderung
+     Zeile 5: Gesamtergebnis - ueberspringen
+     Zeile 6: <Markt> | Ergebnis | Ergebnis - ueberspringen
+     Zeile 7: <Markt> | <Abteilung> | Ergebnis - Abteilungssumme, ueberspringen
+     ab dann: <Markt> | <Abteilung> | TT.MM.JJJJ - die eigentlichen Tageszeilen
+
+   Anfangs- und Endbestand stehen nur in den ERGEBNISZEILEN je Abteilung,
+   nicht in den Tageszeilen. Beide werden deshalb aus der Ergebniszeile
+   uebernommen und an den ERSTEN bzw. LETZTEN Tag der Abteilung geschrieben -
+   dort gehoeren sie hin und dort sucht sie die Fortschreibung.
+
+   ZAHLEN IMMER AUS DEM ROHDURCHGANG (siehe zahlAusZelle): raw:false wendet
+   das Zahlenformat an, und die BO-Berichte haben in den Betragsspalten
+   Formate ohne Nachkommastellen. */
+async function uploadBestandsverlauf(){
+  if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
+  const input = document.getElementById("bestandFile");
+  const msg = document.getElementById("bestandMsg");
+  if(!input || !input.files || !input.files.length){ alert("Bitte die Bestandsverlauf-Excel wählen."); return; }
+  msg.style.color = "#0c1f3c"; msg.innerHTML = "Lese Excel …";
+  try{
+    const wb = XLSX.read(await input.files[0].arrayBuffer(), {type:"array"});
+    const sn = wb.SheetNames.find(n=>n.toLowerCase().includes("tabelle")) || wb.SheetNames[0];
+    const txt = XLSX.utils.sheet_to_json(wb.Sheets[sn], {header:1, defval:null, raw:false});
+    const roh = XLSX.utils.sheet_to_json(wb.Sheets[sn], {header:1, defval:null, raw:true});
+
+    // Kopfzeile suchen statt annehmen - sie steht in Zeile 4, aber das kann sich aendern
+    let kz=-1, kopf=[];
+    for(let z=0; z<Math.min(txt.length,15); z++){
+      const k=(txt[z]||[]).map(c=>String(c==null?"":c).replace(/\s+/g," ").trim().toLowerCase());
+      if(k.some(x=>x.startsWith("markt")) && k.some(x=>x.startsWith("abteilung"))){ kz=z; kopf=k; break; }
+    }
+    if(kz<0){ msg.style.color="#c62828";
+      msg.innerHTML="Keine Kopfzeile mit „Markt“ und „Abteilung“ in den ersten 15 Zeilen gefunden."; return; }
+    const sp=(...n)=>{ for(const x of n){ const i=kopf.findIndex(k=>k.replace(/[\s-]/g,"").startsWith(x)); if(i>=0) return i; } return -1; };
+    const cM=sp("markt"), cA=sp("abteilung"), cT=sp("kalendertag","tag","datum"),
+          cAnf=sp("anfangsbestand"), cZu=sp("zugang"), cAb=sp("abgang"),
+          cEnd=sp("endbestand"), cVer=sp("bestandsver","veraenderung","veränderung");
+    if(cM<0||cA<0||cT<0){ msg.style.color="#c62828";
+      msg.innerHTML="Kopfzeile passt nicht. Erwartet: Markt, Abteilung, Kalendertag. Gefunden: "+escapeHtml(kopf.join(" | ")); return; }
+
+    const ERG=new Set(["ergebnis","gesamtergebnis",""]);
+    const zahl=(i,c)=> c<0 ? null : zahlAusZelle((roh[i]||[])[c], (txt[i]||[])[c]);
+    const saetze=[], summen={}, maerkte=new Set();
+    let uebersprungen=0;
+    for(let i=kz+1;i<txt.length;i++){
+      const r=txt[i]||[];
+      const markt=String(r[cM]==null?"":r[cM]).trim();
+      const abt  =String(r[cA]==null?"":r[cA]).trim();
+      const tagR =String(r[cT]==null?"":r[cT]).trim();
+      if(!markt || ERG.has(markt.toLowerCase())){ uebersprungen++; continue; }
+      // Ergebniszeile je Abteilung: hier stehen Anfangs- und Endbestand
+      if(ERG.has(tagR.toLowerCase())){
+        if(abt && !ERG.has(abt.toLowerCase()))
+          summen[markt+"|"+abt]={anf:zahl(i,cAnf), end:zahl(i,cEnd)};
+        uebersprungen++; continue;
+      }
+      const m=tagR.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})$/);
+      if(!m){ uebersprungen++; continue; }
+      const tag=`${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+      maerkte.add(markt);
+      saetze.push({markt, abteilung:abt, tag,
+        anfangsbestand_ek:null, endbestand_ek:null,
+        zugang_ek:zahl(i,cZu), abgang_ek:zahl(i,cAb), veraenderung_ek:zahl(i,cVer)});
+    }
+    if(!saetze.length){ msg.style.color="#c62828";
+      msg.innerHTML="Keine Tageszeilen erkannt ("+uebersprungen+" Zeilen übersprungen)."; return; }
+
+    /* Anfangsbestand an den ersten, Endbestand an den letzten Tag je
+       Markt und Abteilung haengen - dort sucht die Fortschreibung sie. */
+    const nachAbt={};
+    saetze.forEach(s=>{ (nachAbt[s.markt+"|"+s.abteilung]=nachAbt[s.markt+"|"+s.abteilung]||[]).push(s); });
+    let anker=0;
+    Object.keys(nachAbt).forEach(k=>{
+      const liste=nachAbt[k].sort((a,b)=>a.tag<b.tag?-1:1), su=summen[k];
+      if(!su) return;
+      if(su.anf!=null){ liste[0].anfangsbestand_ek=su.anf; anker++; }
+      if(su.end!=null){ liste[liste.length-1].endbestand_ek=su.end; anker++; }
+    });
+
+    msg.innerHTML=`${saetze.length.toLocaleString("de-DE")} Tageszeilen aus ${maerkte.size} Markt/Märkten,
+      ${anker} Bestandsanker – wird gespeichert …`;
+    for(let i=0;i<saetze.length;i+=500){
+      const teil=saetze.slice(i,i+500);
+      const {error}=await db.from("bestandsverlauf").upsert(teil,{onConflict:"markt,abteilung,tag"});
+      if(error) throw error;
+      msg.innerHTML=`Gespeichert: ${Math.min(i+500,saetze.length).toLocaleString("de-DE")} von ${saetze.length.toLocaleString("de-DE")} …`;
+    }
+    // Gegenprobe - eine Erfolgsmeldung allein ist kein Nachweis
+    const {count}=await db.from("bestandsverlauf").select("*",{count:"exact",head:true});
+    const von=saetze.reduce((a,s)=>s.tag<a?s.tag:a,"9999"), bis=saetze.reduce((a,s)=>s.tag>a?s.tag:a,"0000");
+    msg.style.color="#15803d";
+    msg.innerHTML=`✅ <b>${saetze.length.toLocaleString("de-DE")} Tageszeilen</b> gespeichert,
+      ${anker} Anfangs- und Endbestände als Anker gesetzt.<br>
+      Märkte: ${[...maerkte].join(", ")} · Zeitraum ${formatDateDE(von)} bis ${formatDateDE(bis)}<br>
+      In der Datenbank stehen jetzt <b>${(count||0).toLocaleString("de-DE")}</b> Zeilen.`;
+    input.value="";
+  }catch(e){
+    msg.style.color="#c62828";
+    msg.innerHTML="Fehler: "+escapeHtml(e.message||String(e));
+  }
 }
 
 async function uploadRegaldaten(){
