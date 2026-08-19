@@ -628,7 +628,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.19-2"; // Liquiditaet 14 Tage, Umbuchungshinweis, Bewerber-Zaehlung
+const APP_VERSION = "v2026.08.19-4"; // DRINGEND: Abhaken ohne Namensfeld
 const APP_VERSION_DATE = "18.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -746,6 +746,36 @@ function getAppViewMode(){
 }
 const APP_VIEW = getAppViewMode();
 const APP_PWD_KEY = APP_VIEW === "backshop" ? "app_password_backshop" : "app_password";
+
+/* Direkteinstieg „Mein EDEKA Paul" (19.08.2026).
+
+   Aufruf:  https://meinedeka.edeka-paul.de/#mep
+   Wirkung: Nach dem Laden wird der Reiter „Mein EDEKA Paul" geöffnet,
+            statt auf der Bäckerei zu landen.
+
+   Die Anmeldung wird dadurch NICHT übersprungen. Wer die PIN mit
+   „Für 7 Tage merken" eingegeben hat, kommt direkt hinein; alle anderen
+   sehen zuerst wie gewohnt das Anmeldefenster und landen danach hier.
+   Der Link gibt also keinerlei Zugang, den man nicht ohnehin hätte. */
+function mepDirektEinstieg(){
+  const h=(window.location.hash||"").replace("#","").toLowerCase();
+  const p=(new URLSearchParams(window.location.search).get("start")||"").toLowerCase();
+  if(h!=="mep" && p!=="mep") return;
+  let versuche=0;
+  const holen=setInterval(()=>{
+    versuche++;
+    const knopf=document.getElementById("mepTab");
+    const offen=document.getElementById("mepInhalt");
+    // Erst umschalten, wenn der Reiter sichtbar ist - vorher steht das
+    // Anmeldefenster davor und das Umschalten liefe ins Leere.
+    if(knopf && knopf.offsetParent){
+      try{ showTab("mep"); }catch(e){}
+      if(offen && offen.style.display!=="none"){ clearInterval(holen); }
+    }
+    if(versuche>60) clearInterval(holen);   // nach 30 s aufgeben
+  },500);
+}
+if(typeof document!=="undefined") document.addEventListener("DOMContentLoaded", mepDirektEinstieg);
 
 function applyAppViewMode(){
   if(APP_VIEW !== "backshop") return;
@@ -1954,9 +1984,38 @@ async function loadMonthlyTasks(market){
     container.appendChild(div);
   });
 }
+/* Wer hat abgehakt? (19.08.2026 - DRINGEND repariert)
+
+   FEHLER: toggleTask verlangte das Feld "Dein Name". Das steht auf dem
+   ToDo-Reiter - und der ist seit der Umstellung auf drei Reiter
+   AUSGEBLENDET. Die Mitarbeitenden konnten ihn also gar nicht ausfuellen
+   und bekamen bei jedem Haken "Bitte Namen eingeben.". Abhaken war damit
+   im ganzen Markt unmoeglich.
+
+   WAS DIE PIN WEISS - und was nicht: Die 18 PINs sind je Markt und Bereich
+   vergeben, nicht je Person. `zugang.person` ist bei allen leer. Eine PIN
+   sagt also "Baeckerei in Billigheim-Ingenheim", aber nicht, WER davon.
+   Mehrere Leute teilen sich eine PIN.
+
+   Deshalb wird in dieser Reihenfolge eingetragen:
+     1. der Name, falls jemand einen eingegeben hat
+     2. die Person aus der PIN, sobald `zugang.person` gepflegt ist
+     3. sonst Bereich und Markt aus der PIN
+   Geblockt wird NIE. Ein nicht abgehakter Haken ist schlimmer als ein
+   Eintrag "Baeckerei · Billigheim-Ingenheim". */
+function mepWerHatsGemacht(){
+  const feld=document.getElementById("name");
+  const eingetippt=feld?feld.value.trim():"";
+  if(eingetippt) return eingetippt;
+  const z=(typeof mepZugang!=="undefined"&&mepZugang)?mepZugang:{};
+  if(z.person) return z.person;
+  if(z.bereich&&z.markt&&z.markt!=="Verwaltung") return z.bereich+" · "+z.markt;
+  if(z.beschreibung) return z.beschreibung;
+  if(z.markt) return z.markt;
+  return "ohne Anmeldung";
+}
 async function toggleTask(taskId,dateISO,value){
-  const name=document.getElementById("name").value.trim();
-  if(!name){ alert("Bitte Namen eingeben."); loadTasks(); return; }
+  const name=mepWerHatsGemacht();
   // Sicherheits-Check nur fuer verspaetete Bestaetigungen (Aufgabe von gestern oder frueher).
   if(value && dateISO < todayISO()){
     const lateOk = confirm("Sind Sie sicher, eine Aufgabe von gestern zu bestätigen?");
@@ -1974,12 +2033,11 @@ async function toggleTask(taskId,dateISO,value){
   if(adminUnlocked) loadControlTasks();
 }
 async function createHandover(){
-  const name = document.getElementById("name").value.trim();
+  const name = mepWerHatsGemacht();   // ohne Namensfeld, siehe 19.08.2026
   const market = document.getElementById("marketFilter").value;
   const area = document.getElementById("areaFilter").value;
   const text = document.getElementById("handoverText").value.trim();
   const msg = document.getElementById("handoverMsg");
-  if(!name) return alert("Bitte Namen eingeben.");
   if(!area) return alert("Bitte einen Bereich auswählen.");
   if(!text) return alert("Bitte eine Info eingeben.");
   if(area === "Hausmeister"){
@@ -5227,8 +5285,10 @@ function dispoCardHTML(it, barcodesToRender){
 }
 
 async function toggleDispoItem(id, checked){
-  const name = document.getElementById("name").value.trim();
-  if(!name){ alert("Bitte oben deinen Namen eingeben."); renderDispo(); return; }
+  // Kein Namensfeld mehr noetig - siehe mepWerHatsGemacht (19.08.2026).
+  // Das Feld liegt auf dem ausgeblendeten ToDo-Reiter und blockierte auch
+  // hier jedes Abhaken.
+  const name = mepWerHatsGemacht();
   // Kein confirm-Dialog mehr — direktes Abhaken
   const update = checked ? {done_date: berlinNowForDB(), done_by: name} : {done_date: null, done_by: null};
   const r = await db.from("dispo_items").update(update).eq("id", id);
@@ -7110,9 +7170,12 @@ function mepZugangLesen(){
    eigenen Zuschnitt - keine Fehlermeldung fuer etwas, das niemandem hilft.
    ------------------------------------------------------------------------- */
 function mepZugangAus(z, gewMarkt, gewBereich){
+  /* person und beschreibung mitfuehren - daraus entsteht der Erledigt-
+     Vermerk beim Abhaken (19.08.2026). */
+  const zusatz = { person: z.person || null, beschreibung: z.beschreibung || null };
   if(z.rolle==="marktleitung"){
     const erlaubt = MEP_MAERKTE[z.markt] || ["Alle Bereiche"];
-    return { markt: z.markt,
+    return { ...zusatz, markt: z.markt,
              bereich: erlaubt.includes(gewBereich) ? gewBereich : "Alle Bereiche",
              rolle: z.rolle };
   }
@@ -7131,16 +7194,16 @@ function mepZugangAus(z, gewMarkt, gewBereich){
      bekommt unveraendert den Gesamtblick samt Liquiditaet und Bewerbungen. */
   if(z.rolle==="verwaltung"){
     const eigen = !gewMarkt || gewMarkt==="Verwaltung";
-    if(eigen) return { markt:z.markt, bereich:z.bereich, rolle:z.rolle };
+    if(eigen) return { ...zusatz, markt:z.markt, bereich:z.bereich, rolle:z.rolle };
     const erlaubt = MEP_MAERKTE[gewMarkt] || ["Alle Bereiche"];
-    return { markt: gewMarkt,
+    return { ...zusatz, markt: gewMarkt,
              bereich: erlaubt.includes(gewBereich) ? gewBereich : "Alle Bereiche",
              rolle: z.rolle };
   }
 
   // Hausmeister und die Bereiche bekommen genau das, was in der Datenbank
   // steht - dort entscheidet die PIN, nicht die Auswahl.
-  return { markt:z.markt, bereich:z.bereich, rolle:z.rolle };
+  return { ...zusatz, markt:z.markt, bereich:z.bereich, rolle:z.rolle };
 }
 
 /* Geprueft wird in der Datenbank (Funktion zugang_pruefen). Die Tabelle
@@ -7207,7 +7270,7 @@ function mepStart(){
   }
   const o=mepZugangLesen();
   if(o && !mepGeladen){
-    mepZugang={markt:o.markt,bereich:o.bereich,rolle:o.rolle};
+    mepZugang={markt:o.markt,bereich:o.bereich,rolle:o.rolle,person:o.person||null,beschreibung:o.beschreibung||null};
     mepOeffnen();
   }
 }
