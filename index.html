@@ -547,6 +547,47 @@
       <div id="bestandMsg" class="small" style="margin-top:8px"></div>
     </div>
     <div class="box admin admin-uploads">
+      <h2>🚚 Wareneingangskontrollliste (täglich)</h2>
+      <div class="small">EDEKA-BO Bericht „Wareneingangskontrollliste“ – eine Datei für alle vier Märkte.
+        Je Markt, Abteilung und Lieferant: Wareneingang zu EK, Bezugswert, VK netto und die
+        Spannen. Der Zeitraum kommt aus dem Blatt „Filter“; als Stand zählt sein letzter Tag.
+        Derselbe Stand wird je Markt ersetzt, ältere Stände bleiben stehen.</div>
+      <input id="weFile" type="file" accept=".xlsx,.xls,.xlsm" style="margin-top:10px" />
+      <div style="margin-top:10px">
+        <button class="btn-green" style="width:auto" onclick="uploadWareneingang()">Excel einlesen &amp; speichern</button>
+      </div>
+      <div id="weMsg" class="small" style="margin-top:8px"></div>
+    </div>
+    <div class="box admin admin-uploads">
+      <h2>🧾 Artikelumsatz je Markt (täglich)</h2>
+      <div class="small">EDEKA-BO Bericht „Umsatz / Artikelumsatz“ – <b>eine Datei je Markt</b>, immer
+        der Vortag. Je Artikel: Umsatz, Menge, Umsatzspanne, Nettoertragsspanne und Warenrohgewinn.
+        Markt <i>und</i> Zeitraum kommen aus dem Blatt „Filter“ – der Dateiname wird nicht gebraucht,
+        weil das Marktkürzel darin uneinheitlich ist. Die Periode wird so in der Datenbank
+        aufgebaut: ein Datensatz je Tag, dadurch wächst die Zeitreihe mit jedem Lauf.
+        Derselbe Tag wird je Markt ersetzt, ältere Tage bleiben stehen.
+        <br>→ Tabelle <code>artikel_kennzahlen</code></div>
+      <input id="artikelTagFile" type="file" accept=".xlsx,.xls,.xlsm" multiple style="margin-top:10px" />
+      <div style="margin-top:10px">
+        <button class="btn-green" style="width:auto" onclick="uploadArtikelumsatz()">Excel einlesen &amp; speichern</button>
+      </div>
+      <div id="artikelTagMsg" class="small" style="margin-top:8px"></div>
+    </div>
+    <div class="box admin admin-uploads">
+      <h2>📐 Spannenanalyse (wöchentlich)</h2>
+      <div class="small">EDEKA-BO Bericht „Spannenanalyse“ – eine Datei für alle vier Märkte als
+        Kreuztabelle: Markt in Zeile 4, Kennzahl in Zeile 5, Abteilungen darunter. Je Markt und
+        Abteilung: Umsatzspanne, Abschriften EK, Inventur EK und Nettoertragsspanne – jeweils mit
+        Vorjahreswert. Der Zeitraum kommt aus dem Blatt „Filter“.
+        Dieselbe Woche wird ersetzt, ältere Wochen bleiben stehen.
+        <br>→ Tabelle <code>spannenanalyse</code></div>
+      <input id="spannenFile" type="file" accept=".xlsx,.xls,.xlsm" style="margin-top:10px" />
+      <div style="margin-top:10px">
+        <button class="btn-green" style="width:auto" onclick="uploadSpannenanalyse()">Excel einlesen &amp; speichern</button>
+      </div>
+      <div id="spannenMsg" class="small" style="margin-top:8px"></div>
+    </div>
+    <div class="box admin admin-uploads">
       <h2>💰 Bevorratung – Umsatz-Excel hochladen (quartalsweise)</h2>
       <div class="small">EDEKA-BO Umsatzbericht als Kreuztabelle (Markt × Menge/Menge Aktion). Es wird nur der Normal-Absatz (Menge − Menge Aktion) je Markt gespeichert. Neuer Upload überschreibt bestehende Werte pro Artikel/Markt.</div>
       <input id="werbungUmsatzFile" type="file" accept=".xlsx,.xls,.xlsm" style="margin-top:10px" />
@@ -628,8 +669,8 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.19-4"; // DRINGEND: Abhaken ohne Namensfeld
-const APP_VERSION_DATE = "18.08.2026";
+const APP_VERSION = "v2026.08.20-3"; // Teillieferung BI/BI2, Kontrollsumme, Metadaten-Blatt
+const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
 function reloadApp(){
@@ -2003,8 +2044,18 @@ async function loadMonthlyTasks(market){
      3. sonst Bereich und Markt aus der PIN
    Geblockt wird NIE. Ein nicht abgehakter Haken ist schlimmer als ein
    Eintrag "Baeckerei · Billigheim-Ingenheim". */
+function mepNameMerken(wert){
+  try{ localStorage.setItem("employeeName", String(wert||"").trim()); }catch(e){}
+  const alt=document.getElementById("name");        // das alte, ausgeblendete Feld
+  if(alt) alt.value=String(wert||"").trim();        // mitziehen, damit der ToDo-Reiter stimmt
+  const h=document.getElementById("mepNameHinweis");
+  if(h) h.textContent = String(wert||"").trim()
+    ? "wird bei „erledigt von“ eingetragen"
+    : "ohne Namen wird Bereich und Markt eingetragen";
+}
 function mepWerHatsGemacht(){
-  const feld=document.getElementById("name");
+  // Zuerst das Feld in der Aufgaben-Kachel, dann das alte auf dem ToDo-Reiter
+  const feld=document.getElementById("mepName")||document.getElementById("name");
   const eingetippt=feld?feld.value.trim():"";
   if(eingetippt) return eingetippt;
   const z=(typeof mepZugang!=="undefined"&&mepZugang)?mepZugang:{};
@@ -6015,16 +6066,26 @@ async function clearWerbungPdf(){
    sortiert nur.
    ========================================================================== */
 
+/* Jede Art fuehrt zu genau einer Zieltabelle. "tabelle" steht hier nur zur
+   Anzeige - so ist beim Pruefen vor dem Hochladen zu sehen, wo eine Datei
+   landet, ohne in den Quelltext sehen zu muessen.
+   "verwerfen" ist der Sonderfall: erkannt, aber absichtlich nicht
+   gespeichert. Ohne diesen Zweig melden die Nachtlaeufe solche Dateien
+   jede Nacht aufs Neue als unbekannt. */
 const AUTO_ZIELE = {
-  kennzahlen:    { feld: "metricsExcelFile",  msg: "metricsUploadMsg",   fn: "uploadMetricsExcel",  text: "Kennzahlen (Abschriften / Umsatz)", mehrere: true  },
-  frequenz:      { feld: "backshopExcelFile", msg: "backshopUploadMsg",  fn: "uploadBackshopExcel", text: "Backshop-Frequenz",                 mehrere: true  },
-  artikelumsatz: { feld: "werbungUmsatzFile", msg: "werbungUmsatzMsg",   fn: "uploadWerbungUmsatz", text: "Artikelumsatz für die Bevorratung", mehrere: false },
-  dispo:         { feld: "dispoPdfFiles",     msg: "dispoUploadMsg",     fn: "uploadDispoPdfs",     text: "Dispo",                             mehrere: true  },
-  werbung:       { feld: "werbungPdfFile",    msg: "werbungPdfMsg",      fn: "uploadWerbungPdf",    text: "Werbe-Aktions-PDF",                 mehrere: false },
-  ordersatz:     { feld: "ordersatzPdfFile",  msg: "ordersatzUploadMsg", fn: "uploadOrdersatzPdf",  text: "Backshop-Ordersatz",                mehrere: false },
-  regaldaten:    { feld: "regalFile",         msg: "regalMsg",           fn: "uploadRegaldaten",    text: "Regaldaten (Artikel je Regal)",     mehrere: false },
-  scanquote:     { feld: "scanquoteFile",     msg: "scanquoteMsg",       fn: "uploadScanquote",     text: "Scanquote je Kassierer",            mehrere: false },
-  bestandsverlauf:{feld: "bestandFile",       msg: "bestandMsg",         fn: "uploadBestandsverlauf", text: "Bestandsverlauf je Abteilung",    mehrere: false },
+  kennzahlen:    { feld: "metricsExcelFile",  msg: "metricsUploadMsg",   fn: "uploadMetricsExcel",  text: "Kennzahlen (Abschriften / Umsatz)", tabelle: "metrics", mehrere: true  },
+  frequenz:      { feld: "backshopExcelFile", msg: "backshopUploadMsg",  fn: "uploadBackshopExcel", text: "Backshop-Frequenz",                 tabelle: "backshop_sales",   mehrere: true  },
+  artikeltag:    { feld: "artikelTagFile",    msg: "artikelTagMsg",      fn: "uploadArtikelumsatz", text: "Artikelumsatz je Markt (täglich)",  tabelle: "artikel_kennzahlen",  mehrere: true  },
+  bevorratung:   { feld: "werbungUmsatzFile", msg: "werbungUmsatzMsg",   fn: "uploadWerbungUmsatz", text: "Bevorratung (Umsatz-Kreuztabelle)", tabelle: "article_sales_weekly",      mehrere: false },
+  spannenanalyse:{ feld: "spannenFile",       msg: "spannenMsg",         fn: "uploadSpannenanalyse",text: "Spannenanalyse (wöchentlich)",      tabelle: "spannenanalyse",      mehrere: false },
+  dispo:         { feld: "dispoPdfFiles",     msg: "dispoUploadMsg",     fn: "uploadDispoPdfs",     text: "Dispo",                             tabelle: "dispo_documents · dispo_items",       mehrere: true  },
+  werbung:       { feld: "werbungPdfFile",    msg: "werbungPdfMsg",      fn: "uploadWerbungPdf",    text: "Werbe-Aktions-PDF",                 tabelle: "promo_articles · article_sales_schnitt",     mehrere: false },
+  ordersatz:     { feld: "ordersatzPdfFile",  msg: "ordersatzUploadMsg", fn: "uploadOrdersatzPdf",  text: "Backshop-Ordersatz",                tabelle: "ordersatz_items",  mehrere: false },
+  regaldaten:    { feld: "regalFile",         msg: "regalMsg",           fn: "uploadRegaldaten",    text: "Regaldaten (Artikel je Regal)",     tabelle: "artikel_regal",       mehrere: false },
+  scanquote:     { feld: "scanquoteFile",     msg: "scanquoteMsg",       fn: "uploadScanquote",     text: "Scanquote je Kassierer",            tabelle: "scanquote",           mehrere: false },
+  bestandsverlauf:{feld: "bestandFile",       msg: "bestandMsg",         fn: "uploadBestandsverlauf", text: "Bestandsverlauf je Abteilung",    tabelle: "bestandsverlauf",     mehrere: false },
+  wareneingang:  { feld: "weFile",            msg: "weMsg",              fn: "uploadWareneingang",  text: "Wareneingangskontrollliste",        tabelle: "wareneingang",        mehrere: false },
+  verwerfen:     { feld: null,                msg: null,                 fn: null,                  text: "Wird nicht gebraucht – verworfen",  tabelle: "—",                   mehrere: true  },
 };
 
 /* Erkennt, wohin eine Datei gehoert. Reihenfolge ist Absicht:
@@ -6034,6 +6095,8 @@ async function autoErkenne(file){
   const name = String(file.name || "");
 
   if(/\.pdf$/i.test(name)){
+    // Am 20.08.2026 von Benedikt als versehentlich weitergeleitet bestaetigt.
+    if(/Artikel[_ ]?zur[_ ]?Bestandskontrolle/i.test(name))                               return {art:"verwerfen", grund:"Artikel zur Bestandskontrolle – wird nicht gebraucht"};
     if(/_FEA_|Aktionsartikel|Distributionsanalyse|WE[_ ]?Prognose|Dashboard/i.test(name)) return {art:"dispo", grund:"Dateiname (Dispo-Merkmal)"};
     if(/MeinGenuss|Sofortauslieferung|WW\s*\d{2}\s*-\s*\d{2}/i.test(name))                return {art:"werbung", grund:"Dateiname (MeinGenuss / WW KW-JJ)"};
     if(/ordersatz|OS[_ ]?Lager|bebildert/i.test(name))                                    return {art:"ordersatz", grund:"Dateiname (Ordersatz)"};
@@ -6060,6 +6123,8 @@ async function autoErkenne(file){
      Zeile 1 bzw. die Spalte "Anfangsbestand". Ergaenzt 19.08.2026 - vorher
      gab es fuer diesen Bericht gar keinen Zweig, er landete deshalb seit
      Wochen unerkannt in unvollstaendig/. */
+  if(/^wareneingangskontrollliste/.test(titel))       return {art:"wareneingang", grund:"Titelzelle „Wareneingangskontrollliste“"};
+  if(/wareneingangskontroll/i.test(name))            return {art:"wareneingang", grund:"Dateiname „Wareneingangskontrollliste“"};
   if(/^bestandsverlauf/.test(titel))                 return {art:"bestandsverlauf", grund:"Titelzelle „Bestandsverlauf“"};
   if(/anfangs\s*-?\s*bestand/.test(flach))           return {art:"bestandsverlauf", grund:"Kopfzeile enthält „Anfangsbestand“"};
   if(/bestandsverlauf/i.test(name))                  return {art:"bestandsverlauf", grund:"Dateiname „Bestandsverlauf“"};
@@ -6068,16 +6133,27 @@ async function autoErkenne(file){
   if(/scanquote/.test(flach))   return {art:"scanquote", grund:"Titelzelle „Scanquote“"};
   if(/scanquote/i.test(name))   return {art:"scanquote", grund:"Dateiname „Scanquote“"};
 
-  // "Menge Aktion" gibt es nur im Artikelumsatz - das ist das eindeutigste Merkmal
-  if(/menge aktion/.test(flach) && /(artikel|gtin)/.test(flach)) return {art:"artikelumsatz", grund:"Kopfzeile enthält „Menge Aktion“ und Artikel/GTIN"};
+  if(/^spannenanalyse/.test(titel)) return {art:"spannenanalyse", grund:"Titelzelle „Spannenanalyse“"};
+  if(/spannenanalyse/i.test(name))  return {art:"spannenanalyse", grund:"Dateiname „Spannenanalyse“"};
+
+  /* Drei Berichte tragen alle den Titel „Umsatz“. Unterschieden werden sie
+     an der Kopfzeile, nicht am Namen:
+       „Warenrohg.“  -> Artikelumsatz je Markt, Tagesbericht (artikeltag)
+       „Menge Aktion“-> Bevorratungs-Kreuztabelle (bevorratung)
+       sonst         -> Umsatzkennzahlen je Woche (kennzahlen)
+     Bis 20.08.2026 fuehrten beide ersten Faelle auf den Bevorratungs-
+     Importer; der Tagesbericht ist deshalb nie angekommen. */
+  if(/warenrohg/.test(flach))                                    return {art:"artikeltag",  grund:"Kopfzeile enthält „Warenrohg.“ (Tagesbericht je Markt)"};
+  if(/menge aktion/.test(flach) && /(artikel|gtin)/.test(flach))  return {art:"bevorratung", grund:"Kopfzeile enthält „Menge Aktion“ und Artikel/GTIN"};
   if(/^abschriften/.test(titel))  return {art:"kennzahlen", grund:"Titelzelle „Abschriften“"};
   if(/^frequenz/.test(titel))     return {art:"frequenz",   grund:"Titelzelle „Frequenz“"};
   if(/^umsatz/.test(titel))       return {art:"kennzahlen", grund:"Titelzelle „Umsatz“"};
   // Rueckfallebene: der Dateiname
-  if(/abschriften/i.test(name))   return {art:"kennzahlen", grund:"Dateiname „Abschriften“"};
-  if(/frequenz/i.test(name))      return {art:"frequenz",   grund:"Dateiname „Frequenz“"};
-  if(/artikelumsatz/i.test(name)) return {art:"artikelumsatz", grund:"Dateiname „Artikelumsatz“"};
-  if(/umsatz/i.test(name))        return {art:"kennzahlen", grund:"Dateiname „Umsatz“"};
+  if(/abschriften/i.test(name))   return {art:"kennzahlen",  grund:"Dateiname „Abschriften“"};
+  if(/frequenz/i.test(name))      return {art:"frequenz",    grund:"Dateiname „Frequenz“"};
+  if(/artikelumsatz/i.test(name)) return {art:"artikeltag",  grund:"Dateiname „Artikelumsatz“"};
+  if(/bevorratung/i.test(name))   return {art:"bevorratung", grund:"Dateiname „Bevorratung“"};
+  if(/umsatz/i.test(name))        return {art:"kennzahlen",  grund:"Dateiname „Umsatz“"};
   return {art:null, grund:"kein bekanntes Merkmal – Titelzelle: „" + (titel || "leer") + "“"};
 }
 
@@ -6107,7 +6183,10 @@ async function autoPruefen(){
   for(const art of Object.keys(gruppen)){
     const ziel = AUTO_ZIELE[art];
     html += `<div style="margin-top:8px"><strong>${escapeHtml(ziel.text)}</strong>`;
-    if(!ziel.mehrere && gruppen[art].length > 1) html += ` <span style="color:#b45309">— nacheinander, ${gruppen[art].length} Dateien</span>`;
+    html += ziel.fn
+      ? ` <span style="color:#64748b">→ Tabelle <code>${escapeHtml(ziel.tabelle)}</code></span>`
+      : ` <span style="color:#b45309">→ wird nicht gespeichert</span>`;
+    if(ziel.fn && !ziel.mehrere && gruppen[art].length > 1) html += ` <span style="color:#b45309">— nacheinander, ${gruppen[art].length} Dateien</span>`;
     html += "</div>";
     for(const g of gruppen[art]){
       html += `<div class="small" style="color:#475569;margin-left:12px">• ${escapeHtml(g.file.name)} <span style="color:#94a3b8">(${Math.round(g.file.size/1024)} KB · erkannt an: ${escapeHtml(g.grund)})</span></div>`;
@@ -6137,6 +6216,13 @@ async function autoHochladen(){
   let bericht = "";
   for(const art of arten){
     const ziel = AUTO_ZIELE[art];
+    // Bewusst verworfene Arten haben keine Zielfunktion - nur vermerken.
+    if(!ziel.fn){
+      bericht += `<div style="margin-top:6px;color:#b45309"><strong>${escapeHtml(ziel.text)}</strong> – `
+               + `${gruppen[art].map(g=>escapeHtml(g.file.name)).join(", ")}<br>`
+               + `<span class="small" style="margin-left:12px">erkannt, aber absichtlich nicht gespeichert.</span></div>`;
+      continue;
+    }
     const feld = document.getElementById(ziel.feld);
     const pakete = ziel.mehrere ? [gruppen[art].map(g => g.file)] : gruppen[art].map(g => [g.file]);
 
@@ -6211,6 +6297,405 @@ function zahlAusZelle(roh, text){
   }
   const n = Number(s);
   return isFinite(n) ? n : null;
+}
+
+/* ---------- Wareneingangskontrollliste (20.08.2026) ----------
+
+   Kommt taeglich, lag seit Wochen unerkannt im Eingang. Die Nachtwache hat
+   es 16 Laeufe in Folge gemeldet: "kein Erkennungszweig; public.wareneingang
+   nur SELECT:lesen_alle". Beides ist jetzt behoben.
+
+   AUFBAU (geprueft am 20.08.2026):
+     Zeile 1: "Wareneingangskontrollliste"
+     Zeile 4: Markt | Abteilung | Tatsaechlicher Lieferant | WE EK |
+              WE Bezugswert EK | WE VK [ne] | WE Buchungssp. |
+              WE Bezugssp. | Abw. Spanne WE
+     Zeile 5: Gesamtergebnis - ueberspringen
+     Zeile 6: <Markt> | Ergebnis | Ergebnis - ueberspringen
+     ab dann: Markt, Abteilung und Lieferant einzeln
+
+   Der Zeitraum steht im Blatt "Filter" als
+   "AJ: 13.08.2026 - 19.08.2026". Als `stand` wird das ENDE genommen - so
+   stehen die vorhandenen Saetze auch schon in der Tabelle. */
+async function uploadWareneingang(){
+  if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
+  const input=document.getElementById("weFile"), msg=document.getElementById("weMsg");
+  if(!input||!input.files||!input.files.length){ alert("Bitte die Wareneingangs-Excel wählen."); return; }
+  msg.style.color="#0c1f3c"; msg.innerHTML="Lese Excel …";
+  try{
+    const wb=XLSX.read(await input.files[0].arrayBuffer(),{type:"array"});
+    const sn=wb.SheetNames.find(n=>n.toLowerCase().includes("tabelle"))||wb.SheetNames[0];
+    const txt=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:null,raw:false});
+    const roh=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:null,raw:true});
+
+    let kz=-1,kopf=[];
+    for(let z=0;z<Math.min(txt.length,15);z++){
+      const k=(txt[z]||[]).map(c=>String(c==null?"":c).replace(/\s+/g," ").trim().toLowerCase());
+      if(k.some(x=>x.startsWith("markt"))&&k.some(x=>x.startsWith("abteilung"))&&k.some(x=>x.includes("lieferant"))){kz=z;kopf=k;break;}
+    }
+    if(kz<0){ msg.style.color="#c62828";
+      msg.innerHTML="Keine Kopfzeile mit „Markt“, „Abteilung“ und „Lieferant“ gefunden."; return; }
+    const sp=(...n)=>{for(const x of n){const i=kopf.findIndex(k=>k.replace(/[\s.\[\]]/g,"").startsWith(x));if(i>=0)return i;}return -1;};
+    const cM=sp("markt"),cA=sp("abteilung"),cL=sp("tatsächlicherlieferant","tatsaechlicherlieferant","lieferant"),
+          cEK=sp("week"),cBW=sp("webezugswert"),cVK=sp("wevk"),
+          cBS=sp("webuchungssp"),cBZ=sp("webezugssp"),cAW=sp("abwspanne");
+
+    // Zeitraum aus dem Blatt "Filter", Ende des aktuellen Jahres nehmen
+    let stand=new Date().toISOString().slice(0,10);
+    const fn=wb.SheetNames.find(n=>n.toLowerCase().includes("filter"));
+    if(fn){
+      const ft=XLSX.utils.sheet_to_json(wb.Sheets[fn],{header:1,defval:null,raw:false})
+                .map(r=>(r||[]).join(" ")).join(" ");
+      const m=ft.match(/AJ:\s*\d{2}\.\d{2}\.\d{4}\s*-\s*(\d{2})\.(\d{2})\.(\d{4})/);
+      if(m) stand=`${m[3]}-${m[2]}-${m[1]}`;
+    }
+
+    const ERG=new Set(["ergebnis","gesamtergebnis",""]);
+    const zahl=(i,c)=>c<0?null:zahlAusZelle((roh[i]||[])[c],(txt[i]||[])[c]);
+    const saetze=[], maerkte=new Set(); let ueber=0;
+    for(let i=kz+1;i<txt.length;i++){
+      const r=txt[i]||[];
+      const markt=String(r[cM]==null?"":r[cM]).trim();
+      const abt  =String(r[cA]==null?"":r[cA]).trim();
+      const lief =String(r[cL]==null?"":r[cL]).trim();
+      if(!markt||ERG.has(markt.toLowerCase())||ERG.has(abt.toLowerCase())||ERG.has(lief.toLowerCase())){ ueber++; continue; }
+      maerkte.add(markt);
+      saetze.push({markt, abteilung:abt, lieferant:lief, stand, lfd_nr:1,
+        we_ek:zahl(i,cEK), we_bezugswert_ek:zahl(i,cBW), we_vk_netto:zahl(i,cVK),
+        we_buchungssp:zahl(i,cBS), we_bezugssp:zahl(i,cBZ), abw_spanne:zahl(i,cAW)});
+    }
+    if(!saetze.length){ msg.style.color="#c62828";
+      msg.innerHTML="Keine Datenzeilen erkannt ("+ueber+" übersprungen)."; return; }
+
+    msg.innerHTML=`${saetze.length.toLocaleString("de-DE")} Zeilen aus ${maerkte.size} Markt/Märkten – wird gespeichert …`;
+    // Denselben Stand ersetzen, aeltere Staende bleiben stehen
+    for(const m of maerkte){
+      const del=await db.from("wareneingang").delete().eq("markt",m).eq("stand",stand);
+      if(del.error) throw del.error;
+    }
+    for(let i=0;i<saetze.length;i+=500){
+      const {error}=await db.from("wareneingang").insert(saetze.slice(i,i+500));
+      if(error) throw error;
+      msg.innerHTML=`Gespeichert: ${Math.min(i+500,saetze.length).toLocaleString("de-DE")} von ${saetze.length.toLocaleString("de-DE")} …`;
+    }
+    const {count}=await db.from("wareneingang").select("*",{count:"exact",head:true});
+    msg.style.color="#15803d";
+    msg.innerHTML=`✅ <b>${saetze.length.toLocaleString("de-DE")} Zeilen</b> gespeichert · Stand ${formatDateDE(stand)}<br>
+      Märkte: ${[...maerkte].join(", ")} · in der Datenbank stehen jetzt <b>${(count||0).toLocaleString("de-DE")}</b> Zeilen.`;
+    input.value="";
+  }catch(e){
+    msg.style.color="#c62828";
+    msg.innerHTML="Fehler: "+escapeHtml(e.message||String(e));
+  }
+}
+
+/* ---------- Artikelumsatz je Markt, Tagesbericht (20.08.2026) ----------
+
+   Kam seit Wochen taeglich an (vier Dateien, je Markt eine) und wurde von
+   autoErkenne dem Zweig "artikelumsatz" zugeordnet - der fuehrt aber zu
+   uploadWerbungUmsatz, dem Importer fuer die QUARTALSWEISE Bevorratungs-
+   Kreuztabelle. Ein voellig anderer Bericht. Nichts davon ist je in
+   artikel_kennzahlen angekommen.
+
+   AUFBAU (geprueft 20.08.2026):
+     Blatt "Tabelle"
+       Zeile 1: "Umsatz"
+       Zeile 4: Abteilung | Artikel | Artikel2 | GTIN | Umsatz | Menge
+                | Umsatzsp. | Nettoertragssp. | Warenrohg. WaWi RT
+       Zeile 5: Gesamtergebnis / Ergebnis  - Summenzeile, ueberspringen
+       darunter je Abteilung zuerst eine "Ergebnis"-Zeile, dann die Artikel
+     Blatt "Filter"
+       "AJ: 19.08.2026 - 19.08.2026"   -> Periode, hier genau ein Tag
+       "Markt : Steinfeld"             -> der Markt
+
+   DIE PERIODE WIRD IN DER DATENBANK AUFGEBAUT: jeder Lauf schreibt einen
+   Tag; periode_von = periode_bis = der Berichtstag. Der Primaerschluessel
+   (markt, sap_artnr, abteilung, periode_von, periode_bis) sorgt dafuer,
+   dass sich die Tage aneinanderreihen statt sich zu ueberschreiben.
+
+   "Warenrohg." kommt in keinem anderen BO-Bericht vor - daran wird erkannt.
+   Menge steht als "4 ST" / "-19 ST" da; zahlAusZelle loest das auf.
+   Artikel "#" (Nicht zugeordnet) wird uebersprungen. */
+async function uploadArtikelumsatz(){
+  if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
+  const input=document.getElementById("artikelTagFile"), msg=document.getElementById("artikelTagMsg");
+  if(!input||!input.files||!input.files.length){ alert("Bitte mindestens eine Artikelumsatz-Excel wählen."); return; }
+  msg.style.color="#0c1f3c";
+  const dateien=Array.from(input.files);
+  const bericht=[]; let gesamt=0;
+  try{
+    for(let d=0; d<dateien.length; d++){
+      const datei=dateien[d];
+      msg.innerHTML=`Lese Datei ${d+1} von ${dateien.length}: ${escapeHtml(datei.name)} …`;
+      const wb=XLSX.read(await datei.arrayBuffer(),{type:"array"});
+      /* Zwei Auslieferungswege, zwei Blattnamen:
+           taeglich aus dem Zeitplan : "Tabelle"     + "Filter"
+           von Hand aus dem BO gezogen: "Kreuztabelle"+ "Kreuztabelle Metadaten"
+         Das Datenblatt ist immer das, das NICHT die Kopfangaben traegt. */
+      const kopfBlatt=wb.SheetNames.find(n=>/filter|metadaten/i.test(n));
+      const sn=wb.SheetNames.find(n=>n!==kopfBlatt)||wb.SheetNames[0];
+      const txt=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:null,raw:false});
+      const roh=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:null,raw:true});
+
+      // Markt und Zeitraum aus dem Kopfblatt - beide Schreibweisen lesen
+      let markt="", von="", bis="";
+      if(kopfBlatt){
+        const zeilen=XLSX.utils.sheet_to_json(wb.Sheets[kopfBlatt],{header:1,defval:null,raw:false});
+        const ft=zeilen.map(r=>(r||[]).join(" ")).join(" \n ");
+        // Schreibweise "Filter": AJ: 19.08.2026 - 19.08.2026
+        const mz=ft.match(/AJ:\s*(\d{2})\.(\d{2})\.(\d{4})\s*-\s*(\d{2})\.(\d{2})\.(\d{4})/);
+        if(mz){ von=`${mz[3]}-${mz[2]}-${mz[1]}`; bis=`${mz[6]}-${mz[5]}-${mz[4]}`; }
+        const mm=ft.match(/Markt\s*:\s*([^|\n\r]+?)(?:\s{2,}|$)/i);
+        if(mm) markt=mm[1].trim();
+        /* Schreibweise "Metadaten": je Angabe eine Zeile. Die Beschriftung
+           steht NICHT immer in der ersten Zelle - "Letzter Arbeitstag (von)"
+           teilt sich seine Zeile mit dem Gruppentitel "Variablen:". Deshalb
+           die ganze Zeile nach der Beschriftung durchsuchen und den naechsten
+           gefuellten Wert dahinter nehmen. */
+        for(const r of zeilen){
+          const z=(r||[]).map(c=>String(c==null?"":c).trim());
+          const nimm=(muster)=>{
+            const i=z.findIndex(x=>muster.test(x));
+            return i<0 ? "" : (z.slice(i+1).find(x=>x)||"");
+          };
+          const alsDatum=(w)=>{ const d=String(w).match(/(\d{2})\.(\d{2})\.(\d{4})/); return d?`${d[3]}-${d[2]}-${d[1]}`:""; };
+          if(!von) von = alsDatum(nimm(/^Letzter Arbeitstag \(von\)/i)) || von;
+          const b = alsDatum(nimm(/^Letzter Arbeitstag \(bis\)/i)); if(b) bis=b;
+          if(!markt) markt = nimm(/^Markt$/i) || markt;
+        }
+      }
+      if(!bis) bis=von;
+      if(!markt || !von){
+        bericht.push(`<div style="color:#c62828">✗ ${escapeHtml(datei.name)}: im Blatt „${escapeHtml(kopfBlatt||"—")}“ stehen Markt oder Zeitraum nicht – übersprungen.</div>`);
+        continue;
+      }
+
+      let kz=-1,kopf=[];
+      for(let z=0;z<Math.min(txt.length,15);z++){
+        const k=(txt[z]||[]).map(c=>String(c==null?"":c).replace(/\s+/g," ").trim().toLowerCase());
+        if(k.some(x=>x.startsWith("abteilung"))&&k.some(x=>x.startsWith("artikel"))&&k.some(x=>x.startsWith("umsatz"))){kz=z;kopf=k;break;}
+      }
+      if(kz<0){
+        bericht.push(`<div style="color:#c62828">✗ ${escapeHtml(datei.name)}: keine Kopfzeile mit „Abteilung“, „Artikel“ und „Umsatz“ gefunden.</div>`);
+        continue;
+      }
+      const sp=(...n)=>{for(const x of n){const i=kopf.findIndex(k=>k.replace(/[\s.\[\]]/g,"").startsWith(x));if(i>=0)return i;}return -1;};
+      const cAbt=sp("abteilung"), cArt=sp("artikel"), cGtin=sp("gtin"),
+            cUms=sp("umsatz"), cMng=sp("menge"), cUsp=sp("umsatzsp"),
+            cNsp=sp("nettoertragssp"), cWrg=sp("warenrohg");
+      // Bezeichnung ist die zweite Artikelspalte ("Artikel2")
+      let cBez=-1;
+      for(let i=cArt+1;i<kopf.length;i++){ if(kopf[i].replace(/[\s.]/g,"").startsWith("artikel")){cBez=i;break;} }
+
+      const zahl=(i,c)=>c<0?null:zahlAusZelle((roh[i]||[])[c],(txt[i]||[])[c]);
+      const ERG=new Set(["ergebnis","gesamtergebnis","",".","#","*"]);
+      const saetze=[]; const gesehen=new Set(); let ueber=0;
+      for(let i=kz+1;i<txt.length;i++){
+        const r=txt[i]||[];
+        const abt=String(r[cAbt]==null?"":r[cAbt]).trim();
+        const art=String(r[cArt]==null?"":r[cArt]).trim();
+        // Summenzeilen und "Nicht zugeordnet" ueberspringen
+        if(!abt||!art||ERG.has(abt.toLowerCase())||ERG.has(art.toLowerCase())){ ueber++; continue; }
+        if(!/\d/.test(art)){ ueber++; continue; }
+        // Der Primaerschluessel duldet keine Dublette innerhalb eines Laufs
+        const schl=abt+"|"+art;
+        if(gesehen.has(schl)){ ueber++; continue; }
+        gesehen.add(schl);
+        saetze.push({
+          markt, abteilung:abt, sap_artnr:art,
+          bezeichnung: cBez<0?null:String(r[cBez]==null?"":r[cBez]).trim()||null,
+          gtin: cGtin<0?null:(String(r[cGtin]==null?"":r[cGtin]).trim().replace(/^#$/,"")||null),
+          umsatz:zahl(i,cUms), menge:zahl(i,cMng), umsatzsp:zahl(i,cUsp),
+          nettoertragssp:zahl(i,cNsp), warenrohgewinn:zahl(i,cWrg),
+          periode_von:von, periode_bis:bis, stand:bis
+        });
+      }
+      if(!saetze.length){
+        bericht.push(`<div style="color:#c62828">✗ ${escapeHtml(datei.name)}: keine Artikelzeilen erkannt (${ueber} übersprungen).</div>`);
+        continue;
+      }
+
+      /* KONTROLLSUMME - eingebaut 20.08.2026, weil es sonst niemand merkt.
+         Die Zeile "Gesamtergebnis" direkt unter der Kopfzeile traegt den
+         Tagesumsatz des Marktes. Stimmt die Summe der Artikelzeilen nicht
+         damit ueberein, ist die Datei unvollstaendig - der BO-Export bricht
+         bei Billigheim seit dem 18.08. mitten in der ersten Abteilung ab
+         (35 statt 10.750 Zeilen). Ein solcher Tag darf NICHT gespeichert
+         werden: er saehe in der Zeitreihe aus wie ein Umsatzeinbruch von
+         98 %, ohne dass irgendwo ein Fehler stuende. */
+      let soll=null;
+      for(let i=kz+1;i<Math.min(kz+4,txt.length);i++){
+        if(String(((txt[i]||[])[cAbt])||"").trim().toLowerCase()==="gesamtergebnis"){ soll=zahl(i,cUms); break; }
+      }
+      const ist=saetze.reduce((a,x)=>a+(x.umsatz||0),0);
+      if(soll!=null && Math.abs(soll)>0.01 && Math.abs(ist-soll)/Math.abs(soll) > 0.01){
+        const fehlt=(1-ist/soll)*100;
+        bericht.push(`<div style="color:#c62828">✗ <b>${escapeHtml(markt)}</b> · ${escapeHtml(datei.name)}<br>`
+          + `<span class="small" style="margin-left:12px"><b>Datei unvollständig – nichts gespeichert.</b> `
+          + `Die Artikelzeilen ergeben ${ist.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2})} €, `
+          + `die Zeile „Gesamtergebnis“ nennt aber ${soll.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2})} € – `
+          + `es fehlen ${fehlt.toFixed(1)} %. Nur ${saetze.length} Artikelzeilen im Bericht. `
+          + `Der Export im EDEKA-BO ist abgebrochen; der Bericht muss dort neu gezogen werden.</span></div>`);
+        continue;
+      }
+
+      /* ERSETZT WIRD NUR, WAS IN DIESER DATEI STEHT - Markt, Zeitraum UND
+         die enthaltenen Abteilungen.
+
+         Seit 20.08.2026 kommt Billigheim in ZWEI Dateien (BI und BI2), weil
+         der Export sonst abbricht; die Abteilungen sind aufgeteilt. Wuerde
+         hier wie vorher der ganze Markttag geloescht, wuerfe die zweite
+         Datei die Zeilen der ersten weg - und niemand saehe es, weil beide
+         Laeufe "erfolgreich" meldeten. Ueber die Abteilungsliste passt es
+         fuer geteilte wie fuer ungeteilte Berichte gleichermassen. */
+      const abteilungen=[...new Set(saetze.map(s=>s.abteilung))];
+      for(let i=0;i<abteilungen.length;i+=50){
+        const del=await db.from("artikel_kennzahlen").delete()
+                    .eq("markt",markt).eq("periode_von",von).eq("periode_bis",bis)
+                    .in("abteilung",abteilungen.slice(i,i+50));
+        if(del.error) throw del.error;
+      }
+      for(let i=0;i<saetze.length;i+=500){
+        msg.innerHTML=`${escapeHtml(markt)} – speichere ${Math.min(i+500,saetze.length).toLocaleString("de-DE")} von ${saetze.length.toLocaleString("de-DE")} …`;
+        const {error}=await db.from("artikel_kennzahlen").insert(saetze.slice(i,i+500));
+        if(error) throw error;
+      }
+      gesamt+=saetze.length;
+      const zeitraum = von===bis ? formatDateDE(von) : formatDateDE(von)+" – "+formatDateDE(bis);
+      bericht.push(`<div>✅ <b>${escapeHtml(markt)}</b> · ${zeitraum} · ${saetze.length.toLocaleString("de-DE")} Artikel `
+        + `aus ${abteilungen.length} Abteilung(en) · Kontrollsumme ${ist.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2})} € stimmt `
+        + `<span style="color:#94a3b8">(${ueber} Summen-/Leerzeilen übersprungen)</span></div>`);
+    }
+    const {count}=await db.from("artikel_kennzahlen").select("*",{count:"exact",head:true});
+    const {data:tage}=await db.from("artikel_kennzahlen").select("periode_von").order("periode_von",{ascending:false}).limit(400);
+    const versch=new Set((tage||[]).map(t=>t.periode_von)).size;
+    msg.style.color = gesamt ? "#15803d" : "#c62828";
+    msg.innerHTML = bericht.join("")
+      + `<div style="margin-top:6px">Insgesamt <b>${gesamt.toLocaleString("de-DE")}</b> Zeilen aus ${dateien.length} Datei(en).
+         In <code>artikel_kennzahlen</code> stehen jetzt <b>${(count||0).toLocaleString("de-DE")}</b> Zeilen aus ${versch} Tag/Tagen.</div>`;
+    input.value="";
+  }catch(e){
+    msg.style.color="#c62828";
+    msg.innerHTML=bericht.join("")+"<div>Fehler: "+escapeHtml(e.message||String(e))+"</div>";
+  }
+}
+
+/* ---------- Spannenanalyse (20.08.2026) ----------
+
+   Kreuztabelle, woechentlich, eine Datei fuer alle vier Maerkte. Bis heute
+   gab es keinen Erkennungszweig; die Tabelle spannenanalyse existierte und
+   wurde von der App gelesen, war aber leer.
+
+   AUFBAU (geprueft 20.08.2026):
+     Zeile 1: "Spannenanalyse"
+     Zeile 4: Markt   -> ab Spalte 1 je acht Spalten ein Markt,
+                         am Ende die Gruppe "Gesamtergebnis" (uebergehen)
+     Zeile 5: Kennzahl je Spalte, in fester Reihenfolge:
+                Umsatzsp. | Umsatzsp. Vj | Abschr. EK | Abschr. EK Vj
+                | Inventur EK | Inventur EK Vj | Nettoertragsspanne
+                | Nettoertragsspanne (Vj)
+              Die beiden Nettoertragsspalten unterscheiden sich nur durch
+              ein angehaengtes Leerzeichen. Deshalb wird NACH POSITION
+              innerhalb der Achtergruppe zugeordnet, nicht nach Name.
+     Zeile 6: Gesamtergebnis - ueberspringen
+     ab Zeile 7: je Abteilung eine Zeile
+     Blatt "Filter": "AJ: 13.08.2026 - 19.08.2026" -> Periode */
+async function uploadSpannenanalyse(){
+  if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
+  const input=document.getElementById("spannenFile"), msg=document.getElementById("spannenMsg");
+  if(!input||!input.files||!input.files.length){ alert("Bitte die Spannenanalyse-Excel wählen."); return; }
+  msg.style.color="#0c1f3c"; msg.innerHTML="Lese Excel …";
+  try{
+    const wb=XLSX.read(await input.files[0].arrayBuffer(),{type:"array"});
+    const sn=wb.SheetNames.find(n=>n.toLowerCase().includes("tabelle"))||wb.SheetNames[0];
+    const txt=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:null,raw:false});
+    const roh=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:null,raw:true});
+
+    let von="", bis="";
+    const fnm=wb.SheetNames.find(n=>n.toLowerCase().includes("filter"));
+    if(fnm){
+      const ft=XLSX.utils.sheet_to_json(wb.Sheets[fnm],{header:1,defval:null,raw:false})
+                .map(r=>(r||[]).join(" ")).join(" ");
+      const mz=ft.match(/AJ:\s*(\d{2})\.(\d{2})\.(\d{4})\s*-\s*(\d{2})\.(\d{2})\.(\d{4})/);
+      if(mz){ von=`${mz[3]}-${mz[2]}-${mz[1]}`; bis=`${mz[6]}-${mz[5]}-${mz[4]}`; }
+    }
+    if(!von){ msg.style.color="#c62828"; msg.innerHTML="Blatt „Filter“ ohne Zeitraum (AJ: …) – nichts gespeichert."; return; }
+
+    // Zeile mit den Marktnamen suchen, darunter steht die Kennzahlenzeile
+    let mz=-1;
+    for(let z=0;z<Math.min(txt.length,12);z++){
+      if(String(((txt[z]||[])[0])||"").trim().toLowerCase()==="markt"){ mz=z; break; }
+    }
+    if(mz<0){ msg.style.color="#c62828"; msg.innerHTML="Keine Zeile gefunden, die in Spalte A mit „Markt“ beginnt."; return; }
+    const kopfZ=mz+1;
+
+    // Marktnamen fortschreiben (verbundene Zellen liefern sonst Luecken)
+    const maerkteSp=[]; let letzter="";
+    for(let c=1;c<(txt[mz]||[]).length;c++){
+      const v=String((txt[mz]||[])[c]==null?"":(txt[mz]||[])[c]).trim();
+      if(v) letzter=v;
+      maerkteSp[c]=letzter;
+    }
+    // Gruppen bilden: je Markt der zusammenhaengende Spaltenblock
+    const gruppen={};
+    for(let c=1;c<maerkteSp.length;c++){
+      const m=maerkteSp[c]; if(!m) continue;
+      if(/^gesamtergebnis$/i.test(m)) continue;   // Summenspalten nicht speichern
+      (gruppen[m]=gruppen[m]||[]).push(c);
+    }
+    const REIHE=["umsatzsp","umsatzsp_vj","abschr_ek","abschr_ek_vj",
+                 "inventur_ek","inventur_ek_vj","nettoertragssp","nettoertragssp_vj"];
+    // Gegenprobe: die Kennzahlenzeile muss zur erwarteten Reihenfolge passen
+    const ersteGr=Object.values(gruppen)[0]||[];
+    if(ersteGr.length!==8){
+      msg.style.color="#c62828";
+      msg.innerHTML=`Unerwarteter Aufbau: der erste Markt hat ${ersteGr.length} statt 8 Spalten. Nichts gespeichert.`;
+      return;
+    }
+    const probe=String(((txt[kopfZ]||[])[ersteGr[0]])||"").replace(/\s+/g," ").trim().toLowerCase();
+    if(!probe.startsWith("umsatzsp")){
+      msg.style.color="#c62828";
+      msg.innerHTML=`Unerwarteter Aufbau: erste Kennzahl ist „${escapeHtml(probe)}“ statt „Umsatzsp.“. Nichts gespeichert.`;
+      return;
+    }
+
+    const zahl=(i,c)=>zahlAusZelle((roh[i]||[])[c],(txt[i]||[])[c]);
+    const saetze=[]; let ueber=0;
+    for(let i=kopfZ+1;i<txt.length;i++){
+      const abt=String(((txt[i]||[])[0])||"").trim();
+      if(!abt||/^gesamtergebnis$|^ergebnis$/i.test(abt)){ ueber++; continue; }
+      for(const [markt,spalten] of Object.entries(gruppen)){
+        const satz={markt, abteilung:abt, periode_von:von, periode_bis:bis, stand:bis};
+        let hatWert=false;
+        REIHE.forEach((feld,k)=>{
+          const w = spalten[k]==null ? null : zahl(i,spalten[k]);
+          satz[feld]=w;
+          if(w!=null) hatWert=true;
+        });
+        if(hatWert) saetze.push(satz);   // leere Markt/Abteilung-Kombinationen weglassen
+      }
+    }
+    if(!saetze.length){ msg.style.color="#c62828"; msg.innerHTML="Keine Datenzeilen erkannt."; return; }
+
+    const maerkte=[...new Set(saetze.map(s=>s.markt))];
+    msg.innerHTML=`${saetze.length} Zeilen aus ${maerkte.length} Märkten – wird gespeichert …`;
+    // Dieselbe Woche ersetzen, aeltere Wochen bleiben stehen
+    const del=await db.from("spannenanalyse").delete().eq("periode_von",von).eq("periode_bis",bis);
+    if(del.error) throw del.error;
+    for(let i=0;i<saetze.length;i+=500){
+      const {error}=await db.from("spannenanalyse").insert(saetze.slice(i,i+500));
+      if(error) throw error;
+    }
+    const {count}=await db.from("spannenanalyse").select("*",{count:"exact",head:true});
+    msg.style.color="#15803d";
+    msg.innerHTML=`✅ <b>${saetze.length}</b> Zeilen gespeichert · Zeitraum ${formatDateDE(von)} – ${formatDateDE(bis)}<br>
+      Märkte: ${escapeHtml(maerkte.join(", "))} <span style="color:#94a3b8">(${ueber} Summenzeilen übersprungen)</span><br>
+      In <code>spannenanalyse</code> stehen jetzt <b>${(count||0).toLocaleString("de-DE")}</b> Zeilen.`;
+    input.value="";
+  }catch(e){
+    msg.style.color="#c62828";
+    msg.innerHTML="Fehler: "+escapeHtml(e.message||String(e));
+  }
 }
 
 /* ---------- Bestandsverlauf je Abteilung (19.08.2026) ----------
@@ -9407,6 +9892,23 @@ function mepKachelAufgaben(){
     <div style="display:flex;gap:7px;align-items:center;margin-top:10px;flex-wrap:wrap">
       ${knopf("gestern","Gestern")}${knopf("heute","Heute")}${knopf("morgen","Morgen")}
       <span class="small" style="margin-left:4px">${formatDateDE(iso)} · ${dayNameFromISO(iso)}</span></div>
+    <!-- Namensfeld hierher geholt (19.08.2026).
+
+         Es lag bisher auf dem ToDo-Reiter, und der ist seit der Umstellung
+         auf drei Reiter ausgeblendet. Bis dahin haben die Mitarbeitenden
+         ihren Namen eingetippt - in der Datenbank stehen 8 bis 10
+         verschiedene Namen je Tag. Diese Angabe soll erhalten bleiben:
+         eine PIN sagt nur "Baeckerei in Billigheim-Ingenheim", nicht wer.
+
+         Leer lassen ist erlaubt. Dann wird Bereich und Markt eingetragen,
+         und abgehakt werden kann trotzdem. -->
+    <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
+      <label style="margin:0;font-size:12.5px;color:#475569;font-weight:600">Dein Name</label>
+      <input id="mepName" placeholder="für „erledigt von“ – darf leer bleiben"
+        value="${mepEsc(localStorage.getItem("employeeName")||"")}"
+        oninput="mepNameMerken(this.value)"
+        style="width:auto;flex:1 1 210px;max-width:320px;padding:7px 10px;font-size:13.5px">
+      <span class="small" id="mepNameHinweis" style="color:#64748b"></span></div>
     ${!b&&a.length?`<div class="small" style="margin-top:8px">${Object.entries(zg).sort((x,y)=>y[1].length-x[1].length)
       .map(([k,v])=>`<b>${mepEsc(k)}</b> ${v.length}`).join(" · ")}</div>`:""}
     ${a.length?`<table style="width:100%;border-collapse:collapse;font-size:13.5px;margin-top:10px">
