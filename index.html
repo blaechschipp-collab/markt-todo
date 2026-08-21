@@ -669,7 +669,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.20-3"; // Teillieferung BI/BI2, Kontrollsumme, Metadaten-Blatt
+const APP_VERSION = "v2026.08.21-1"; // Wareneingang: lfd_nr wird hochgezaehlt (Dubletten-Sperre behoben)
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
@@ -6352,7 +6352,7 @@ async function uploadWareneingang(){
 
     const ERG=new Set(["ergebnis","gesamtergebnis",""]);
     const zahl=(i,c)=>c<0?null:zahlAusZelle((roh[i]||[])[c],(txt[i]||[])[c]);
-    const saetze=[], maerkte=new Set(); let ueber=0;
+    const saetze=[], maerkte=new Set(), lfd={}; let ueber=0;
     for(let i=kz+1;i<txt.length;i++){
       const r=txt[i]||[];
       const markt=String(r[cM]==null?"":r[cM]).trim();
@@ -6360,7 +6360,25 @@ async function uploadWareneingang(){
       const lief =String(r[cL]==null?"":r[cL]).trim();
       if(!markt||ERG.has(markt.toLowerCase())||ERG.has(abt.toLowerCase())||ERG.has(lief.toLowerCase())){ ueber++; continue; }
       maerkte.add(markt);
-      saetze.push({markt, abteilung:abt, lieferant:lief, stand, lfd_nr:1,
+      /* lfd_nr MUSS hochgezaehlt werden. Der Primaerschluessel ist
+         (markt, abteilung, lieferant, stand, lfd_nr); ich hatte hier am
+         19.08. fest 1 eingetragen. Damit wirkte der Schluessel faktisch als
+         (markt, abteilung, lieferant, stand) - und eine EINZIGE doppelte
+         Kombination liess den GESAMTEN Import scheitern.
+
+         Genau das ist am 21.08. passiert: die Datei enthielt
+         (Freckenfeld, Food Abteilung, Benedikt Paul e.K.) in Zeile 89 UND 90.
+         Ergebnis: "duplicate key value violates unique constraint
+         wareneingang_pkey", nichts gespeichert, der Wareneingang blieb vier
+         Tage auf dem Stand vom 19.08. stehen. Der Nachtlauf hat die Dublette
+         lokal nachgewiesen.
+
+         Doppelte Zeilen sind im Bericht LEGITIM - derselbe Lieferant kann an
+         einem Tag zweimal in dieselbe Abteilung liefern. Sie gehoeren also
+         beide gespeichert, nicht entfernt. */
+      const schl = markt+"|"+abt+"|"+lief;
+      lfd[schl] = (lfd[schl] || 0) + 1;
+      saetze.push({markt, abteilung:abt, lieferant:lief, stand, lfd_nr:lfd[schl],
         we_ek:zahl(i,cEK), we_bezugswert_ek:zahl(i,cBW), we_vk_netto:zahl(i,cVK),
         we_buchungssp:zahl(i,cBS), we_bezugssp:zahl(i,cBZ), abw_spanne:zahl(i,cAW)});
     }
