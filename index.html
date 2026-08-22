@@ -669,9 +669,72 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.21-1"; // Wareneingang: lfd_nr wird hochgezaehlt (Dubletten-Sperre behoben)
+const APP_VERSION = "v2026.08.22-3"; // Admin-PIN wird serverseitig geprueft, nicht mehr im Klartext geladen
 const APP_VERSION_DATE = "20.08.2026";
-const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s"; const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY); let adminUnlocked=false;
+const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
+
+/* ---------- Sitzungsausweis (22.08.2026) ----------------------------------
+
+   Bis heute entschied die PIN nur, was die App ANZEIGT. Die Datenbank fragte
+   niemand: Wer den Schluessel oben aus dem Quelltext nahm, kam an alle
+   Betriebszahlen - und an die Klarnamen der Mitarbeiter in task_logs.
+
+   Ab jetzt holt sich die App nach jeder erfolgreichen Anmeldung einen
+   Ausweis (7 Tage) und schickt ihn bei JEDEM Aufruf als Kopfzeile
+   "x-sitzung" mit. Die Zugriffsregeln der Datenbank pruefen ihn.
+
+   WARUM HIER UND NICHT AN 122 STELLEN: Alle Datenbankaufrufe laufen ueber
+   dieses eine db-Objekt. Der Vorschalter unten haengt die Kopfzeile an,
+   ohne dass ein einziger der 122 Aufrufe angefasst werden muss. Der Ausweis
+   wird zur Aufrufzeit gelesen, nicht beim Anlegen - deshalb wirkt eine
+   spaetere Anmeldung sofort, ohne die Verbindung neu aufzubauen.
+
+   Am Browser geprueft (22.08.2026, echte Adresse, echte Datenbank):
+   ohne Ausweis false, mit gueltigem true, mit Unsinn false, mit falschem
+   false. Die Kopfzeile kommt durch die CORS-Vorpruefung. */
+let sitzungAusweis = "";
+try{
+  const roh = localStorage.getItem("mep_sitzung") || sessionStorage.getItem("mep_sitzung");
+  if(roh){
+    const s = JSON.parse(roh);
+    if(s && s.token && s.bis && Date.now() < s.bis) sitzungAusweis = s.token;
+    else { localStorage.removeItem("mep_sitzung"); sessionStorage.removeItem("mep_sitzung"); }
+  }
+}catch(x){ /* kein Speicher verfuegbar - dann eben ohne */ }
+
+function sitzungMerken(satz, tage){
+  if(!satz || !satz.token) return;
+  sitzungAusweis = satz.token;
+  const bis = satz.gueltig_bis ? new Date(satz.gueltig_bis).getTime()
+                               : Date.now() + Math.max(tage||1,1)*864e5;
+  try{ (tage>0?localStorage:sessionStorage)
+        .setItem("mep_sitzung", JSON.stringify({token:satz.token, bis:bis})); }catch(x){}
+}
+
+/* Holt den Ausweis nach erfolgreicher Anmeldung. Schlaegt das fehl, wird
+   NICHT abgebrochen: solange die Zugriffsregeln noch offen sind, laeuft die
+   App auch ohne Ausweis weiter. So kann die Umstellung nichts kaputtmachen,
+   bevor Stufe 4 kommt. */
+async function sitzungHolen(funktion, feld, wert, tage){
+  try{
+    const p = {p_tage: tage>0 ? tage : 1}; p[feld] = wert;
+    const {data, error} = await db.rpc(funktion, p);
+    if(error) throw error;
+    if(data && data.length) sitzungMerken(data[0], tage);
+    else console.warn("Kein Ausweis erhalten von", funktion);
+  }catch(x){ console.warn("Ausweis konnte nicht geholt werden:", x && x.message ? x.message : x); }
+}
+
+const db=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
+  global:{
+    fetch:(eingabe, optionen={})=>{
+      const kopf = new Headers(optionen.headers || {});
+      if(sitzungAusweis) kopf.set("x-sitzung", sitzungAusweis);
+      return fetch(eingabe, {...optionen, headers: kopf});
+    }
+  }
+});
+let adminUnlocked=false;
 // Reload via Logo-Klick. Cache-Busting durch Zufalls-Query
 function reloadApp(){
   try{
@@ -1090,6 +1153,8 @@ async function prepareAnalytics(){
     if(error) throw error;
     if(data && data.length){
       analyticsAccess = {role: data[0].role || "global"};
+      // Tuer 2: gespeichertes Passwort - Ausweis holen, bevor geladen wird
+      await sitzungHolen("anmelden_hash","p_hash",savedHash,7);
       document.getElementById("analyticsDashboard").style.display = "block";
       loadAnalytics();
       return;
@@ -1233,6 +1298,8 @@ async function loginAnalytics(){
   if(error){msg.innerHTML="Fehler: "+error.message;return;}
   if(!data||!data.length){msg.innerHTML="Passwort falsch.";return;}
   analyticsAccess={role:data[0].role||"global"};
+  // Tuer 1: Markt-Passwort - Ausweis holen, bevor geladen wird
+  await sitzungHolen("anmelden_passwort","p_passwort",password,7);
   // Auf diesem Geraet merken: kleiner Hash des Passworts in localStorage
   try{ localStorage.setItem("analyticsAuthHash", appPwdHash(password)); }catch(e){}
   document.getElementById("analyticsPassword").value = "";
@@ -1778,34 +1845,43 @@ async function loginAdmin(){
   const pin = pinInput.value.trim();
   msg.innerHTML = "";
   if(!pin){ msg.innerHTML = "Bitte PIN eingeben."; return; }
-  let currentPin = null;
+  /* Bis 22.08.2026 wurde hier die Admin-PIN im KLARTEXT aus app_settings
+     geladen und im Browser verglichen. Die Tabelle ist über den öffentlichen
+     Schlüssel lesbar – wer ihn aus dem Quelltext nahm, las die PIN mit. Die
+     Mitarbeiter-PINs liegen dagegen längst als Hash in `zugang` und werden
+     über eine geschützte Funktion geprüft.
+
+     Jetzt genauso: `anmelden_admin` prüft in der Datenbank und gibt nur
+     einen Sitzungsausweis zurück – die PIN verlässt den Server nicht. */
+  let ausweis = null;
   let errorDetail = null;
   try{
-    const {data, error} = await db.from("app_settings").select("value").eq("key","admin_pin").maybeSingle();
+    const {data, error} = await db.rpc("anmelden_admin", {p_pin: pin, p_tage: 7});
     if(error) errorDetail = error.message || String(error);
-    else if(!data) errorDetail = "Keine Zeile mit key='admin_pin' in app_settings gefunden.";
-    else if(!data.value) errorDetail = "Spalte 'value' ist leer.";
-    else currentPin = data.value;
+    else ausweis = (data && data.length) ? data[0] : null;
   }catch(e){ errorDetail = e.message || String(e); }
-  if(!currentPin){
-    msg.innerHTML = "Admin-PIN konnte nicht geladen werden: " + (errorDetail || "Unbekannter Fehler");
+  if(errorDetail){
+    msg.innerHTML = "Die PIN konnte nicht geprüft werden: " + escapeHtml(errorDetail);
     return;
   }
-  if(pin !== currentPin){
+  if(!ausweis){
     msg.innerHTML = "Falsche PIN.";
     pinInput.value = "";
     return;
   }
   adminUnlocked = true;
+  sitzungMerken(ausweis, 7);
 
-  // "Auf diesem Gerät angemeldet bleiben" - ohne Ablauf, ergaenzt 15.08.2026.
-  // Gespeichert wird NICHT die PIN, sondern ein daraus abgeleiteter Wert. Wird
-  // die PIN in app_settings geaendert, passt der Merker nicht mehr und das
-  // Geraet muss sich neu anmelden.
+  /* "Auf diesem Gerät angemeldet bleiben" - ohne Ablauf, ergaenzt 15.08.2026.
+     Gespeichert wird NICHT die PIN, sondern ihr Fingerabdruck. Den bildet
+     jetzt die Datenbank, damit die PIN auch dafür nicht mehr ausgelesen
+     werden muss. */
   const merken = document.getElementById("adminMerken");
   if(merken && merken.checked){
-    try{ localStorage.setItem("markt_admin_geraet", await adminMerkerVon(currentPin)); }
-    catch(e){ /* privater Modus - dann eben nicht */ }
+    try{
+      const {data} = await db.rpc("admin_merker_neu", {p_pin: pin});
+      if(data) localStorage.setItem("markt_admin_geraet", data);
+    }catch(e){ /* privater Modus - dann eben nicht */ }
   }
 
   pinInput.value = "";
@@ -1831,11 +1907,19 @@ async function adminGeraetPruefen(){
   let merker = null;
   try{ merker = localStorage.getItem("markt_admin_geraet"); }catch(e){ return; }
   if(!merker) return;
+  /* Auch hier wurde bis 22.08.2026 die Admin-PIN im Klartext geladen, nur um
+     den Merker damit zu vergleichen. Die Prüfung macht jetzt die Datenbank.
+
+     ACHTUNG, DAS HÄNGT AN MEHR ALS AM BILDSCHIRM: Die stündliche Aufgabe
+     "marktdaten-hochladen" lädt nur hoch, wenn `adminUnlocked` steht. Bricht
+     diese Prüfung, steht am nächsten Morgen die gesamte Datenübernahme,
+     ohne dass jemand einen Fehler sieht. */
   try{
-    const {data, error} = await db.from("app_settings").select("value").eq("key","admin_pin").maybeSingle();
-    if(error || !data || !data.value) return;
-    if(merker === await adminMerkerVon(data.value)){
+    const {data, error} = await db.rpc("anmelden_admin_merker", {p_merker: merker, p_tage: 30});
+    if(error) return;                       // Datenbank nicht erreichbar - Adminbereich bleibt zu
+    if(data && data.length){
       adminUnlocked = true;
+      sitzungMerken(data[0], 30);
     } else {
       // PIN wurde geaendert - Merker ist wertlos und kommt weg
       try{ localStorage.removeItem("markt_admin_geraet"); }catch(e){}
@@ -6385,6 +6469,32 @@ async function uploadWareneingang(){
     if(!saetze.length){ msg.style.color="#c62828";
       msg.innerHTML="Keine Datenzeilen erkannt ("+ueber+" übersprungen)."; return; }
 
+    /* KONTROLLSUMME - ergaenzt 22.08.2026, dieselbe Lehre wie beim
+       Artikelumsatz. Dort kam der Bericht drei Tage lang abgeschnitten an,
+       ohne dass irgendetwas einen Fehler meldete; aufgefallen ist es erst
+       beim Bauen eines anderen Importers. Der Wareneingang haette dieselbe
+       stille Luecke gehabt.
+
+       Die Zeile "Gesamtergebnis" steht direkt unter der Kopfzeile und traegt
+       den Wareneingang aller Maerkte. Gemessen am 22.08.2026: Summe der
+       187 Datenzeilen 321.369 EUR gegen 321.374 EUR in der Zeile - 5 EUR
+       Unterschied durch Zeilenrundung, also 0,002 %. Ein Prozent Toleranz
+       ist reichlich und faengt jeden echten Abbruch. */
+    let sollEK=null;
+    for(let i=kz+1;i<Math.min(kz+4,txt.length);i++){
+      if(String(((txt[i]||[])[cM])||"").trim().toLowerCase()==="gesamtergebnis"){ sollEK=zahl(i,cEK); break; }
+    }
+    const istEK=saetze.reduce((a,x)=>a+(x.we_ek||0),0);
+    if(sollEK!=null && Math.abs(sollEK)>100 && Math.abs(istEK-sollEK)/Math.abs(sollEK) > 0.01){
+      const fehlt=(1-istEK/sollEK)*100;
+      msg.style.color="#c62828";
+      msg.innerHTML=`<b>Datei unvollständig – nichts gespeichert.</b><br>
+        Die ${saetze.length} Datenzeilen ergeben ${istEK.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2})} €,
+        die Zeile „Gesamtergebnis“ nennt aber ${sollEK.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2})} € –
+        es fehlen ${fehlt.toFixed(1)} %. Der Export im EDEKA-BO ist abgebrochen und muss neu gezogen werden.`;
+      return;
+    }
+
     msg.innerHTML=`${saetze.length.toLocaleString("de-DE")} Zeilen aus ${maerkte.size} Markt/Märkten – wird gespeichert …`;
     // Denselben Stand ersetzen, aeltere Staende bleiben stehen
     for(const m of maerkte){
@@ -6694,6 +6804,34 @@ async function uploadSpannenanalyse(){
       }
     }
     if(!saetze.length){ msg.style.color="#c62828"; msg.innerHTML="Keine Datenzeilen erkannt."; return; }
+
+    /* KONTROLLSUMME je Markt - ergaenzt 22.08.2026.
+       Die Spannen selbst sind Prozentwerte und lassen sich nicht addieren.
+       "Abschr. EK" dagegen ist ein Betrag: die Zeile "Gesamtergebnis"
+       (direkt unter der Kennzahlenzeile) muss der Summe ueber die
+       Abteilungen entsprechen. Gemessen am 22.08.2026 fuer Billigheim:
+       -1.675 gegen -1.676 EUR, also 0,06 % - Zeilenrundung.
+       Maerkte mit sehr kleinen Abschriften werden uebersprungen, sonst
+       schlaegt der Prozentvergleich bei Kleinstbetraegen grundlos an. */
+    const AB = REIHE.indexOf("abschr_ek");
+    const schief=[];
+    for(const [markt,spalten] of Object.entries(gruppen)){
+      const c = spalten[AB]; if(c==null) continue;
+      const soll = zahl(kopfZ+1, c);
+      if(soll==null || Math.abs(soll) < 100) continue;
+      const ist = saetze.filter(s=>s.markt===markt)
+                        .reduce((a,s)=>a+(s.abschr_ek||0),0);
+      if(Math.abs(ist-soll)/Math.abs(soll) > 0.01)
+        schief.push(`${markt}: Abteilungen ergeben ${ist.toLocaleString("de-DE")} €, `
+                  + `Gesamtergebnis nennt ${soll.toLocaleString("de-DE")} €`);
+    }
+    if(schief.length){
+      msg.style.color="#c62828";
+      msg.innerHTML="<b>Datei unvollständig – nichts gespeichert.</b><br>"
+                  + schief.map(s=>"• "+escapeHtml(s)).join("<br>")
+                  + "<br>Der Export im EDEKA-BO ist abgebrochen und muss neu gezogen werden.";
+      return;
+    }
 
     const maerkte=[...new Set(saetze.map(s=>s.markt))];
     msg.innerHTML=`${saetze.length} Zeilen aus ${maerkte.length} Märkten – wird gespeichert …`;
@@ -7725,6 +7863,9 @@ async function mepPruefePin(){
     const {data,error}=await db.rpc("zugang_pruefen",{p_pin:pin});
     if(error) throw error;
     z=(data && data.length) ? data[0] : null;
+    // Tuer 3: persoenliche PIN - Ausweis holen, bevor irgendetwas geladen wird
+    if(z) await sitzungHolen("anmelden","p_pin",pin,
+                             document.getElementById("mepMerken").checked?7:0);
   }catch(x){
     console.error("zugang_pruefen",x);
     f.style.color="#c62828";
