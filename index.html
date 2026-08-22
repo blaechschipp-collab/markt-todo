@@ -249,7 +249,7 @@
        sonst stuenden die Reiter beim Laden einen Wimpernschlag lang
        untereinander und springen dann. -->
   <div class="tabs drei">
-    <button id="backshopTab" class="tab active backshop-tab" onclick="showTab('backshop')">🥐 Meine Bäckerei</button><button id="mepTab" class="tab mep-tab" onclick="showTab('mep')">🍏 Mein EDEKA Paul</button><button id="adminTab" class="tab admin-tab" onclick="openAdminPin()">🔒 Admin</button><button id="todoTab" class="tab todo-tab alt-reiter" onclick="showTab('todo')">☑ ToDo</button><button id="dispoTab" class="tab dispo-tab alt-reiter" onclick="showTab('dispo')">📦 Dispo</button><button id="werbungTab" class="tab werbung-tab alt-reiter" onclick="showTab('werbung')">💰 Bevorratung</button><button id="analyticsTab" class="tab analytics-tab alt-reiter" onclick="showTab('analytics')">📊 Auswertungen</button>
+    <button id="backshopTab" class="tab active backshop-tab" onclick="showTab('backshop')">🥐 Meine Bäckerei</button><button id="mepTab" class="tab mep-tab" onclick="showTab('mep')">🍏 Mein EDEKA Paul</button><button id="adminTab" class="tab admin-tab" onclick="openAdminPin()">🔒 Admin</button><button id="todoTab" class="tab todo-tab" onclick="showTab('todo')" style="display:none" title="Alte ToDo-Ansicht, seit 22.08.2026 ausser Betrieb">☑ ToDo</button><button id="dispoTab" class="tab dispo-tab alt-reiter" onclick="showTab('dispo')">📦 Dispo</button><button id="werbungTab" class="tab werbung-tab alt-reiter" onclick="showTab('werbung')">💰 Bevorratung</button><button id="analyticsTab" class="tab analytics-tab alt-reiter" onclick="showTab('analytics')">📊 Auswertungen</button>
   </div>
   <section id="todoSection">
     <div class="box"><div class="control-grid"><div><label>Dein Name</label><input id="name" placeholder="Dein Name"></div><div><label>Markt</label><select id="marketFilter" onchange="handleMarketChange()"><option value="ALLE">Alle Märkte</option><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="areaFilter" onchange="handleAreaChange()"><option value="">Alle Bereiche außer Hausmeister</option></select></div><div id="dayControl"><label>Tag</label><select id="day" onchange="loadTasks()"></select></div><div id="monthControl" style="display:none"><label>Monat</label><input id="monthFilter" type="month" onchange="loadTasks()"></div><div><label>Erledigte</label><select id="todoDoneFilter" onchange="handleDoneFilterChange()"><option value="hide">Ausblenden</option><option value="show">Anzeigen</option><option value="only">Nur erledigte</option></select></div><div><label>&nbsp;</label><button class="btn-yellow" onclick="loadTasks()">Aktualisieren</button></div></div></div>
@@ -430,7 +430,14 @@
            (Schwelle, Wochen, Frische) und die volle Dispo-Liste. Ueber
            diesen Knopf sind sie fuer die Verwaltung erreichbar, ohne dass
            sie fuer alle im Markt sichtbar waeren. -->
-      <button class="sub-tab" onclick="alteReiterAnzeigen(true);this.textContent='ToDo, Dispo, Bevorratung und Auswertungen sind jetzt oben sichtbar'"
+      <!-- Der ToDo-Reiter ist seit 22.08.2026 nicht mehr dabei. Vorgabe
+           Benedikt Paul: "Die alte To Do kannst du rausnehmen. Die ist nicht
+           mehr verwendet." Abgehakt wird ausschliesslich ueber "Mein EDEKA
+           Paul" mit der persoenlichen PIN.
+           Der Knopf und der Abschnitt bleiben im Quelltext stehen - showTab()
+           spricht beide ueber ihre Kennung an und wuerde beim Entfernen bei
+           JEDEM Reiterwechsel abbrechen. Er ist dauerhaft ausgeblendet. -->
+      <button class="sub-tab" onclick="alteReiterAnzeigen(true);this.textContent='Dispo, Bevorratung und Auswertungen sind jetzt oben sichtbar'"
         style="background:#fff7ed;border-color:#b45309;color:#b45309">⚙ Alte Reiter einblenden</button>
       <button id="adminSubTabTodo" class="sub-tab active" onclick="showAdminSubTab('todopflege')">📋 ToDo-Pflege</button>
       <button id="adminSubTabUploads" class="sub-tab" onclick="showAdminSubTab('uploads')">📥 Uploads</button>
@@ -440,7 +447,7 @@
       <div id="adminDaysBox" style="margin-top:16px"><label>Tage</label><div class="days"><button type="button" class="btn-yellow" onclick="selectAllAdminDays()" style="width:auto;margin-bottom:8px">Täglich Mo–Sa</button><br><label><input type="checkbox" class="adminDay" value="Montag"> Montag</label><label><input type="checkbox" class="adminDay" value="Dienstag"> Dienstag</label><label><input type="checkbox" class="adminDay" value="Mittwoch"> Mittwoch</label><label><input type="checkbox" class="adminDay" value="Donnerstag"> Donnerstag</label><label><input type="checkbox" class="adminDay" value="Freitag"> Freitag</label><label><input type="checkbox" class="adminDay" value="Samstag"> Samstag</label></div></div>
       <div id="adminDateRangeBox" style="display:none;margin-top:16px"><div class="control-grid"><div><label>Von Datum</label><input id="adminStartDate" type="date"></div><div><label>Bis Datum</label><input id="adminEndDate" type="date"></div></div></div>
       <div id="adminMonthBox" style="display:none;margin-top:16px"><label>Monate für Hausmeister</label><div class="months"><label><input type="checkbox" class="adminMonth" value="2026-01"> Jan</label><label><input type="checkbox" class="adminMonth" value="2026-02"> Feb</label><label><input type="checkbox" class="adminMonth" value="2026-03"> Mär</label><label><input type="checkbox" class="adminMonth" value="2026-04"> Apr</label><label><input type="checkbox" class="adminMonth" value="2026-05"> Mai</label><label><input type="checkbox" class="adminMonth" value="2026-06"> Jun</label><label><input type="checkbox" class="adminMonth" value="2026-07"> Jul</label><label><input type="checkbox" class="adminMonth" value="2026-08"> Aug</label><label><input type="checkbox" class="adminMonth" value="2026-09"> Sep</label><label><input type="checkbox" class="adminMonth" value="2026-10"> Okt</label><label><input type="checkbox" class="adminMonth" value="2026-11"> Nov</label><label><input type="checkbox" class="adminMonth" value="2026-12"> Dez</label></div></div>
-      <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap"><button class="btn-green" onclick="createTasks()" style="width:auto">Aufgabe speichern</button><button class="btn-dark" onclick="showTab('todo')" style="width:auto">Zurück zur ToDo</button></div><div id="adminMessage" class="small"></div></div>
+      <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap"><button class="btn-green" onclick="createTasks()" style="width:auto">Aufgabe speichern</button><button class="btn-dark" onclick="showAdminSubTab('todopflege')" style="width:auto">Zurück zur Aufgabenliste</button></div><div id="adminMessage" class="small"></div></div>
     <div class="box admin admin-uploads" style="border:2px solid #16a34a">
       <h2>📥 Alles hochladen – Dateien werden erkannt und einsortiert</h2>
       <div class="small">Hier können <strong>alle</strong> Dateien auf einmal hinein: Abschriften, Umsatz, Frequenz, Artikelumsatz, Dispo-PDF, Werbe-PDF, Backshop-Ordersatz. Die App erkennt jede Datei am Inhalt und am Namen und schickt sie in den richtigen Bereich.<br>
@@ -669,7 +676,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.22-3"; // Admin-PIN wird serverseitig geprueft, nicht mehr im Klartext geladen
+const APP_VERSION = "v2026.08.22-5"; // gemerkter PIN-Zugang ohne Ausweis fragt neu nach
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -7913,6 +7920,24 @@ function mepStart(){
     mepTorBereiche();
   }
   const o=mepZugangLesen();
+  /* Ohne Sitzungsausweis nicht oeffnen (22.08.2026).
+
+     Wer die PIN mit "Fuer 7 Tage merken" eingegeben hat, kommt bisher ohne
+     Eingabe hinein. Auf diesen Geraeten liegt aber nur der alte Merker
+     "mep_zugang" - der Ausweis "mep_sitzung" wurde erst mit dieser Fassung
+     eingefuehrt. Seit die Tabellen den Ausweis verlangen, wuerde so ein
+     Geraet die Ansicht oeffnen und LEERE LISTEN zeigen, ohne dass irgendwo
+     ein Fehler erscheint. Genau die Sorte Fehler, die tagelang niemand
+     bemerkt.
+
+     Deshalb: fehlt der Ausweis, gilt der gemerkte Zugang als abgelaufen und
+     die PIN wird einmal neu abgefragt. Danach ist beides da. */
+  if(o && !sitzungAusweis){
+    try{ localStorage.removeItem("mep_zugang"); sessionStorage.removeItem("mep_zugang"); }catch(x){}
+    const f=document.getElementById("mepPinFehler");
+    if(f){ f.style.color="#64748b"; f.textContent="Bitte die PIN einmal neu eingeben."; }
+    return;
+  }
   if(o && !mepGeladen){
     mepZugang={markt:o.markt,bereich:o.bereich,rolle:o.rolle,person:o.person||null,beschreibung:o.beschreibung||null};
     mepOeffnen();
