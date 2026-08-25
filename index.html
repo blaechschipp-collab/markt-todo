@@ -476,6 +476,23 @@
         <button class="btn-red" onclick="clearAllMetrics()" style="width:auto">Alle Kennzahlen löschen (Reset)</button>
       </div>
       <div id="metricsUploadMsg" class="small"></div>
+
+      <!-- Wochen-Umsatzbericht, eigener Weg seit 25.08.2026. Er sieht dem
+           Kennzahlen-Dashboard darüber zum Verwechseln ähnlich, geht aber in
+           eine andere Tabelle. Deshalb ein eigenes Feld statt einer Fußnote. -->
+      <div style="margin-top:18px;padding-top:14px;border-top:1px solid #e6eef8">
+        <label style="font-weight:bold">Umsatzbericht je Woche</label>
+        <div class="small" style="margin-top:4px;color:#475569">
+          Datei <code>Umsatz_046336000001_*.xlsm</code>, kommt montags mit der abgelaufenen Woche.
+          Kreuztabelle mit den Märkten als Spalten. Landet in <code>kennzahlen</code> und speist die
+          Umsatzkachel. <b>Wird nur gespeichert, wenn mindestens 20 Abteilungen enthalten sind</b> –
+          der Export im BO bricht sonst ab, ohne dass es auffällt.</div>
+        <input id="umsatzWocheFile" type="file" accept=".xlsx,.xls,.xlsm" multiple style="margin-top:10px" />
+        <div style="margin-top:10px">
+          <button class="btn-green" onclick="uploadUmsatzWoche()" style="width:auto">Wochenbericht hochladen</button>
+        </div>
+        <div id="umsatzWocheMsg" class="small"></div>
+      </div>
     </div>
     <div class="box admin admin-uploads">
       <h2>📦 Backshop – Ordersatz hochladen (PDF)</h2>
@@ -676,7 +693,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.25-4"; // immer ALLE Abteilungen · Bestandsverlauf meldet den Fehler statt ihn zu verschlucken
+const APP_VERSION = "v2026.08.25-6"; // Wochen-Umsatzbericht: eigener Importer nach kennzahlen, beide Lieferformen, Kontrollsumme
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -6165,6 +6182,7 @@ async function clearWerbungPdf(){
    jede Nacht aufs Neue als unbekannt. */
 const AUTO_ZIELE = {
   kennzahlen:    { feld: "metricsExcelFile",  msg: "metricsUploadMsg",   fn: "uploadMetricsExcel",  text: "Kennzahlen (Abschriften / Umsatz)", tabelle: "metrics", mehrere: true  },
+  umsatzwoche:   { feld: "umsatzWocheFile",   msg: "umsatzWocheMsg",     fn: "uploadUmsatzWoche",   text: "Umsatzbericht je Woche",            tabelle: "kennzahlen", mehrere: true  },
   frequenz:      { feld: "backshopExcelFile", msg: "backshopUploadMsg",  fn: "uploadBackshopExcel", text: "Backshop-Frequenz",                 tabelle: "backshop_sales",   mehrere: true  },
   artikeltag:    { feld: "artikelTagFile",    msg: "artikelTagMsg",      fn: "uploadArtikelumsatz", text: "Artikelumsatz je Markt (täglich)",  tabelle: "artikel_kennzahlen",  mehrere: true  },
   bevorratung:   { feld: "werbungUmsatzFile", msg: "werbungUmsatzMsg",   fn: "uploadWerbungUmsatz", text: "Bevorratung (Umsatz-Kreuztabelle)", tabelle: "article_sales_weekly",      mehrere: false },
@@ -6196,8 +6214,11 @@ async function autoErkenne(file){
 
   // Excel und CSV: in die Datei sehen
   let rows = [];
+  /* wb liegt bewusst AUSSERHALB des try - die Umsatz-Erkennung weiter unten
+     muss das Blatt "Filter" mitlesen koennen (25.08.2026). */
+  let wb = null;
   try{
-    const wb = XLSX.read(await file.arrayBuffer(), {type:"array"});
+    wb = XLSX.read(await file.arrayBuffer(), {type:"array"});
     const ws = wb.Sheets[wb.SheetNames[0]];
     rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:null, raw:false}).slice(0, 12);
   }catch(e){
@@ -6238,7 +6259,51 @@ async function autoErkenne(file){
   if(/menge aktion/.test(flach) && /(artikel|gtin)/.test(flach))  return {art:"bevorratung", grund:"Kopfzeile enthält „Menge Aktion“ und Artikel/GTIN"};
   if(/^abschriften/.test(titel))  return {art:"kennzahlen", grund:"Titelzelle „Abschriften“"};
   if(/^frequenz/.test(titel))     return {art:"frequenz",   grund:"Titelzelle „Frequenz“"};
-  if(/^umsatz/.test(titel))       return {art:"kennzahlen", grund:"Titelzelle „Umsatz“"};
+
+  /* WOCHEN-UMSATZBERICHT gegen TAGES-DASHBOARD (25.08.2026).
+
+     Beide tragen den Titel „Umsatz“, beide sind Kreuztabellen mit den
+     Maerkten als Spalten und der Kopfzeile in Zeile 4. Sie unterscheiden sich
+     AUSSCHLIESSLICH im Zeitfilter:
+       1 Tag   -> Kennzahlen-Dashboard  -> Tabelle metrics
+       7 Tage  -> Wochen-Umsatzbericht  -> Tabelle kennzahlen
+
+     Deshalb muss hier das Blatt „Filter“ mitgelesen werden. Ohne das ging der
+     Wochenbericht acht Tage lang ins Leere: erkannt als „kennzahlen“,
+     weitergereicht an den metrics-Importer, dort am Format gescheitert - und
+     trotzdem als Erfolg verbucht. */
+  if(/^umsatz/.test(titel) || /^abteilung/.test(titel)){
+    /* Kopfzeile „Abteilung“ steht bei geplanter Auslieferung in Zeile 4,
+       beim manuellen Abruf in Zeile 1. Beide Faelle pruefen. */
+    const kreuz = [0,3].some(z => /^abteilung/.test(String(((rows[z]||[])[0])||"").trim().toLowerCase()));
+    let tage=0;
+    try{
+      const fb=wb.SheetNames.find(n=>/^(Filter|Kreuztabelle Metadaten)$/i.test(n));
+      if(fb){
+        const zeilen=XLSX.utils.sheet_to_json(wb.Sheets[fb],{header:1,defval:null,raw:false});
+        const ft=zeilen.map(r=>(r||[]).join(" ")).join(" \n ");
+        const mz=ft.match(/AJ:\s*(\d{2})\.(\d{2})\.(\d{4})\s*-\s*(\d{2})\.(\d{2})\.(\d{4})/);
+        if(mz){
+          const a=new Date(`${mz[3]}-${mz[2]}-${mz[1]}`), b=new Date(`${mz[6]}-${mz[5]}-${mz[4]}`);
+          tage=Math.round((b-a)/86400000)+1;
+        }else{
+          // Metadaten-Form: "Letzter Arbeitstag (von)" / "(bis)"
+          let v="",bi="";
+          for(const r of zeilen){
+            const z=(r||[]).map(c=>String(c==null?"":c).trim());
+            const nimm=(m)=>{const i=z.findIndex(x=>m.test(x)); return i<0?"":(z.slice(i+1).find(x=>x)||"");};
+            const d=(w)=>{const x=String(w).match(/(\d{2})\.(\d{2})\.(\d{4})/); return x?`${x[3]}-${x[2]}-${x[1]}`:"";};
+            if(!v) v=d(nimm(/^Letzter Arbeitstag \(von\)/i))||v;
+            const b2=d(nimm(/^Letzter Arbeitstag \(bis\)/i)); if(b2&&!bi) bi=b2;
+          }
+          if(v&&bi) tage=Math.round((new Date(bi)-new Date(v))/86400000)+1;
+        }
+      }
+    }catch(e){ /* ohne Filterblatt bleibt tage 0 -> faellt auf kennzahlen zurueck */ }
+    if(kreuz && tage>=6) return {art:"umsatzwoche", grund:`Kreuztabelle „Umsatz“ über ${tage} Tage (Wochenbericht)`};
+    if(/^abteilung/.test(titel)) return {art:"umsatzwoche", grund:"Kreuztabelle mit Kopfzeile „Abteilung“ in Zeile 1"};
+    return {art:"kennzahlen", grund:tage?`Titelzelle „Umsatz“, Zeitraum ${tage} Tag(e)`:"Titelzelle „Umsatz“"};
+  }
   // Rueckfallebene: der Dateiname
   if(/abschriften/i.test(name))   return {art:"kennzahlen",  grund:"Dateiname „Abschriften“"};
   if(/frequenz/i.test(name))      return {art:"frequenz",    grund:"Dateiname „Frequenz“"};
@@ -6551,6 +6616,176 @@ async function uploadWareneingang(){
    "Warenrohg." kommt in keinem anderen BO-Bericht vor - daran wird erkannt.
    Menge steht als "4 ST" / "-19 ST" da; zahlAusZelle loest das auf.
    Artikel "#" (Nicht zugeordnet) wird uebersprungen. */
+/* ============================================================
+   WOCHEN-UMSATZBERICHT -> Tabelle "kennzahlen"   (25.08.2026)
+
+   ANLASS, Benedikt Paul: "Wächter hier, Wächter da und das wird nicht
+   gemerkt! Das darf nicht passieren!"
+
+   Er hatte recht. Der Bericht "Umsatz_046336000001_*.xlsm" kommt woechentlich
+   montags und traegt Jahr und abgelaufene Woche. Er landete NIRGENDS:
+
+   1. Die Erkennung fuehrte ihn auf art "kennzahlen".
+   2. AUTO_ZIELE schickte "kennzahlen" an uploadMetricsExcel.
+   3. Der schreibt in die Tabelle "metrics" - die Umsatzkachel liest aber aus
+      der Tabelle "kennzahlen". Zwei Tabellen, fast gleicher Name.
+   4. Und uploadMetricsExcel erwartet Zeilen mit Markt und Kennzahl. Diese
+      Datei ist eine KREUZTABELLE: Maerkte als SPALTEN, Kopfzeile in Zeile 4.
+      Also kam auch in metrics nichts an.
+
+   Ergebnis: acht Tage ohne Umsatzdaten, ueber alle vier Maerkte - und die
+   Datei wurde trotzdem als erfolgreich verbucht und weggeraeumt.
+
+   Aufbau der Datei:
+     Zeile 1  Titel "Umsatz"
+     Zeile 4  Abteilung | Markt | Gesamtergebnis | <Markt> | <Markt> | ...
+     ab 5     <Abteilung> | <Kennzahl> | <Wert je Markt> ...
+   Die Spalte mit der Ueberschrift "Markt" enthaelt die KENNZAHL, nicht den
+   Markt. Der Markt steht im Spaltenkopf. */
+async function uploadUmsatzWoche(){
+  if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
+  const input=document.getElementById("umsatzWocheFile");
+  const msg=document.getElementById("umsatzWocheMsg");
+  if(!input||!input.files||!input.files.length){ alert("Bitte Datei auswählen."); return; }
+  const dateien=Array.from(input.files);
+  const bericht=[]; let gesamt=0;
+  msg.style.color="#64748b"; msg.innerHTML="Datei wird gelesen …";
+  try{
+    for(const datei of dateien){
+      const wb=XLSX.read(await datei.arrayBuffer(),{type:"array"});
+      const sn=wb.SheetNames.find(n=>/^(Tabelle|Kreuztabelle)$/i.test(n))||wb.SheetNames[0];
+      const kopfBlatt=wb.SheetNames.find(n=>/^(Filter|Kreuztabelle Metadaten)$/i.test(n));
+      const txt=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:null,raw:false});
+      const roh=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:null,raw:true});
+
+      /* ZWEI LIEFERFORMEN, beide muessen gelesen werden (ergaenzt 25.08.2026):
+
+         a) Geplanter Versand: Blaetter "Tabelle" + "Filter", Zeitfilter als
+            "AJ: 17.08.2026 - 23.08.2026", Kopfzeile in Zeile 4.
+         b) Manueller Abruf:  Blaetter "Kreuztabelle" + "Kreuztabelle
+            Metadaten", Zeitraum als "Letzter Arbeitstag (von)" und "(bis)"
+            in getrennten Zeilen, Kopfzeile in Zeile 1.
+
+         Die erste Fassung dieses Importers kannte nur (a). Die Datei, die
+         Benedikt Paul am 25.08.2026 von Hand gezogen hat, kam in Form (b) -
+         und waere mit "kein Zeitfilter gefunden" abgewiesen worden. */
+      let von="",bis="",stand="";
+      if(kopfBlatt){
+        const zeilen=XLSX.utils.sheet_to_json(wb.Sheets[kopfBlatt],{header:1,defval:null,raw:false});
+        const ft=zeilen.map(r=>(r||[]).join(" ")).join(" \n ");
+        const mz=ft.match(/AJ:\s*(\d{2})\.(\d{2})\.(\d{4})\s*-\s*(\d{2})\.(\d{2})\.(\d{4})/);
+        if(mz){ von=`${mz[3]}-${mz[2]}-${mz[1]}`; bis=`${mz[6]}-${mz[5]}-${mz[4]}`; }
+        /* Form (b): Die Beschriftung teilt sich ihre Zeile mit dem
+           Gruppentitel "Variablen:" - deshalb die ganze Zeile durchsuchen und
+           den naechsten gefuellten Wert dahinter nehmen. */
+        for(const r of zeilen){
+          const z=(r||[]).map(c=>String(c==null?"":c).trim());
+          const nimm=(muster)=>{ const i=z.findIndex(x=>muster.test(x));
+            return i<0 ? "" : (z.slice(i+1).find(x=>x)||""); };
+          const alsDatum=(w)=>{ const d=String(w).match(/(\d{2})\.(\d{2})\.(\d{4})/);
+            return d?`${d[3]}-${d[2]}-${d[1]}`:""; };
+          if(!von) von = alsDatum(nimm(/^Letzter Arbeitstag \(von\)/i)) || von;
+          const b = alsDatum(nimm(/^Letzter Arbeitstag \(bis\)/i)); if(b && !bis) bis=b;
+          // Exportzeit als Stand, falls der Dateiname keines hergibt
+          if(!stand){ const e=String(nimm(/^Exportzeit/i)).match(/(\d{2})-(\d{2})-(\d{4})/);
+            if(e) stand=`${e[3]}-${e[2]}-${e[1]}`; }
+        }
+      }
+      if(von && !bis) bis=von;
+      const dn=String(datei.name||"").match(/(\d{2})_(\d{2})_(\d{4})/);
+      if(dn) stand = `${dn[3]}-${dn[2]}-${dn[1]}`;
+      if(!stand) stand = todayISO();
+      if(!von){ bericht.push(`<div style="color:#c62828">✗ ${escapeHtml(datei.name)}: kein Zeitfilter im Blatt „Filter“ gefunden.</div>`); continue; }
+
+      // Kopfzeile: erste Zeile, in der Spalte A "Abteilung" steht
+      let kz=-1;
+      for(let z=0;z<Math.min(txt.length,12);z++){
+        const a=String(((txt[z]||[])[0])||"").trim().toLowerCase();
+        if(a==="abteilung"){ kz=z; break; }
+      }
+      if(kz<0){ bericht.push(`<div style="color:#c62828">✗ ${escapeHtml(datei.name)}: keine Kopfzeile mit „Abteilung“ gefunden.</div>`); continue; }
+
+      /* Marktspalten: alles ab Spalte 3, ausser "Gesamtergebnis". Die Spalte
+         "Gesamtergebnis" ist die Summe ueber alle Maerkte und gehoert nicht
+         als eigener Markt in die Tabelle. */
+      const kopf=(txt[kz]||[]).map(c=>String(c==null?"":c).trim());
+      const maerkte=[];
+      for(let s=2;s<kopf.length;s++){
+        if(!kopf[s]) continue;
+        if(/^gesamtergebnis$/i.test(kopf[s])) continue;
+        maerkte.push({spalte:s, name:kopf[s]});
+      }
+      if(!maerkte.length){ bericht.push(`<div style="color:#c62828">✗ ${escapeHtml(datei.name)}: in der Kopfzeile stehen keine Märkte.</div>`); continue; }
+
+      const zahl=(i,c)=>zahlAusZelle((roh[i]||[])[c],(txt[i]||[])[c]);
+      const saetze=[]; const abteilungen=new Set(); let ueber=0;
+      const sollUmsatz={};              // Markt -> Umsatz laut Zeile "Gesamtergebnis"
+      let letzteAbteilung="";
+      for(let i=kz+1;i<txt.length;i++){
+        const r=txt[i]||[];
+        const abtRoh=String(r[0]==null?"":r[0]).trim();
+        const kennzahl=String(r[1]==null?"":r[1]).trim();
+        if(abtRoh) letzteAbteilung=abtRoh;     // Abteilung steht nur in der ersten Zeile ihres Blocks
+        const abt=letzteAbteilung;
+        if(!abt||!kennzahl){ ueber++; continue; }
+        abteilungen.add(abt);
+        for(const m of maerkte){
+          const w=zahl(i,m.spalte);
+          if(w===null||w===undefined) continue;
+          if(/^gesamtergebnis$/i.test(abt) && /^umsatz$/i.test(kennzahl)) sollUmsatz[m.name]=w;
+          saetze.push({markt:m.name, bereich:null, abteilung:abt, wochentag:"Ergebnis",
+                       kennzahl:kennzahl, wert:w, stand:stand,
+                       periode_von:von, periode_bis:bis});
+        }
+      }
+
+      /* KONTROLLSUMME - der Grund, warum es diesen Importer gibt.
+         Der automatische Export bricht ab: am 17.08. nach 3 Abteilungen, am
+         24.08. nach 2. Vollstaendig sind es 26. Wer weniger als die Haelfte
+         mitbringt, wird NICHT gespeichert - sonst steht in der Zeitreihe ein
+         Umsatzeinbruch, den niemand erklaeren kann. */
+      const SOLL_ABTEILUNGEN=20;
+      if(abteilungen.size < SOLL_ABTEILUNGEN){
+        bericht.push(`<div style="color:#c62828">✗ <b>${escapeHtml(datei.name)}</b><br>
+          <span class="small" style="margin-left:12px"><b>Bericht unvollständig – nichts gespeichert.</b>
+          Es sind nur <b>${abteilungen.size}</b> Abteilungen enthalten, erwartet werden mindestens
+          ${SOLL_ABTEILUNGEN}. Der Export im EDEKA-BO ist abgebrochen
+          ${[...abteilungen].length?`– zuletzt bei „${escapeHtml([...abteilungen].pop())}“`:""}.
+          Der Bericht muss dort neu gezogen werden, am besten aufgeteilt wie der Artikelbericht.</span></div>`);
+        continue;
+      }
+      if(!saetze.length){ bericht.push(`<div style="color:#c62828">✗ ${escapeHtml(datei.name)}: keine Werte erkannt.</div>`); continue; }
+
+      // Ersetzt wird genau dieser Zeitraum, je Markt
+      for(const m of maerkte){
+        const del=await db.from("kennzahlen").delete()
+          .eq("markt",m.name).eq("periode_von",von).eq("periode_bis",bis);
+        if(del.error) throw del.error;
+      }
+      for(let i=0;i<saetze.length;i+=500){
+        msg.innerHTML=`speichere ${Math.min(i+500,saetze.length).toLocaleString("de-DE")} von ${saetze.length.toLocaleString("de-DE")} …`;
+        const {error}=await db.from("kennzahlen").insert(saetze.slice(i,i+500));
+        if(error) throw error;
+      }
+      gesamt+=saetze.length;
+      const de=s=>s.split("-").reverse().join(".");
+      bericht.push(`<div>✅ <b>${de(von)} – ${de(bis)}</b> · ${saetze.length.toLocaleString("de-DE")} Werte ·
+        ${abteilungen.size} Abteilungen · ${maerkte.length} Märkte
+        <div class="small" style="margin-left:12px;color:#475569">Umsatz je Markt:
+        ${maerkte.map(m=>`${escapeHtml(m.name)} ${sollUmsatz[m.name]!=null?Math.round(sollUmsatz[m.name]).toLocaleString("de-DE")+" €":"–"}`).join(" · ")}</div></div>`);
+    }
+    msg.style.color = gesamt ? "#15803d" : "#c62828";
+    const {count}=await db.from("kennzahlen").select("*",{count:"exact",head:true});
+    msg.innerHTML = bericht.join("")
+      + `<div style="margin-top:6px">Insgesamt <b>${gesamt.toLocaleString("de-DE")}</b> Werte gespeichert.
+         In <code>kennzahlen</code> stehen jetzt <b>${(count||0).toLocaleString("de-DE")}</b> Zeilen.</div>`;
+    input.value="";
+  }catch(e){
+    msg.style.color="#c62828";
+    msg.innerHTML=bericht.join("")+`<div style="color:#c62828">Fehler: ${escapeHtml(e&&e.message?e.message:String(e))}</div>`;
+  }
+}
+
 async function uploadArtikelumsatz(){
   if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
   const input=document.getElementById("artikelTagFile"), msg=document.getElementById("artikelTagMsg");
