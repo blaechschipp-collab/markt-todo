@@ -494,6 +494,21 @@
         </div>
         <div id="umsatzWocheMsg" class="small"></div>
       </div>
+
+      <div style="margin-top:18px;padding-top:14px;border-top:1px solid #e6eef8">
+        <label style="font-weight:bold">Null- und Negativbestände (täglich)</label>
+        <div class="small" style="margin-top:4px;color:#475569">
+          Datei <code>Null_und_Negativbestände_*.xlsm</code>, kommt täglich mit dem Stand des Vortags.
+          Selektiert über das <b>Dispositionsmerkmal</b> – nur Artikel, bei denen ein negativer Bestand
+          wirklich ein Fehler ist. Ohne diesen Filter kämen tausende Verkaufsartikel mit, deren Minus
+          richtig ist, weil der Einkauf als Warengruppenbuchung auf die Abteilung läuft.
+          Speist die rote Meldung ganz oben in allen Ansichten.</div>
+        <input id="negBestandFile" type="file" accept=".xlsx,.xls,.xlsm" multiple style="margin-top:10px" />
+        <div style="margin-top:10px">
+          <button class="btn-green" onclick="uploadNegativbestand()" style="width:auto">Bestandsliste hochladen</button>
+        </div>
+        <div id="negBestandMsg" class="small"></div>
+      </div>
     </div>
     <div class="box admin admin-uploads">
       <h2>📦 Backshop – Ordersatz hochladen (PDF)</h2>
@@ -697,7 +712,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.25-9"; // Wochenleiste sagt, wenn nur eine Woche vorliegt · Hilfetext Werbe-Upload
+const APP_VERSION = "v2026.08.25-11"; // Null- und Negativbestände: eigener Bericht, eigener Importer, Meldung ganz oben
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -6284,6 +6299,7 @@ async function clearWerbungPdf(){
 const AUTO_ZIELE = {
   kennzahlen:    { feld: "metricsExcelFile",  msg: "metricsUploadMsg",   fn: "uploadMetricsExcel",  text: "Kennzahlen (Abschriften / Umsatz)", tabelle: "metrics", mehrere: true  },
   umsatzwoche:   { feld: "umsatzWocheFile",   msg: "umsatzWocheMsg",     fn: "uploadUmsatzWoche",   text: "Umsatzbericht je Woche",            tabelle: "kennzahlen", mehrere: true  },
+  negbestand:    { feld: "negBestandFile",    msg: "negBestandMsg",      fn: "uploadNegativbestand",text: "Null- und Negativbestände",         tabelle: "negativbestand", mehrere: true  },
   frequenz:      { feld: "backshopExcelFile", msg: "backshopUploadMsg",  fn: "uploadBackshopExcel", text: "Backshop-Frequenz",                 tabelle: "backshop_sales",   mehrere: true  },
   artikeltag:    { feld: "artikelTagFile",    msg: "artikelTagMsg",      fn: "uploadArtikelumsatz", text: "Artikelumsatz je Markt (täglich)",  tabelle: "artikel_kennzahlen",  mehrere: true  },
   bevorratung:   { feld: "werbungUmsatzFile", msg: "werbungUmsatzMsg",   fn: "uploadWerbungUmsatz", text: "Bevorratung (Umsatz-Kreuztabelle)", tabelle: "article_sales_weekly",      mehrere: false },
@@ -6336,6 +6352,11 @@ async function autoErkenne(file){
      Zeile 1 bzw. die Spalte "Anfangsbestand". Ergaenzt 19.08.2026 - vorher
      gab es fuer diesen Bericht gar keinen Zweig, er landete deshalb seit
      Wochen unerkannt in unvollstaendig/. */
+  /* Null- und Negativbestände zuerst: Der Titel ist eindeutig, und der Bericht
+     traegt in der Kopfzeile "Bestandsartikel" - das kommt in keinem anderen vor. */
+  if(/^null\s*und\s*negativbest/.test(titel))         return {art:"negbestand", grund:"Titelzelle „Null und Negativbestände“"};
+  if(/negativbest/i.test(name))                       return {art:"negbestand", grund:"Dateiname „Negativbestände“"};
+  if(/bestandsartikel/.test(flach))                   return {art:"negbestand", grund:"Kopfzeile enthält „Bestandsartikel“"};
   if(/^wareneingangskontrollliste/.test(titel))       return {art:"wareneingang", grund:"Titelzelle „Wareneingangskontrollliste“"};
   if(/wareneingangskontroll/i.test(name))            return {art:"wareneingang", grund:"Dateiname „Wareneingangskontrollliste“"};
   if(/^bestandsverlauf/.test(titel))                 return {art:"bestandsverlauf", grund:"Titelzelle „Bestandsverlauf“"};
@@ -6743,6 +6764,106 @@ async function uploadWareneingang(){
      ab 5     <Abteilung> | <Kennzahl> | <Wert je Markt> ...
    Die Spalte mit der Ueberschrift "Markt" enthaelt die KENNZAHL, nicht den
    Markt. Der Markt steht im Spaltenkopf. */
+/* ============================================================
+   NULL- UND NEGATIVBESTÄNDE -> Tabelle "negativbestand"  (25.08.2026)
+
+   Bericht "Null und Negativbestände", taeglich, Stand Vortag.
+   Aufbau: Blatt "Tabelle", Kopfzeile Zeile 4:
+     Markt | Bestandsartikel | Bestandsartikel2 | Bestand in BasisME |
+     Bestand EK | Bestand VK [br]
+   Blatt "Filter" traegt "LJ: 24.08.2026 - 24.08.2026" und
+   "Dispositionsmerkmal : YA".
+
+   Das Dispositionsmerkmal ist der Kern: Es filtert die Artikel heraus, bei
+   denen ein negativer Bestand ein echter Fehler ist. Ohne diesen Filter
+   kaemen tausende Verkaufsartikel mit, deren Minus richtig ist, weil der
+   Einkauf als Warengruppenbuchung auf die Abteilung laeuft. */
+async function uploadNegativbestand(){
+  if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
+  const input=document.getElementById("negBestandFile");
+  const msg=document.getElementById("negBestandMsg");
+  if(!input||!input.files||!input.files.length){ alert("Bitte Datei auswählen."); return; }
+  const bericht=[]; let gesamt=0;
+  msg.style.color="#64748b"; msg.innerHTML="Datei wird gelesen …";
+  try{
+    for(const datei of Array.from(input.files)){
+      const wb=XLSX.read(await datei.arrayBuffer(),{type:"array"});
+      const sn=wb.SheetNames.find(n=>/^(Tabelle|Kreuztabelle)$/i.test(n))||wb.SheetNames[0];
+      const fb=wb.SheetNames.find(n=>/^(Filter|Kreuztabelle Metadaten)$/i.test(n));
+      const txt=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:null,raw:false});
+      const roh=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:null,raw:true});
+
+      /* Stand: der Zeitfilter heisst hier "LJ:", nicht "AJ:" - laufendes Jahr
+         statt Vorjahresvergleich. Beide Formen zulassen. */
+      let stand="";
+      if(fb){
+        const ft=XLSX.utils.sheet_to_json(wb.Sheets[fb],{header:1,defval:null,raw:false})
+          .map(r=>(r||[]).join(" ")).join(" \n ");
+        const m=ft.match(/(?:LJ|AJ):\s*(\d{2})\.(\d{2})\.(\d{4})/);
+        if(m) stand=`${m[3]}-${m[2]}-${m[1]}`;
+      }
+      if(!stand){
+        const dn=String(datei.name||"").match(/(\d{2})_(\d{2})_(\d{4})/);
+        stand = dn ? `${dn[3]}-${dn[2]}-${dn[1]}` : todayISO();
+      }
+
+      let kz=-1,kopf=[];
+      for(let z=0;z<Math.min(txt.length,12);z++){
+        const k=(txt[z]||[]).map(c=>String(c==null?"":c).replace(/\s+/g," ").trim().toLowerCase());
+        if(k.some(x=>x.startsWith("markt"))&&k.some(x=>x.startsWith("bestandsartikel"))){kz=z;kopf=k;break;}
+      }
+      if(kz<0){ bericht.push(`<div style="color:#c62828">✗ ${escapeHtml(datei.name)}: keine Kopfzeile mit „Markt“ und „Bestandsartikel“.</div>`); continue; }
+      const sp=(...n)=>{for(const x of n){const i=kopf.findIndex(k=>k.replace(/[\s.\[\]]/g,"").startsWith(x));if(i>=0)return i;}return -1;};
+      const cM=sp("markt"), cNr=sp("bestandsartikel"), cMenge=sp("bestandinbasisme","bestandinbasis"),
+            cEk=sp("bestandek"), cVk=sp("bestandvk");
+      // Bezeichnung ist die ZWEITE Spalte, die mit "bestandsartikel" beginnt
+      let cBez=-1;
+      for(let i=cNr+1;i<kopf.length;i++){ if(kopf[i].replace(/[\s.]/g,"").startsWith("bestandsartikel")){cBez=i;break;} }
+
+      const zahl=(i,c)=>c<0?null:zahlAusZelle((roh[i]||[])[c],(txt[i]||[])[c]);
+      const saetze=[]; const gesehen=new Set(); let ueber=0;
+      for(let i=kz+1;i<txt.length;i++){
+        const r=txt[i]||[];
+        const markt=String(r[cM]==null?"":r[cM]).trim();
+        const nr=String(r[cNr]==null?"":r[cNr]).trim();
+        if(!markt||!nr||/^gesamt/i.test(markt)||/^ergebnis$/i.test(nr)){ ueber++; continue; }
+        if(!/\d/.test(nr)){ ueber++; continue; }
+        const schl=markt+"|"+nr;
+        if(gesehen.has(schl)){ ueber++; continue; }
+        gesehen.add(schl);
+        saetze.push({markt, sap_artnr:nr,
+          bezeichnung: cBez<0?null:String(r[cBez]==null?"":r[cBez]).trim()||null,
+          menge:zahl(i,cMenge), bestand_ek:zahl(i,cEk), bestand_vk:zahl(i,cVk), stand});
+      }
+      if(!saetze.length){
+        bericht.push(`<div style="color:#15803d">✅ ${escapeHtml(datei.name)}: keine Null- oder Negativbestände für ${formatDateDE(stand)}. Das ist die gute Nachricht.</div>`);
+        // Trotzdem den Tag als geprueft vermerken: alte Zeilen dieses Standes weg
+        await db.from("negativbestand").delete().eq("stand",stand);
+        continue;
+      }
+      // Denselben Stand vollstaendig ersetzen, aeltere Tage bleiben stehen
+      const del=await db.from("negativbestand").delete().eq("stand",stand);
+      if(del.error) throw del.error;
+      for(let i=0;i<saetze.length;i+=500){
+        const {error}=await db.from("negativbestand").insert(saetze.slice(i,i+500));
+        if(error) throw error;
+      }
+      gesamt+=saetze.length;
+      const jeMarkt={}; saetze.forEach(s=>{jeMarkt[s.markt]=(jeMarkt[s.markt]||0)+1;});
+      bericht.push(`<div>✅ <b>${formatDateDE(stand)}</b> · ${saetze.length} Artikel mit Null- oder Negativbestand
+        <div class="small" style="margin-left:12px;color:#475569">${
+          Object.entries(jeMarkt).map(([m,n])=>`${escapeHtml(m)} ${n}`).join(" · ")}
+          <span style="color:#94a3b8"> · ${ueber} Kopf-/Summenzeilen übersprungen</span></div></div>`);
+    }
+    msg.style.color = gesamt ? "#15803d" : "#64748b";
+    msg.innerHTML = bericht.join("");
+    input.value="";
+  }catch(e){
+    msg.style.color="#c62828";
+    msg.innerHTML=bericht.join("")+`<div style="color:#c62828">Fehler: ${escapeHtml(e&&e.message?e.message:String(e))}</div>`;
+  }
+}
+
 async function uploadUmsatzWoche(){
   if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
   const input=document.getElementById("umsatzWocheFile");
@@ -8521,7 +8642,7 @@ async function mepNeuLaden(){
      stehengeblieben. Welche Periode zu welchem Zeitraum passt, entscheidet
      jetzt mepPassendePeriode beim Lesen, nicht eine gemerkte Auswahl. */
   await Promise.all([mepWerbungLaden(), mepLogsLaden(), mepVerwaltungLaden(),
-                     mepScanLaden(), mepBestandLaden(), mepBevorratungLaden(),
+                     mepScanLaden(), mepBestandLaden(), mepBestandNegativLaden(), mepBevorratungLaden(),
                      ladeFrischeZuordnung()]);
   const jahr=mepKz.filter(x=>x.periode_von==="2026-01-01");
   if(jahr.length) mepStand=jahr[0].stand;
@@ -9870,6 +9991,81 @@ function mepJahresanteil(){
    sind die Maerkte da. Beide Kacheln entfallen dort deshalb; was offen ist,
    steht in der Uebersicht "Was ist wo offen"
    (Vorgabe Benedikt Paul 18.08.2026). */
+/* ============================================================
+   NEGATIVE ARTIKELBESTÄNDE - 25.08.2026
+
+   Vorgabe Benedikt Paul: "Wir brauchen einen artikelgenauen Bestand. Leergut
+   passt, ist meist negativ. Markt nicht. Wir muessen daraus eine wichtige
+   Meldung in die Abteilung bringen. Diese Meldung muss ganz oben stehen ->
+   sofort Bestand pruefen und korrigieren."
+
+   Ein negativer Bestand kann es im Regal nicht geben. Er heisst immer: Der
+   Wareneingang wurde nicht gebucht, eine Umlagerung fehlt, oder es wurde auf
+   die falsche Artikelnummer kassiert. Solange er steht, bestellt die Dispo
+   falsch und die Inventurdifferenz waechst.
+
+   QUELLE ist dispo_items - die FEA-Listen tragen je Artikel einen Bestand.
+   Das ist nicht das ganze Sortiment, aber es sind die Artikel, die ohnehin
+   auffaellig sind. Der Bestandsverlauf taugt dafuer nicht: Er rechnet je
+   ABTEILUNG und schreibt seit dem 31.12.2025 fort - dort ist ein Minus ein
+   Rechenartefakt, kein Befund.
+
+   LEERGUT wird ausgenommen. Dort ist ein negativer Wert der Normalfall, weil
+   Pfand hereinkommt, bevor er gebucht wird. */
+let mepBestandNeg=[], mepBestandNegStand=null;
+async function mepBestandNegativLaden(){
+  mepBestandNeg=[]; mepBestandNegStand=null;
+  try{
+    // Immer nur der jüngste Stand - ältere Tage bleiben in der Tabelle stehen,
+    // gehören aber nicht in eine Meldung, die zum sofortigen Handeln auffordert.
+    const {data:s}=await db.from("negativbestand").select("stand")
+      .order("stand",{ascending:false}).limit(1);
+    if(!s||!s.length) return;
+    mepBestandNegStand=s[0].stand;
+    const d=await fetchAllPaged(()=>mepFiltMarkt(db.from("negativbestand")
+      .select("markt,sap_artnr,bezeichnung,menge,bestand_ek,bestand_vk,stand"),"markt")
+      .eq("stand",mepBestandNegStand).order("menge"));
+    mepBestandNeg=(d||[]).sort((a,b)=>(a.menge||0)-(b.menge||0));
+  }catch(err){ console.warn("Negative Bestände:",err); }
+}
+function mepKachelBestandNegativ(){
+  if(mepIstHausmeister()) return "";
+  const l=mepBestandNeg;
+  if(!l.length) return "";
+  const wert=l.reduce((s,x)=>s+Math.abs(Number(x.bestand_ek)||0),0);
+  const jeMarkt={}; l.forEach(x=>{jeMarkt[x.markt]=(jeMarkt[x.markt]||0)+1;});
+  const de=s=>s?String(s).split("-").reverse().join("."):"";
+  const alt=mepBestandNegStand
+    ? Math.round((new Date()-new Date(mepBestandNegStand+"T00:00:00"))/86400000) : null;
+  return `<div class="box" style="border-left:6px solid #b91c1c;background:#fef2f2">
+    <h2 style="color:#b91c1c">⚠ Negativer Bestand · sofort prüfen und korrigieren
+      <span style="font-weight:normal;font-size:14px;color:#7f1d1d">${mepZahl(l.length)} Artikel</span></h2>
+    <div class="small" style="color:#7f1d1d">Ein Bestand unter null kann es im Regal nicht geben.
+      Ursache ist fast immer ein nicht gebuchter Wareneingang, eine fehlende Umlagerung oder eine
+      falsch kassierte Artikelnummer. <b>Solange das steht, bestellt die Dispo falsch und die
+      Inventurdifferenz wächst.</b></div>
+    <div class="small" style="margin:6px 0 2px">Stand <b>${de(mepBestandNegStand)}</b>${
+      alt!=null&&alt>2?` <span style="color:#b45309">· ${alt} Tage alt</span>`:""} ·
+      ${Object.entries(jeMarkt).map(([m,n])=>`${mepEsc(m)} <b>${n}</b>`).join(" · ")}</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13.5px;margin-top:12px">
+      <thead><tr style="text-align:left;color:#7f1d1d;font-size:11px;text-transform:uppercase">
+        <th style="padding:7px">Artikel</th>
+        ${mepAlleMaerkte()?'<th style="padding:7px">Markt</th>':""}
+        <th style="text-align:right;padding:7px">Bestand</th>
+        <th style="text-align:right;padding:7px">Wert EK</th></tr></thead><tbody>
+      ${l.map(x=>`<tr style="border-top:1px solid #fecaca">
+        <td style="padding:7px">${mepEsc(x.bezeichnung||"")}
+          <span style="display:block;font-size:10.5px;color:#a16207">Art.-Nr. ${mepEsc(x.sap_artnr||"")}</span></td>
+        ${mepAlleMaerkte()?`<td style="padding:7px;font-size:12.5px">${mepEsc(x.markt)}</td>`:""}
+        <td style="text-align:right;padding:7px"><b style="color:#b91c1c;font-size:15px">${
+          Number(x.menge).toLocaleString("de-DE",{maximumFractionDigits:3})}</b></td>
+        <td style="text-align:right;padding:7px;color:#7f1d1d">${mepEur(x.bestand_ek)}</td></tr>`).join("")}
+      </tbody></table>
+    <div class="small" style="margin-top:8px;color:#7f1d1d">Zusammen <b>${mepEur(wert)}</b> Einstandswert
+      im Minus. Quelle: Bericht „Null und Negativbestände", täglich, selektiert über das
+      Dispositionsmerkmal – nur Artikel, bei denen ein Minus wirklich ein Fehler ist.</div>
+    </div>`;
+}
 const mepVerw=(fn)=> mepZugang.markt==="Verwaltung" ? "" : fn();
 /* Umkehrung: nur die Verwaltung sieht es. Vorgabe Benedikt Paul 25.08.2026
    zu den Trendartikeln: "Dies moechten wir nur in die Verwaltung bringen." */
@@ -9936,10 +10132,14 @@ function mepZeichnen(){
   z.innerHTML = mepIstHausmeister()
     ? mepKachelAufgaben()+mepKachelBefunde()
     : mepAlleMaerkte()
-      ? mepKachelVerwaltung()+mepNurVerw(mepKachelTrend)+mepKachelOffen()+mepKachelScanquote()
+      /* Der negative Bestand steht VOR allem anderen - auch vor der
+         Verwaltungskachel. Vorgabe Benedikt Paul 25.08.2026: "Diese Meldung
+         muss ganz oben stehen." Sie erscheint in JEDER Ansicht: Markt,
+         Marktleitung und Verwaltung. */
+      ? mepKachelBestandNegativ()+mepKachelVerwaltung()+mepNurVerw(mepKachelTrend)+mepKachelOffen()+mepKachelScanquote()
         +mepKachelBestand()+mepKachelBevorratung()
         +mepVerw(mepKachelAufgaben)+mepVerw(mepKachelDispo)+mepKachelBefunde()
-      : mepKachelVerwaltung()+mepNurVerw(mepKachelTrend)+mepKachelKennzahlen()+mepKachelOffen()
+      : mepKachelBestandNegativ()+mepKachelVerwaltung()+mepNurVerw(mepKachelTrend)+mepKachelKennzahlen()+mepKachelOffen()
         +mepKachelSpannen()+mepKachelBefunde()
         +mepKachelScanquote()+mepKachelBestand()
         +mepKachelWerbung()+mepKachelBevorratung()+mepKachelFlop()+mepKachelArtikel()
