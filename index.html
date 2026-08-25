@@ -676,7 +676,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.22-5"; // gemerkter PIN-Zugang ohne Ausweis fragt neu nach
+const APP_VERSION = "v2026.08.25-1"; // Artikelumsatz: mehrere Märkte in einer Datei, Kontrollsumme je Markt
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -6615,7 +6615,8 @@ async function uploadArtikelumsatz(){
         continue;
       }
       const sp=(...n)=>{for(const x of n){const i=kopf.findIndex(k=>k.replace(/[\s.\[\]]/g,"").startsWith(x));if(i>=0)return i;}return -1;};
-      const cAbt=sp("abteilung"), cArt=sp("artikel"), cGtin=sp("gtin"),
+      const cMarkt=sp("markt"),
+            cAbt=sp("abteilung"), cArt=sp("artikel"), cGtin=sp("gtin"),
             cUms=sp("umsatz"), cMng=sp("menge"), cUsp=sp("umsatzsp"),
             cNsp=sp("nettoertragssp"), cWrg=sp("warenrohg");
       // Bezeichnung ist die zweite Artikelspalte ("Artikel2")
@@ -6624,20 +6625,48 @@ async function uploadArtikelumsatz(){
 
       const zahl=(i,c)=>c<0?null:zahlAusZelle((roh[i]||[])[c],(txt[i]||[])[c]);
       const ERG=new Set(["ergebnis","gesamtergebnis","",".","#","*"]);
+      /* MEHRERE MAERKTE IN EINER DATEI - 25.08.2026.
+
+         Bisher wurde der Markt aus dem Filterblatt genommen und in jede Zeile
+         geschrieben. Am 25.08.2026 kam die Sonntagsnachlieferung als EINE
+         Datei mit allen vier Maerkten; im Filter steht dann
+         "Markt : Steinfeld; Billigheim-Ingenheim; Freckenfeld; ..." - dieser
+         ganze String waere als Marktname in 2.011 Zeilen gelandet. Schlimmer
+         noch: der Dublettenschutz lief ueber "Abteilung|Artikel" ohne Markt,
+         haette also denselben Artikel im zweiten Markt verworfen.
+
+         Jetzt gilt die Marktspalte der Zeile. Nur wo es sie nicht gibt,
+         greift der Filter - und auch das nur, wenn er genau EINEN Markt
+         nennt. */
+      const filterMarkt = markt.indexOf(";") < 0 ? markt : "";
       const saetze=[]; const gesehen=new Set(); let ueber=0;
+      const sollJeMarkt=new Map(); let sollGesamt=null;
       for(let i=kz+1;i<txt.length;i++){
         const r=txt[i]||[];
+        const zMarkt=cMarkt<0 ? filterMarkt : (String(r[cMarkt]==null?"":r[cMarkt]).trim() || filterMarkt);
         const abt=String(r[cAbt]==null?"":r[cAbt]).trim();
         const art=String(r[cArt]==null?"":r[cArt]).trim();
-        // Summenzeilen und "Nicht zugeordnet" ueberspringen
-        if(!abt||!art||ERG.has(abt.toLowerCase())||ERG.has(art.toLowerCase())){ ueber++; continue; }
+        /* Summenzeilen sind keine Artikel - aber sie tragen die Sollwerte
+           fuer die Kontrollsumme, deshalb hier einsammeln statt wegwerfen. */
+        const istSummenzeile = !abt||!art||ERG.has(abt.toLowerCase())||ERG.has(art.toLowerCase());
+        if(istSummenzeile){
+          ueber++;
+          /* Zwei Schreibweisen kommen vor: "Gesamtergebnis" steht mal in der
+             Markt-, mal in der Abteilungsspalte. Die Marktsumme erkennt man
+             daran, dass die ABTEILUNG selbst eine Summenmarkierung traegt -
+             bei Abteilungssummen steht dort der Abteilungsname. */
+          if(/^gesamtergebnis$/i.test(zMarkt) || /^gesamtergebnis$/i.test(abt)) sollGesamt=zahl(i,cUms);
+          else if(zMarkt && ERG.has(abt.toLowerCase()) && !sollJeMarkt.has(zMarkt)) sollJeMarkt.set(zMarkt, zahl(i,cUms));
+          continue;
+        }
         if(!/\d/.test(art)){ ueber++; continue; }
+        if(!zMarkt){ ueber++; continue; }
         // Der Primaerschluessel duldet keine Dublette innerhalb eines Laufs
-        const schl=abt+"|"+art;
+        const schl=zMarkt+"|"+abt+"|"+art;
         if(gesehen.has(schl)){ ueber++; continue; }
         gesehen.add(schl);
         saetze.push({
-          markt, abteilung:abt, sap_artnr:art,
+          markt: zMarkt, abteilung:abt, sap_artnr:art,
           bezeichnung: cBez<0?null:String(r[cBez]==null?"":r[cBez]).trim()||null,
           gtin: cGtin<0?null:(String(r[cGtin]==null?"":r[cGtin]).trim().replace(/^#$/,"")||null),
           umsatz:zahl(i,cUms), menge:zahl(i,cMng), umsatzsp:zahl(i,cUsp),
@@ -6658,18 +6687,24 @@ async function uploadArtikelumsatz(){
          (35 statt 10.750 Zeilen). Ein solcher Tag darf NICHT gespeichert
          werden: er saehe in der Zeitreihe aus wie ein Umsatzeinbruch von
          98 %, ohne dass irgendwo ein Fehler stuende. */
-      let soll=null;
-      for(let i=kz+1;i<Math.min(kz+4,txt.length);i++){
-        if(String(((txt[i]||[])[cAbt])||"").trim().toLowerCase()==="gesamtergebnis"){ soll=zahl(i,cUms); break; }
-      }
-      const ist=saetze.reduce((a,x)=>a+(x.umsatz||0),0);
+      /* Seit 25.08.2026 wird JE MARKT geprueft und gespeichert, weil eine
+         Datei mehrere enthalten kann. Sollwert ist die Marktsumme aus dem
+         Bericht; gibt es nur einen Markt in der Datei, gilt ersatzweise das
+         Gesamtergebnis. Ein Markt mit falscher Summe wird uebersprungen -
+         die anderen laufen trotzdem durch. */
+      const maerkteInDatei=[...new Set(saetze.map(s=>s.markt))];
+      for(const mkt of maerkteInDatei){
+      const zeilen=saetze.filter(s=>s.markt===mkt);
+      const soll = sollJeMarkt.has(mkt) ? sollJeMarkt.get(mkt)
+                 : (maerkteInDatei.length===1 ? sollGesamt : null);
+      const ist=zeilen.reduce((a,x)=>a+(x.umsatz||0),0);
       if(soll!=null && Math.abs(soll)>0.01 && Math.abs(ist-soll)/Math.abs(soll) > 0.01){
         const fehlt=(1-ist/soll)*100;
-        bericht.push(`<div style="color:#c62828">✗ <b>${escapeHtml(markt)}</b> · ${escapeHtml(datei.name)}<br>`
-          + `<span class="small" style="margin-left:12px"><b>Datei unvollständig – nichts gespeichert.</b> `
+        bericht.push(`<div style="color:#c62828">✗ <b>${escapeHtml(mkt)}</b> · ${escapeHtml(datei.name)}<br>`
+          + `<span class="small" style="margin-left:12px"><b>Datei unvollständig – für diesen Markt nichts gespeichert.</b> `
           + `Die Artikelzeilen ergeben ${ist.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2})} €, `
-          + `die Zeile „Gesamtergebnis“ nennt aber ${soll.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2})} € – `
-          + `es fehlen ${fehlt.toFixed(1)} %. Nur ${saetze.length} Artikelzeilen im Bericht. `
+          + `die Summenzeile nennt aber ${soll.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2})} € – `
+          + `es fehlen ${fehlt.toFixed(1)} %. Nur ${zeilen.length} Artikelzeilen im Bericht. `
           + `Der Export im EDEKA-BO ist abgebrochen; der Bericht muss dort neu gezogen werden.</span></div>`);
         continue;
       }
@@ -6683,23 +6718,29 @@ async function uploadArtikelumsatz(){
          Datei die Zeilen der ersten weg - und niemand saehe es, weil beide
          Laeufe "erfolgreich" meldeten. Ueber die Abteilungsliste passt es
          fuer geteilte wie fuer ungeteilte Berichte gleichermassen. */
-      const abteilungen=[...new Set(saetze.map(s=>s.abteilung))];
+      const abteilungen=[...new Set(zeilen.map(s=>s.abteilung))];
       for(let i=0;i<abteilungen.length;i+=50){
         const del=await db.from("artikel_kennzahlen").delete()
-                    .eq("markt",markt).eq("periode_von",von).eq("periode_bis",bis)
+                    .eq("markt",mkt).eq("periode_von",von).eq("periode_bis",bis)
                     .in("abteilung",abteilungen.slice(i,i+50));
         if(del.error) throw del.error;
       }
-      for(let i=0;i<saetze.length;i+=500){
-        msg.innerHTML=`${escapeHtml(markt)} – speichere ${Math.min(i+500,saetze.length).toLocaleString("de-DE")} von ${saetze.length.toLocaleString("de-DE")} …`;
-        const {error}=await db.from("artikel_kennzahlen").insert(saetze.slice(i,i+500));
+      for(let i=0;i<zeilen.length;i+=500){
+        msg.innerHTML=`${escapeHtml(mkt)} – speichere ${Math.min(i+500,zeilen.length).toLocaleString("de-DE")} von ${zeilen.length.toLocaleString("de-DE")} …`;
+        const {error}=await db.from("artikel_kennzahlen").insert(zeilen.slice(i,i+500));
         if(error) throw error;
       }
-      gesamt+=saetze.length;
+      gesamt+=zeilen.length;
       const zeitraum = von===bis ? formatDateDE(von) : formatDateDE(von)+" – "+formatDateDE(bis);
-      bericht.push(`<div>✅ <b>${escapeHtml(markt)}</b> · ${zeitraum} · ${saetze.length.toLocaleString("de-DE")} Artikel `
-        + `aus ${abteilungen.length} Abteilung(en) · Kontrollsumme ${ist.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2})} € stimmt `
-        + `<span style="color:#94a3b8">(${ueber} Summen-/Leerzeilen übersprungen)</span></div>`);
+      bericht.push(`<div>✅ <b>${escapeHtml(mkt)}</b> · ${zeitraum} · ${zeilen.length.toLocaleString("de-DE")} Artikel `
+        + `aus ${abteilungen.length} Abteilung(en) · `
+        + (soll==null
+            ? `<span style="color:#b45309">ohne Kontrollsumme – im Bericht steht keine Summenzeile für diesen Markt</span>`
+            : `Kontrollsumme ${ist.toLocaleString("de-DE",{minimumFractionDigits:2,maximumFractionDigits:2})} € stimmt`)
+        + `</div>`);
+      }
+      bericht.push(`<div class="small" style="color:#94a3b8;margin-left:12px">${escapeHtml(datei.name)} · `
+        + `${maerkteInDatei.length} Markt/Märkte · ${ueber} Summen-/Leerzeilen übersprungen</div>`);
     }
     const {count}=await db.from("artikel_kennzahlen").select("*",{count:"exact",head:true});
     const {data:tage}=await db.from("artikel_kennzahlen").select("periode_von").order("periode_von",{ascending:false}).limit(400);
