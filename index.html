@@ -676,7 +676,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.25-1"; // Artikelumsatz: mehrere Märkte in einer Datei, Kontrollsumme je Markt
+const APP_VERSION = "v2026.08.25-3"; // Flop nach Abschriften/Inventur · Zeitauswahl in den Kacheln · Trendartikel in der Verwaltung
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -7616,7 +7616,7 @@ const MEP_MAERKTE={
 const MEP_VOLLSORTIMENT=["Billigheim-Ingenheim","Steinfeld"];
 
 let mepZugang={markt:null,bereich:null}, mepGeladen=false;
-let mepKz=[], mepSpanne=[], mepBefunde=[], mepFeedback={}, mepBereichsMap={}, mepBereiche=[], mepDokumente=[];
+let mepKz=[], mepSpanne=[], mepBefunde=[], mepFeedback={}, mepBereichsMap={}, mepBereiche=[], mepDokumente=[], mepTrend=[];
 let mepArtikel=[], mepDispo=[], mepAufgaben=[], mepMetrics=[], mepStand=null, mepSort="umsatz";
 let mepWerbung=[], mepWerbungErledigt={}, mepWerbungKW=null, mepWerbungDateien=[], mepWerbungWochen=[];
 let mepRegale={};   // sap_artnr -> {regal_nr, zweitplatzierung}, Stand des letzten Regalberichts
@@ -7739,8 +7739,32 @@ function mepZeitraumHinweis(quelle){
   const de=s=>s.split("-").reverse().join(".");
   const p=quelle?mepPassendePeriode(quelle):null;
   return `<div class="small" style="margin:6px 0 2px">Zeitraum: <b>${g.text}</b>
-    (${de(g.von)}–${de(g.bis)}) · änderbar unter „mehr“${
-    p&&p.hinweis?` <span style="color:#b45309">${p.hinweis}</span>`:""}</div>`;
+    (${de(g.von)}–${de(g.bis)})${
+    p&&p.hinweis?` · <span style="color:#b45309">${p.hinweis}</span>`:""}</div>`;
+}
+/* ---------- Zeitauswahl direkt in der Kachel ----------
+   Zurueckgebaut am 25.08.2026. Vorgabe Benedikt Paul: "Top und Flop Artikel
+   ist die Zeitselektion nur ueber mehr moeglich, bitte auch neben der Auswahl
+   der Abteilung."
+
+   Am 18.08. war der Kachel-Weg absichtlich entfallen, weil das damalige
+   Knopfband mit vier Schaltflaechen die Kachel zerriss. Der Fehler war das
+   Knopfband, nicht die Auswahl an sich - als Auswahlfeld passt sie in
+   dieselbe Zeile wie Abteilung und Regal.
+
+   mepSetzeZeitraumKachel laedt Scan- und Bestandsdaten nach, weil beide
+   zeitraumabhaengig aus der Datenbank kommen. Ohne das zeigte die Kachel
+   nach dem Umschalten die alten Zahlen. */
+async function mepSetzeZeitraumKachel(id){
+  mepZeitraum=id;
+  await Promise.all([mepScanLaden(), mepBestandLaden()]);
+  mepZeichnen();
+}
+function mepZeitWahlKlein(){
+  return `<select onchange="mepSetzeZeitraumKachel(this.value)" title="Zeitraum"
+    style="width:auto;min-width:150px;padding:4px 8px;font-size:12.5px">
+    ${MEP_ZEITRAEUME.map(z=>`<option value="${z.id}" ${z.id===mepZeitraum?"selected":""}>${z.text}</option>`).join("")}
+  </select>`;
 }
 /* mepSetzeZeit entfaellt - die Auswahl laeuft ueber mepZeitraum. */
 /* Im Absprung reicht mepZeichnen() nicht: Das Modal liegt darueber und wuerde
@@ -7995,16 +8019,19 @@ async function mepOeffnen(){
      Zeilen eines einzigen Marktes an, die Auswahl blieb leer und alle Kacheln
      waren ohne Zahlen. Deshalb: die kleinen Stammtabellen hier laden, die
      grossen erst gefiltert je Markt in mepNeuLaden(). */
-  const [b,c,d,e,f,g]=await Promise.all([
+  const [b,c,d,e,f,g,h]=await Promise.all([
     db.from("spannenanalyse").select("*"),
     db.from("befunde").select("*").eq("aktiv",true),
     db.from("befund_feedback").select("schluessel,bewertung,kommentar").order("wann",{ascending:false}),
     db.from("aufgabenbereich_bereich").select("*"),
     db.from("bereiche").select("markt,bereich,abteilung,hat_bereiche"),
-    db.from("dispo_documents").select("market,doc_type,upload_date,file_name,public_url")
+    db.from("dispo_documents").select("market,doc_type,upload_date,file_name,public_url"),
+    // Trendartikel, 25.08.2026 - nur die noch sichtbaren, das sind wenige Zeilen
+    db.from("trendartikel").select("*").gte("sichtbar_bis",todayISO()).order("faktor",{ascending:false})
   ]);
   if(b.error){ ziel.innerHTML=`<div class="box"><b>Datenbank nicht erreichbar:</b> ${mepEsc(b.error.message)}</div>`; return; }
   mepSpanne=b.data||[]; mepBefunde=c.data||[]; mepBereiche=f.data||[]; mepDokumente=g.data||[];
+  mepTrend=h.data||[];
   (d.data||[]).forEach(x=>{if(!mepFeedback[x.schluessel])mepFeedback[x.schluessel]=x;});
   (e.data||[]).forEach(x=>mepBereichsMap[x.aufgabenbereich]=x.bereich);
   mepGeladen=true;
@@ -9442,15 +9469,76 @@ function mepJahresanteil(){
    steht in der Uebersicht "Was ist wo offen"
    (Vorgabe Benedikt Paul 18.08.2026). */
 const mepVerw=(fn)=> mepZugang.markt==="Verwaltung" ? "" : fn();
+/* Umkehrung: nur die Verwaltung sieht es. Vorgabe Benedikt Paul 25.08.2026
+   zu den Trendartikeln: "Dies moechten wir nur in die Verwaltung bringen." */
+const mepNurVerw=(fn)=> mepZugang.markt==="Verwaltung" ? fn() : "";
+
+/* ---------- Trendartikel ----------
+   Artikel, die in einem Markt NEU Umsatz machen und dabei ueber dem Median
+   ihrer Abteilung liegen. Erkannt wird in der Datenbank (analyse_trendartikel),
+   hier wird nur angezeigt. Ein erkannter Artikel bleibt 28 Tage stehen, auch
+   wenn er zwischendurch schwaechelt - so ist es abgesprochen.
+
+   Die Kachel zeigt bewusst auch den Fall "noch nichts gefunden" mit Begruendung.
+   Eine leere Kachel ohne Erklaerung sieht aus wie ein Fehler. */
+function mepKachelTrend(){
+  const alle=mepAlleMaerkte() ? mepTrend : mepTrend.filter(x=>x.markt===mepMk());
+  const warte=mepBefunde.find(b=>b.schluessel==="trend_historie_zu_kurz");
+  if(!alle.length){
+    return `<div class="box" style="border-left:4px solid #7c3aed">
+      <h2>Trendartikel <span style="font-weight:normal;font-size:14px;color:#64748b">neu im Markt, mit Drive</span></h2>
+      ${warte
+        ? `<div class="small" style="padding:6px 0">${mepEsc(warte.text)}
+             <div style="margin-top:6px;color:#64748b">${mepEsc(warte.vorschlag||"")}</div></div>`
+        : `<div class="small" style="padding:6px 0;font-style:italic">Zurzeit ist kein Artikel als
+             Trend erkannt. Das ist kein Fehler – die Hürden sind bewusst hoch.</div>`}</div>`;
+  }
+  const l=alle.slice(0,10);
+  const de=s=>s?String(s).split("-").reverse().join("."):"";
+  const tage=s=>Math.max(0,Math.round((new Date(s)-new Date())/86400000));
+  return `<div class="box" style="border-left:4px solid #7c3aed">
+    <h2>Trendartikel <span style="font-weight:normal;font-size:14px;color:#64748b">${
+      mepZahl(alle.length)} ${alle.length===1?"Artikel":"Artikel"}, neu im Markt</span></h2>
+    <div class="small">Artikel, die es in diesem Markt vorher nicht gab und die seit dem ersten
+      Verkaufstag über dem Median ihrer Abteilung liegen. Jeder bleibt <b>vier Wochen</b> stehen,
+      auch wenn er zwischendurch schwächelt.</div>
+    <table style="width:100%;border-collapse:collapse;font-size:13.5px;margin-top:12px">
+      <thead><tr style="text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">
+        <th style="padding:7px">Artikel</th>
+        ${mepAlleMaerkte()?'<th style="padding:7px">Markt</th>':""}
+        <th style="text-align:right;padding:7px">Umsatz</th>
+        <th style="text-align:right;padding:7px">pro Tag</th>
+        <th style="text-align:right;padding:7px">zum Abteilungsschnitt</th>
+        <th style="text-align:right;padding:7px">seit</th>
+        <th style="text-align:right;padding:7px">noch</th></tr></thead><tbody>
+      ${l.map(x=>`<tr style="border-top:1px solid #eef3f9">
+        <td style="padding:7px">${mepEsc(x.bezeichnung||x.sap_artnr)}
+          <span style="display:block;font-size:10.5px;color:#94a3b8">${mepEsc(x.abteilung||"")} ·
+            Art.-Nr. ${mepEsc(x.sap_artnr)} · an ${mepZahl(x.verkaufstage)} Tagen verkauft</span></td>
+        ${mepAlleMaerkte()?`<td style="padding:7px;font-size:12.5px">${mepEsc(x.markt)}</td>`:""}
+        <td style="text-align:right;padding:7px"><b>${mepEur(x.umsatz_seit)}</b></td>
+        <td style="text-align:right;padding:7px;color:#64748b">${mepEur(x.tagesumsatz)}</td>
+        <td style="text-align:right;padding:7px"><b style="color:#7c3aed">✕${
+          Number(x.faktor||0).toLocaleString("de-DE",{maximumFractionDigits:1})}</b></td>
+        <td style="text-align:right;padding:7px;color:#64748b">${de(x.erster_tag)}</td>
+        <td style="text-align:right;padding:7px;color:#94a3b8">${tage(x.sichtbar_bis)} Tage</td></tr>`).join("")}
+      </tbody></table>
+    <div class="small" style="margin-top:7px">„Zum Abteilungsschnitt" ist der Tagesumsatz geteilt
+      durch den Median aller Artikel derselben Abteilung im selben Markt. ✕2 heißt: doppelt so viel
+      wie ein durchschnittlicher Artikel dieser Abteilung.</div>
+    </div>`;
+}
 
 function mepZeichnen(){
   const z=document.getElementById("mepKacheln"); if(!z) return;
   z.innerHTML = mepIstHausmeister()
     ? mepKachelAufgaben()+mepKachelBefunde()
     : mepAlleMaerkte()
-      ? mepKachelVerwaltung()+mepKachelOffen()+mepKachelScanquote()+mepKachelBestand()+mepKachelBevorratung()
+      ? mepKachelVerwaltung()+mepNurVerw(mepKachelTrend)+mepKachelOffen()+mepKachelScanquote()
+        +mepKachelBestand()+mepKachelBevorratung()
         +mepVerw(mepKachelAufgaben)+mepVerw(mepKachelDispo)+mepKachelBefunde()
-      : mepKachelVerwaltung()+mepKachelKennzahlen()+mepKachelOffen()+mepKachelSpannen()+mepKachelBefunde()
+      : mepKachelVerwaltung()+mepNurVerw(mepKachelTrend)+mepKachelKennzahlen()+mepKachelOffen()
+        +mepKachelSpannen()+mepKachelBefunde()
         +mepKachelScanquote()+mepKachelBestand()
         +mepKachelWerbung()+mepKachelBevorratung()+mepKachelFlop()+mepKachelArtikel()
         +mepVerw(mepKachelAufgaben)+mepVerw(mepKachelDispo);
@@ -9881,6 +9969,41 @@ function mepAbschriftenAbteilung(){
       umbew:(a.abschr!=null&&a.voll!=null)?Math.max(0,a.abschr-a.voll):null}))
     .sort((x,y)=>y.anteil-x.anteil);
 }
+/* ---------- Aufteilung des Spannenverlusts: Abschriften und Inventur ----------
+   Ergaenzt am 25.08.2026. Vorgabe Benedikt Paul: "Bei den Flop wird zudem nur
+   die Summe des Verlustes angezeigt, bitte nach Abschriften und nach Inventur
+   aufschluesseln."
+
+   Die Zahlen liegen bereits vor - in der Tabelle "spannenanalyse", je Markt,
+   Abteilung und Woche, mit Vorjahresvergleich. Sie standen nur in einer
+   anderen Kachel.
+
+   ZWEI DINGE SIND DABEI ZU BEACHTEN:
+
+   1. EINSTANDSPREISE. Die Spannenanalyse rechnet in EK, die gemeldeten
+      Abschriften darueber in VK brutto. Die beiden Bloecke duerfen deshalb
+      NICHT addiert werden - sie sind getrennt beschriftet.
+
+   2. ABTEILUNGSEBENE. Eine Inventurdifferenz je ARTIKEL gibt es in keiner
+      Quelle. Die Aufteilung gilt fuer die Abteilung; bei den einzelnen
+      Artikeln bleibt es beim Spannenverlust als einer Zahl. Lieber eine
+      ehrliche Abteilungszahl als eine erfundene Artikelzahl. */
+function mepVerlustAufteilung(){
+  const abt=new Set(mepAbteilungen());
+  const t=mepSpanne.filter(x=>x.markt===mepMk() && x.abteilung!=="Gesamtergebnis"
+    && (!mepBl()||abt.has(x.abteilung))
+    && (!mepFlopAbteilung||x.abteilung===mepFlopAbteilung)
+    && mepZeitPasst(x,"spannen"));
+  if(!t.length) return null;
+  const z=(v)=>Math.abs(Number(v)||0);
+  const abschr=t.reduce((s,x)=>s+z(x.abschr_ek),0);
+  const inv=t.reduce((s,x)=>s+z(x.inventur_ek),0);
+  const abschrVj=t.reduce((s,x)=>s+z(x.abschr_ek_vj),0);
+  const invVj=t.reduce((s,x)=>s+z(x.inventur_ek_vj),0);
+  return {abschr, inv, summe:abschr+inv, abschrVj, invVj,
+          zeilen:t.length,
+          von:t[0].periode_von, bis:t[0].periode_bis};
+}
 function mepKachelFlop(){
   const alle=mepArtikel.filter(x=>mepZeitPasst(x,"flop"));
   const abteilungen=[...new Set(alle.map(x=>x.abteilung).filter(Boolean))].sort();
@@ -9893,6 +10016,7 @@ function mepKachelFlop(){
   const gesamtVerlust=l.reduce((s,x)=>s+x.f.verlust,0);
   const gesamtUmsatz=l.reduce((s,x)=>s+(x.umsatz||0),0);
   const abschr=mepAbschriftenAbteilung();
+  const auf=mepVerlustAufteilung();
   l.sort((a,b)=> mepFlopMass==="euro" ? b.f.verlust-a.f.verlust : (b.f.anteil||0)-(a.f.anteil||0));
   const zeig=l.slice(0,12);
   const knopf=(aktiv,klick,text)=>`<button onclick="${klick}" style="border:1px solid #d8e2ef;
@@ -9907,6 +10031,7 @@ function mepKachelFlop(){
       ${knopf(mepFlopMass==="anteil","mepSetzeFlopMass('anteil')","Anteil am VK brutto")}
       ${knopf(mepFlopMass==="euro","mepSetzeFlopMass('euro')","Betrag in Euro")}
       <span style="width:14px"></span>
+      ${mepZeitWahlKlein()}
       <select onchange="mepSetzeFlopAbteilung(this.value)" style="width:auto;min-width:180px;
         padding:4px 8px;font-size:12.5px">
         <option value="">alle Abteilungen</option>
@@ -9940,6 +10065,31 @@ function mepKachelFlop(){
       aber zu schlecht.</div>`
     :`<div class="small" style="padding:8px 0;font-style:italic">Für diesen Zeitraum liegen keine
       gemeldeten Abschriften vor.</div>`}
+
+    ${auf&&auf.summe>0?`
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b;margin:16px 0 5px">
+      Woher der Verlust kommt${mepFlopAbteilung?` · ${mepEsc(mepFlopAbteilung)}`:""}</div>
+    <div style="display:flex;gap:11px;flex-wrap:wrap">
+      ${[["Abschriften",auf.abschr,auf.abschrVj,
+          "Ware wurde entwertet, ist aber erfasst. Steuerbar über Bestellmenge und Reifegrad."],
+         ["Inventur",auf.inv,auf.invVj,
+          "Ware ist nicht mehr da. Fehlbuchung, unbelegte Umlagerung, falsche Auszeichnung oder Diebstahl."]
+        ].map(([t,v,vj,erkl])=>{
+        const teil=auf.summe>0?v*100/auf.summe:0;
+        const schlechter=vj>0&&v>vj*1.5&&v>100;
+        return `<div style="flex:1 1 240px;border:1px solid #e6eef8;border-radius:10px;padding:12px 14px;background:#fff">
+          <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b">${t}</div>
+          <div style="font-size:24px;font-weight:900;color:${schlechter?"#b91c1c":"#08213f"};line-height:1.15;margin-top:3px">${mepEur(v)}</div>
+          <div class="small" style="margin-top:2px">${mepPrz(teil)} des Verlusts ·
+            Vorjahr ${vj>0?mepEur(vj):"–"}${schlechter?` <b style="color:#b91c1c">✕${(v/vj).toFixed(1)}</b>`:""}</div>
+          <div class="small" style="color:#94a3b8;margin-top:5px">${erkl}</div></div>`;}).join("")}
+      <div style="flex:1 1 240px;border:1px solid #e6eef8;border-radius:10px;padding:12px 14px;background:#f8fbff">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b">zusammen</div>
+        <div style="font-size:24px;font-weight:900;color:#08213f;line-height:1.15;margin-top:3px">${mepEur(auf.summe)}</div>
+        <div class="small" style="margin-top:2px">aus ${auf.zeilen} Abteilung(en)</div>
+        <div class="small" style="color:#94a3b8;margin-top:5px">Zu <b>Einstands</b>preisen –
+          nicht mit den Abschriften darüber addieren, die stehen in VK brutto.</div></div>
+    </div>`:""}
 
     <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b;margin:16px 0 5px">
       Artikel mit dem größten Spannenverlust</div>
@@ -10048,6 +10198,7 @@ function mepKachelArtikel(){
       ${knopf(top,"mepSetzeRichtung('top')","▲ Top")}
       ${knopf(!top,"mepSetzeRichtung('flop')","▼ Flop")}
       <span style="width:14px"></span>
+      ${mepZeitWahlKlein()}
       <select onchange="mepSetzeArtAbteilung(this.value)" style="width:auto;min-width:170px;
         padding:4px 8px;font-size:12.5px">
         <option value="">alle Abteilungen</option>
