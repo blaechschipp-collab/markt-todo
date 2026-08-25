@@ -676,7 +676,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.25-3"; // Flop nach Abschriften/Inventur · Zeitauswahl in den Kacheln · Trendartikel in der Verwaltung
+const APP_VERSION = "v2026.08.25-4"; // immer ALLE Abteilungen · Bestandsverlauf meldet den Fehler statt ihn zu verschlucken
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -8734,8 +8734,9 @@ const MEP_FRISCHE={test:(abt)=>{
   return MEP_FRISCHE_REGEX.test(abt||"");
 }};
 let mepBestand=[], mepBestandStand={};
+let mepBestandFehler=null;   // Meldung der letzten fehlgeschlagenen Abfrage
 async function mepBestandLaden(){
-  mepBestand=[]; mepBestandStand={};
+  mepBestand=[]; mepBestandStand={}; mepBestandFehler=null;
   try{
     // Bestandsverlauf auf den gewaehlten Zeitraum begrenzen
     const g=mepZeitraumGrenzen(mepZeitraum);
@@ -8754,7 +8755,22 @@ async function mepBestandLaden(){
     // Schluessel immer Markt und Abteilung - in der Verwaltung stehen sonst
     // vier Haeuser unter derselben Abteilung und ueberschreiben sich.
     (f||[]).forEach(x=>{ mepBestandStand[x.markt+"|"+x.abteilung]=x; });   // letzter Tag gewinnt
-  }catch(err){ console.warn("Bestandsverlauf:",err); }
+    mepBestandFehler=null;
+  }catch(err){
+    /* FRUEHER STAND HIER NUR console.warn - 25.08.2026 geaendert.
+
+       Benedikt Paul meldete, in Freckenfeld werde "keinerlei Bestandsverlauf
+       mehr angezeigt". Die Daten lagen vollstaendig in der Datenbank: 21
+       Abteilungen, 147 Zeilen allein fuer die letzte Woche. Scheitert die
+       Abfrage - Zeitueberschreitung, abgelaufener Ausweis, Serverfehler -,
+       blieb mepBestand leer und der Grund stand ausschliesslich in der
+       Browser-Konsole. Die Kachel meldete brav "0 geladene Zeilen", ohne
+       sagen zu koennen, warum.
+
+       Ein verschluckter Fehler ist schlimmer als ein sichtbarer. */
+    mepBestandFehler = (err && err.message) ? err.message : String(err);
+    console.warn("Bestandsverlauf:",err);
+  }
 }
 /* Ist die Reichweite belastbar? Nur wenn der fortgeschriebene Bestand
    ueberhaupt plausibel ist. Ein negativer Bestand kann es nicht geben - dort
@@ -8915,6 +8931,13 @@ function mepKachelBestand(){
     return `<div class="box" style="border-left:4px solid #b45309">
       <h2>Bestandsverlauf über die Woche
         <span style="font-weight:normal;font-size:14px;color:#64748b">keine Daten für diese Auswahl</span></h2>
+      ${mepBestandFehler?`<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;
+        padding:10px 12px;margin:8px 0"><b style="color:#b91c1c">Die Abfrage ist gescheitert.</b>
+        <div class="small" style="margin-top:3px">Meldung der Datenbank:
+          <code>${mepEsc(mepBestandFehler)}</code></div>
+        <div class="small" style="margin-top:4px">Das ist die Ursache – nicht die Auswahl darunter.
+          Häufigster Fall: Der Sitzungsausweis ist abgelaufen. Dann hilft ein Neuladen der Seite
+          und die PIN erneut eingeben.</div></div>`:""}
       <div class="small">Die Kachel bleibt leer, weil die Abfrage nichts zurückgegeben hat.
         Das liegt <b>nicht</b> zwingend an fehlenden Daten – meist ist es die Auswahl:
         <table style="margin-top:9px;border:0">
@@ -8940,7 +8963,12 @@ function mepKachelBestand(){
   }
   // Schlechteste zuerst - in jeder Ansicht (Vorgabe Benedikt Paul 18.08.2026)
   l.sort((a,b)=>(b.potenzial??-1)-(a.potenzial??-1));
-  const zeig=l.slice(0,8);
+  /* KEINE Begrenzung mehr. Vorgabe Benedikt Paul 25.08.2026: "Auch wenn alles
+     gut sein sollte immer alle Abteilungen hier anzeigen. Wir hatten mal auf 8
+     begrenzt. Dies bitte entfernen. Immer alle fuer die moegliche Sicht."
+     Die schlechteste steht weiterhin oben - wer nur die Spitze sehen will,
+     liest die ersten Zeilen. */
+  const zeig=l;
   const summeUeberhang=l.reduce((s,a)=>s+(a.ueberhang||0),0);
   const maxSpanne=Math.max(...zeig.map(a=>a.spanne||0),1);
   /* Darstellung 18.08.2026 neu:
@@ -10051,7 +10079,7 @@ function mepKachelFlop(){
         <th style="text-align:right;padding:7px">Abschriften VK br.</th>
         <th style="text-align:right;padding:7px">davon Vollabschr.</th>
         <th style="text-align:right;padding:7px">Umbewertung</th></tr></thead><tbody>
-      ${abschr.slice(0,8).map(a=>`<tr style="border-top:1px solid #eef3f9">
+      ${abschr.map(a=>`<tr style="border-top:1px solid #eef3f9">
         <td style="padding:7px">${mepEsc(a.abteilung)}</td>
         <td style="text-align:right"><b style="color:${a.anteil>2?"#b91c1c":a.anteil>1?"#b45309":"#08213f"}">${
           mepPrz(a.anteil)}</b></td>
