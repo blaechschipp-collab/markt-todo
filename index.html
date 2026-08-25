@@ -528,7 +528,10 @@
     </div>
     <div class="box admin admin-uploads">
       <h2>💰 Bevorratung – Aktions-PDF hochladen (wöchentlich)</h2>
-      <div class="small">Die "MeinGenuss/Finale Sofortauslieferung SAP"-PDF. Der bisherige Werbe-Ordersatz wird komplett ersetzt.</div>
+      <div class="small">Die "MeinGenuss/Finale Sofortauslieferung SAP"-PDF.
+        <b>Seit 25.08.2026 wird nur die KW dieser Datei ersetzt</b> – ältere Aktionswochen bleiben stehen
+        und sind in der Bevorratung über das Feld „Aktionswoche" wählbar.
+        Enthält die PDF keine erkennbare KW, wird wie früher der ganze Ordersatz ersetzt.</div>
       <input id="werbungPdfFile" type="file" accept=".pdf" style="margin-top:10px" />
       <div style="margin-top:10px;display:flex;gap:10px;flex-wrap:wrap">
         <button class="btn-green" style="width:auto" onclick="uploadWerbungPdf()">PDF einlesen &amp; speichern</button>
@@ -694,7 +697,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.25-7"; // Dispo-Zähler berichtigt · Werbewoche sichtbar und wählbar · Werbe-Import ersetzt nur die eigene KW
+const APP_VERSION = "v2026.08.25-9"; // Wochenleiste sagt, wenn nur eine Woche vorliegt · Hilfetext Werbe-Upload
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -8598,7 +8601,11 @@ function mepWochenLeiste(){
         color:${an?"#fff":"#334155"};border-radius:7px;padding:5px 12px;font-size:12.5px;
         font-weight:${an?"700":"500"};cursor:pointer">KW ${w.kw}
         <span style="font-weight:400;opacity:.85">· ${mepWochenName(w)}</span></button>`;}).join("")}
-    <span class="small" style="margin-left:4px">Angeboten werden Vorwoche, laufende und kommende Woche.</span>
+    <span class="small" style="margin-left:4px">${
+      mepWerbungWochen.length>1
+        ? "Angeboten werden Vorwoche, laufende und kommende Woche."
+        : "<b style='color:#b45309'>Nur diese eine Woche liegt vor.</b> Der Wochencheck kommt im Flip-Kanal „AV Gesamt“ bis spätestens Mittwoch."
+    }</span>
   </div>`;
 }
 /* Herunterladen: Handzettel und Sofortauslieferung gelten fuer alle vier
