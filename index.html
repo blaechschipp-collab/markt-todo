@@ -383,6 +383,7 @@
       <div class="small">Empfohlene Werbeartikel zum Bevorraten. Berechnung: normaler Wochenverkauf × Bevorratungs-Wochen, aufgerundet auf volle Kollis; nur Artikel mit Ersparnis über der Schwelle werden angezeigt.</div>
       <div class="control-grid" style="margin-top:14px">
         <div><label>Markt</label><select id="werbungMarket" onchange="onWerbungMarketChange()"><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div>
+        <div><label>Aktionswoche</label><select id="werbungWeek" onchange="setzeWerbungWoche()"></select></div>
         <div><label>Sortierung</label><select id="werbungSort" onchange="renderWerbung()"><option value="saving">Ersparnis absteigend</option><option value="skz">SKZ aufsteigend</option><option value="name">Name (A-Z)</option></select></div>
         <div><label>&nbsp;</label><button class="btn-yellow" onclick="renderWerbung()" style="width:auto">Neu berechnen</button></div>
       </div>
@@ -693,7 +694,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.25-6"; // Wochen-Umsatzbericht: eigener Importer nach kennzahlen, beide Lieferformen, Kontrollsumme
+const APP_VERSION = "v2026.08.25-7"; // Dispo-Zähler berichtigt · Werbewoche sichtbar und wählbar · Werbe-Import ersetzt nur die eigene KW
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -5282,11 +5283,30 @@ function renderDispo(){
     if(!groups[k]) groups[k] = {market: it.market, list_type: it.list_type, upload_seq: it.upload_seq, upload_date: it.upload_date, items: []};
     groups[k].items.push(it);
   });
-  // Summary
-  const totalOpen = items.filter(i => !i.in_cooldown && !i.done_date).length;
-  const totalDone = items.filter(i => i.done_date).length;
-  const totalCool = items.filter(i => i.in_cooldown).length;
-  document.getElementById("dispoSummary").innerHTML = `In der aktuellen Liste: <strong>${totalOpen} offen</strong>, ${totalDone} erledigt, ${totalCool} im Cooldown.`;
+  /* Summary - berichtigt 25.08.2026.
+
+     VORHER zaehlte diese Zeile ueber "items", die Liste darunter zeigt aber
+     "filtered". Sobald ein SKZ- oder Suchfilter griff, standen oben tausende
+     offene Posten und darunter nichts. Benedikt Paul am 25.08.2026: "In den
+     Dorflaeden stehen ueber 3000 Umlistungen als offen, unten wird aber nichts
+     angezeigt. Dann muesste da aber auch 0 offen stehen."
+
+     Gezaehlt wird jetzt, was auch zu sehen ist. Wird durch einen Filter etwas
+     ausgeblendet, steht die Gesamtzahl daneben - sonst wundert man sich, wo
+     die Posten geblieben sind. */
+  const zaehl = (menge) => ({
+    offen: menge.filter(i => !i.in_cooldown && !i.done_date).length,
+    erledigt: menge.filter(i => i.done_date).length,
+    cooldown: menge.filter(i => i.in_cooldown).length
+  });
+  const s = zaehl(filtered), ges = zaehl(items);
+  const ausgeblendet = items.length - filtered.length;
+  document.getElementById("dispoSummary").innerHTML =
+    `In der aktuellen Liste: <strong>${s.offen} offen</strong>, ${s.erledigt} erledigt, ${s.cooldown} im Cooldown.`
+    + (ausgeblendet > 0
+        ? ` <span style="color:#b45309">${ausgeblendet.toLocaleString("de-DE")} Einträge durch den Filter ausgeblendet</span>`
+          + ` <span style="color:#94a3b8">(ohne Filter: ${ges.offen.toLocaleString("de-DE")} offen)</span>`
+        : "");
   // Downloads-Bereich (Dashboards + WE-Prognosen) – immer sichtbar, auch wenn leer
   let docHtml = "";
   const allDocs = dispoState.documents || [];
@@ -5622,7 +5642,12 @@ async function loadWerbungData(){
     fetchAllPaged(()=>db.from("article_sales_schnitt").select("sap_artnr,market,wochen_erfasst,menge_pro_woche,name,abteilung"))
   ]);
   if(pRes.error){ list.innerHTML = `<div style="color:#c62828">Fehler Werbeartikel: ${escapeHtml(pRes.error.message)}</div>`; return; }
-  werbungState.promo = pRes.data || [];
+  /* Seit 25.08.2026 liegen MEHRERE Aktionswochen in der Datenbank - der Import
+     ersetzt nur noch die eigene KW. promoAlle haelt alles, promo die gewaehlte
+     Woche. Ohne diese Trennung wuerde die Bevorratung Wochen vermischen und
+     Mengen doppelt vorschlagen. */
+  werbungState.promoAlle = pRes.data || [];
+  werbungState.promo = werbungState.promoAlle;
   werbungState.sales = {};
   // Geaendert 15.08.2026: Gelesen wird aus der Sicht article_sales_schnitt.
   // Sie liefert je Artikel und Markt bereits die Menge PRO WOCHE - frueher
@@ -5717,6 +5742,63 @@ function isoWeekMondayToSaturday(year, week){
   return {mon, sat};
 }
 
+/* Wochenauswahl der Bevorratung - 25.08.2026.
+   Fuellt das Feld aus den vorhandenen Aktionswochen, juengste zuerst, und
+   grenzt werbungState.promo auf die gewaehlte ein. */
+function fuelleWerbungWochen(){
+  const sel = document.getElementById("werbungWeek");
+  if(!sel) return;
+  const alle = werbungState.promoAlle || werbungState.promo || [];
+  const wochen = {};
+  for(const x of alle){
+    if(x.kw == null || x.year == null) continue;
+    const k = x.year + "-" + String(x.kw).padStart(2, "0");
+    wochen[k] = (wochen[k] || 0) + 1;
+  }
+  /* Laufende und naechste Woche stehen IMMER zur Auswahl, auch wenn dafuer
+     noch keine Daten da sind - dann sagt der Eintrag das. Vorgabe Benedikt
+     Paul 25.08.2026: "Es soll in Werbung immer die laufende Woche, naechste
+     Woche mit KW-Angabe und Datum selektiert werden koennen."
+
+     Eine Auswahl, die nur zeigt was zufaellig geladen ist, laesst offen, ob
+     eine Woche fehlt oder ob es sie nicht gibt. */
+  const heute = new Date(); heute.setHours(0,0,0,0);
+  const do4 = new Date(heute); do4.setDate(heute.getDate() + 3 - ((heute.getDay() + 6) % 7));
+  const jan1 = new Date(do4.getFullYear(), 0, 1);
+  const kwHeute = Math.ceil((((do4 - jan1) / 86400000) + 1) / 7);
+  const pflicht = [];
+  for(const versatz of [0, 1]){
+    const d = new Date(heute); d.setDate(heute.getDate() + versatz * 7);
+    const t = new Date(d); t.setDate(d.getDate() + 3 - ((d.getDay() + 6) % 7));
+    const j1 = new Date(t.getFullYear(), 0, 1);
+    const w = Math.ceil((((t - j1) / 86400000) + 1) / 7);
+    pflicht.push(t.getFullYear() + "-" + String(w).padStart(2, "0"));
+  }
+  const liste = [...new Set([...pflicht, ...Object.keys(wochen)])].sort().reverse();
+  const vorher = sel.value;
+  sel.innerHTML = liste.map(k => {
+    const [j, w] = k.split("-").map(Number);
+    const {mon, sat} = isoWeekMondayToSaturday(j, w);
+    const rolle = k === pflicht[0] ? " (laufend)" : k === pflicht[1] ? " (nächste)" : "";
+    const n = wochen[k] || 0;
+    return `<option value="${k}">KW ${w}${rolle} · ${formatDateDE(formatDate(mon))} – ${formatDateDE(formatDate(sat))} · `
+         + (n ? `${n} Artikel` : "keine Daten") + `</option>`;
+  }).join("");
+  /* Standard ist die naechste Woche, sofern dafuer Artikel vorliegen - fuer
+     die bevorratet man. Sonst die juengste Woche mit Daten. */
+  const mitDaten = liste.filter(k => wochen[k]);
+  sel.value = (vorher && liste.indexOf(vorher) >= 0) ? vorher
+            : (wochen[pflicht[1]] ? pflicht[1] : (mitDaten[0] || liste[0]));
+}
+function setzeWerbungWoche(){
+  const sel = document.getElementById("werbungWeek");
+  const alle = werbungState.promoAlle || [];
+  const k = sel ? sel.value : "";
+  werbungState.promo = k
+    ? alle.filter(x => (x.year + "-" + String(x.kw).padStart(2, "0")) === k)
+    : alle;
+  renderWerbung();
+}
 function renderWerbungWeekBanner(){
   const banner = document.getElementById("werbungWeekBanner");
   if(!banner) return;
@@ -5742,6 +5824,7 @@ function renderWerbung(){
   const thr = s.threshold, bw = s.bevWochen, bf = s.bevFrische;
   const sortMode = document.getElementById("werbungSort").value || "saving";
   localStorage.setItem("selectedMarket", market);
+  fuelleWerbungWochen();
   renderWerbungWeekBanner();
   if(settingsInfo) settingsInfo.innerHTML = `Aktuelle Vorgaben: Schwelle <strong>${thr} €</strong> · Bevorratung <strong>${bw} Wochen</strong> (Frische: <strong>${bf} Woche${bf>1?"n":""}</strong>)`;
   renderWerbungDebug();
@@ -6091,8 +6174,23 @@ async function uploadWerbungPdf(){
       msg.innerHTML = dbg;
       return;
     }
-    // Alten Ordersatz komplett ersetzen
-    const del = await db.from("promo_articles").delete().gte("uploaded_at", "1900-01-01");
+    /* NUR DIE EIGENE WOCHE ERSETZEN - geaendert 25.08.2026.
+
+       Vorher wurde der gesamte Ordersatz geloescht. Dadurch lag immer nur EINE
+       Woche in der Datenbank, und in der Bevorratung liess sich keine Woche
+       auswaehlen - es gab ja nur eine. Vorgabe Benedikt Paul: "hier sollte man
+       selektieren koennen, welche Woche man sehen moechte."
+
+       Jetzt wird nur die KW dieser Datei ersetzt. Aeltere Wochen bleiben
+       stehen. Faellt die KW aus der Datei nicht heraus (kw oder year leer),
+       gilt weiterhin das alte Verhalten - sonst haeuften sich Artikel ohne
+       Wochenzuordnung unbemerkt an. */
+    let del;
+    if(kw && year){
+      del = await db.from("promo_articles").delete().eq("kw", kw).eq("year", year);
+    } else {
+      del = await db.from("promo_articles").delete().gte("uploaded_at", "1900-01-01");
+    }
     if(del.error){ msg.style.color = "#c62828"; msg.innerHTML = "Fehler beim Löschen: " + del.error.message; return; }
     const bs = 500;
     for(let i = 0; i < records.length; i += bs){
@@ -9404,6 +9502,39 @@ function mepBevorratung(){
   }
   return {liste:alle, einstellungen:s};
 }
+/* Welche Werbewoche steckt im geladenen Ordersatz? Ergaenzt 25.08.2026.
+   Vorgabe Benedikt Paul: "Es wird zu schlecht angezeigt, fuer welche Woche mit
+   Datum die Ansicht gemeint ist."
+
+   promo_articles fuehrt kw und year je Artikel. Der Montag einer ISO-Woche
+   ergibt sich aus dem 4. Januar - er liegt immer in KW1. */
+function mepWerbewoche(){
+  const p=(werbungState && werbungState.promo) || [];
+  if(!p.length) return null;
+  const jahre={};
+  for(const x of p){ if(x.kw==null||x.year==null) continue;
+    const k=x.year+"-"+x.kw; jahre[k]=(jahre[k]||0)+1; }
+  const paare=Object.entries(jahre).sort((a,b)=>b[1]-a[1]);
+  if(!paare.length) return null;
+  const [jahr,kw]=paare[0][0].split("-").map(Number);
+  const vierter=new Date(Date.UTC(jahr,0,4));
+  const montagKW1=new Date(vierter); montagKW1.setUTCDate(4-((vierter.getUTCDay()+6)%7));
+  const mo=new Date(montagKW1); mo.setUTCDate(montagKW1.getUTCDate()+(kw-1)*7);
+  const sa=new Date(mo); sa.setUTCDate(mo.getUTCDate()+5);
+  const de=d=>String(d.getUTCDate()).padStart(2,"0")+"."+String(d.getUTCMonth()+1).padStart(2,"0")+"."+d.getUTCFullYear();
+  return {jahr, kw, von:de(mo), bis:de(sa), artikel:paare[0][1],
+          weitere:paare.length-1};
+}
+function mepWerbewocheText(){
+  const w=mepWerbewoche();
+  if(!w) return "";
+  return `<div style="display:inline-block;background:#eef5ff;border:1px solid #d3e3fb;border-radius:8px;
+    padding:5px 11px;font-size:13px;margin:2px 0 8px">
+    <b>Werbewoche KW ${w.kw}</b> · ${w.von} – ${w.bis}
+    <span style="color:#64748b">· ${mepZahl(w.artikel)} Artikel</span>
+    ${w.weitere>0?`<span style="color:#b45309"> · Achtung: ${w.weitere} weitere Woche(n) im Datenbestand</span>`:""}
+  </div>`;
+}
 function mepKachelBevorratung(){
   if(mepIstHausmeister()) return "";
   const d=mepBevorratung();
@@ -9420,6 +9551,7 @@ function mepKachelBevorratung(){
   return `<div class="box"><h2>Bevorratung${mepBl()?" · "+mepEsc(mepBl()):""}
     <span style="font-weight:normal;font-size:14px;color:#64748b">${mepZahl(offen.length)} von ${mepZahl(l.length)} offen</span>
     ${mepAbsprung("mepZeigeBevorratung()","alle Artikel")}</h2>
+    ${mepWerbewocheText()}
     <div class="small">Werbeartikel, bei denen sich ein Vorgriff rechnet: Wochenabsatz mal
       ${d.einstellungen.bevWochen} Wochen, Frische nur ${d.einstellungen.bevFrische} Woche,
       ab ${d.einstellungen.threshold} € Ersparnis. Zusammen <b>${mepZahl(kartons)} Kartons</b> und
