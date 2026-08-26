@@ -712,7 +712,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.26-01"; // Negativbestand: Regalnummer angezeigt, danach aufsteigend sortiert
+const APP_VERSION = "v2026.08.26-02"; // Negativbestand: Regalnummer + Erledigt-Knopf; Aufgabenkachel an Position 2 in allen Ansichten
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -10012,7 +10012,7 @@ function mepJahresanteil(){
 
    LEERGUT wird ausgenommen. Dort ist ein negativer Wert der Normalfall, weil
    Pfand hereinkommt, bevor er gebucht wird. */
-let mepBestandNeg=[], mepBestandNegStand=null;
+let mepBestandNeg=[], mepBestandNegStand=null, mepBestandNegErl={};
 async function mepBestandNegativLaden(){
   mepBestandNeg=[]; mepBestandNegStand=null;
   try{
@@ -10063,21 +10063,58 @@ async function mepBestandNegativLaden(){
     const rz=x=>{ const n=parseFloat(String(x.regal_nr||"").replace(/[^0-9.]/g,""));
                   return isFinite(n)?n:OHNE; };
     mepBestandNeg=liste.sort((a,b)=> (rz(a)-rz(b)) || ((a.menge||0)-(b.menge||0)));
+    /* Wer hat schon korrigiert? Die Meldung steht in Markt, Marktleitung und
+       Verwaltung gleichzeitig - ohne Haken laufen drei Leute zum selben Regal.
+       Vorgabe Benedikt Paul 26.08.2026. */
+    mepBestandNegErl={};
+    try{
+      const e=await fetchAllPaged(()=>mepFiltMarkt(db.from("negativbestand_erledigt")
+        .select("markt,sap_artnr,erledigt_von,erledigt_am"),"markt")
+        .eq("stand",mepBestandNegStand).order("erledigt_am"));
+      (e||[]).forEach(x=>{ mepBestandNegErl[x.markt+"|"+String(x.sap_artnr)]=x; });
+    }catch(err){ console.warn("Erledigt-Haken Negativbestand:",err); }
   }catch(err){ console.warn("Negative Bestände:",err); }
+}
+
+/* Abhaken. Kein Löschen von Daten - der Befund bleibt stehen, er wird nur als
+   erledigt markiert. Ein Fehlklick lässt sich mit demselben Knopf zurücknehmen,
+   solange man selbst ihn gesetzt hat oder ausdrücklich bestätigt. */
+async function mepBestandNegAbhaken(markt, artnr, zurueck){
+  const k=markt+"|"+String(artnr);
+  try{
+    if(zurueck){
+      const e=mepBestandNegErl[k];
+      if(e && !confirm("Erledigt wurde von "+(e.erledigt_von||"jemandem")+" gesetzt. Zurücknehmen?")) return;
+      await db.from("negativbestand_erledigt").delete()
+        .eq("markt",markt).eq("sap_artnr",String(artnr)).eq("stand",mepBestandNegStand);
+      delete mepBestandNegErl[k];
+    }else{
+      const wer=mepWerHatsGemacht();
+      await db.from("negativbestand_erledigt").upsert(
+        {markt:markt, sap_artnr:String(artnr), stand:mepBestandNegStand, erledigt_von:wer},
+        {onConflict:"markt,sap_artnr,stand"});
+      mepBestandNegErl[k]={markt:markt,sap_artnr:String(artnr),
+        erledigt_von:wer, erledigt_am:new Date().toISOString()};
+    }
+  }catch(err){ alert("Konnte nicht gespeichert werden: "+err.message); return; }
+  mepZeichnen();
 }
 function mepKachelBestandNegativ(){
   if(mepIstHausmeister()) return "";
   const l=mepBestandNeg;
   if(!l.length) return "";
-  const wert=l.reduce((s,x)=>s+Math.abs(Number(x.bestand_ek)||0),0);
+  const erl=x=>mepBestandNegErl[x.markt+"|"+String(x.sap_artnr)];
+  const wert=l.filter(x=>!erl(x)).reduce((s,x)=>s+Math.abs(Number(x.bestand_ek)||0),0);
   const ohneRegal=l.filter(x=>!x.regal_nr).length;
+  const fertig=l.filter(x=>erl(x)).length;
   const jeMarkt={}; l.forEach(x=>{jeMarkt[x.markt]=(jeMarkt[x.markt]||0)+1;});
   const de=s=>s?String(s).split("-").reverse().join("."):"";
   const alt=mepBestandNegStand
     ? Math.round((new Date()-new Date(mepBestandNegStand+"T00:00:00"))/86400000) : null;
   return `<div class="box" style="border-left:6px solid #b91c1c;background:#fef2f2">
     <h2 style="color:#b91c1c">⚠ Negativer Bestand · sofort prüfen und korrigieren
-      <span style="font-weight:normal;font-size:14px;color:#7f1d1d">${mepZahl(l.length)} Artikel</span></h2>
+      <span style="font-weight:normal;font-size:14px;color:#7f1d1d">${mepZahl(l.length-fertig)} von ${
+        mepZahl(l.length)} offen</span></h2>
     <div class="small" style="color:#7f1d1d">Ein Bestand unter null kann es im Regal nicht geben.
       Ursache ist fast immer ein nicht gebuchter Wareneingang, eine fehlende Umlagerung oder eine
       falsch kassierte Artikelnummer. <b>Solange das steht, bestellt die Dispo falsch und die
@@ -10091,21 +10128,40 @@ function mepKachelBestandNegativ(){
         <th style="padding:7px">Artikel</th>
         ${mepAlleMaerkte()?'<th style="padding:7px">Markt</th>':""}
         <th style="text-align:right;padding:7px">Bestand</th>
-        <th style="text-align:right;padding:7px">Wert EK</th></tr></thead><tbody>
-      ${l.map(x=>`<tr style="border-top:1px solid #fecaca">
+        <th style="text-align:right;padding:7px">Wert EK</th>
+        <th style="padding:7px;width:118px"></th></tr></thead><tbody>
+      ${l.map(x=>{
+        const e=erl(x);
+        const uhr=e&&e.erledigt_am ? new Date(e.erledigt_am).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"}) : "";
+        const a=[x.markt,x.sap_artnr].map(v=>String(v).replace(/'/g,"\\'"));
+        return `<tr style="border-top:1px solid #fecaca${e?";opacity:.55":""}">
         <td style="padding:7px;white-space:nowrap">${x.regal_nr
           ? `<b style="font-size:14.5px">${mepEsc(x.regal_nr)}</b>${
               x.zweitplatzierung?'<span style="display:block;font-size:10px;color:#7c3aed">Zweitplatz.</span>':""}`
           : '<span style="color:#a8a29e">–</span>'}</td>
-        <td style="padding:7px">${mepEsc(x.bezeichnung||"")}
-          <span style="display:block;font-size:10.5px;color:#a16207">Art.-Nr. ${mepEsc(x.sap_artnr||"")}</span></td>
+        <td style="padding:7px${e?";text-decoration:line-through":""}">${mepEsc(x.bezeichnung||"")}
+          <span style="display:block;font-size:10.5px;color:#a16207;text-decoration:none">Art.-Nr. ${mepEsc(x.sap_artnr||"")}</span></td>
         ${mepAlleMaerkte()?`<td style="padding:7px;font-size:12.5px">${mepEsc(x.markt)}</td>`:""}
-        <td style="text-align:right;padding:7px"><b style="color:#b91c1c;font-size:15px">${
+        <td style="text-align:right;padding:7px"><b style="color:${e?"#78716c":"#b91c1c"};font-size:15px">${
           Number(x.menge).toLocaleString("de-DE",{maximumFractionDigits:3})}</b></td>
-        <td style="text-align:right;padding:7px;color:#7f1d1d">${mepEur(x.bestand_ek)}</td></tr>`).join("")}
+        <td style="text-align:right;padding:7px;color:#7f1d1d">${mepEur(x.bestand_ek)}</td>
+        <td style="padding:7px;text-align:right">${e
+          ? `<button onclick="mepBestandNegAbhaken('${a[0]}','${a[1]}',true)"
+               title="Zurücknehmen"
+               style="border:1px solid #86efac;background:#f0fdf4;color:#15803d;border-radius:7px;
+                      padding:4px 9px;font-size:11.5px;cursor:pointer;text-align:left;line-height:1.25">
+               ✓ erledigt<span style="display:block;font-size:10px;color:#166534">${
+                 mepEsc(e.erledigt_von||"")}${uhr?" · "+uhr:""}</span></button>`
+          : `<button onclick="mepBestandNegAbhaken('${a[0]}','${a[1]}',false)"
+               style="border:1px solid #b91c1c;background:#fff;color:#b91c1c;border-radius:7px;
+                      padding:6px 13px;font-size:12.5px;font-weight:600;cursor:pointer">Erledigt</button>`
+        }</td></tr>`;}).join("")}
       </tbody></table>
-    <div class="small" style="margin-top:8px;color:#7f1d1d">Zusammen <b>${mepEur(wert)}</b> Einstandswert
-      im Minus. Nach <b>Regalnummer aufsteigend</b> sortiert – einmal durch den Markt, in einem Zug.${
+    <div class="small" style="margin-top:8px;color:#7f1d1d">Noch <b>${mepEur(wert)}</b> Einstandswert
+      im Minus${fertig?`, <b>${mepZahl(fertig)}</b> ${fertig===1?"Artikel":"Artikel"} bereits abgehakt`:""}.
+      Nach <b>Regalnummer aufsteigend</b> sortiert – einmal durch den Markt, in einem Zug.
+      <b>Bitte nach dem Korrigieren auf „Erledigt" tippen</b> – dann sieht jeder andere sofort,
+      dass dieser Artikel schon erledigt ist.${
       ohneRegal?` <b>${mepZahl(ohneRegal)}</b> ${ohneRegal===1?"Artikel steht":"Artikel stehen"} am Ende: dazu liegt
       im Regalbericht keine Nummer vor (Bedientheke oder ausgelistet).`:""}
       <br>Quelle: Bericht „Null und Negativbestände", täglich, selektiert über das
@@ -10182,15 +10238,23 @@ function mepZeichnen(){
       /* Der negative Bestand steht VOR allem anderen - auch vor der
          Verwaltungskachel. Vorgabe Benedikt Paul 25.08.2026: "Diese Meldung
          muss ganz oben stehen." Sie erscheint in JEDER Ansicht: Markt,
-         Marktleitung und Verwaltung. */
-      ? mepKachelBestandNegativ()+mepKachelVerwaltung()+mepNurVerw(mepKachelTrend)+mepKachelOffen()+mepKachelScanquote()
+         Marktleitung und Verwaltung.
+
+         Direkt darunter die AUFGABEN. Vorgabe Benedikt Paul 26.08.2026:
+         "Bitte die ToDo unter die Negativbestände vor die Kennzahlen. In alle
+         Berichte setzen." Sie stand vorher ganz unten und war ausserdem in
+         mepVerw() gekapselt - die Verwaltung sah sie ueberhaupt nicht. Beides
+         ist jetzt aufgehoben: sie kommt an zweiter Stelle, in jeder Ansicht. */
+      ? mepKachelBestandNegativ()+mepKachelAufgaben()
+        +mepKachelVerwaltung()+mepNurVerw(mepKachelTrend)+mepKachelOffen()+mepKachelScanquote()
         +mepKachelBestand()+mepKachelBevorratung()
-        +mepVerw(mepKachelAufgaben)+mepVerw(mepKachelDispo)+mepKachelBefunde()
-      : mepKachelBestandNegativ()+mepKachelVerwaltung()+mepNurVerw(mepKachelTrend)+mepKachelKennzahlen()+mepKachelOffen()
+        +mepVerw(mepKachelDispo)+mepKachelBefunde()
+      : mepKachelBestandNegativ()+mepKachelAufgaben()
+        +mepKachelVerwaltung()+mepNurVerw(mepKachelTrend)+mepKachelKennzahlen()+mepKachelOffen()
         +mepKachelSpannen()+mepKachelBefunde()
         +mepKachelScanquote()+mepKachelBestand()
         +mepKachelWerbung()+mepKachelBevorratung()+mepKachelFlop()+mepKachelArtikel()
-        +mepVerw(mepKachelAufgaben)+mepVerw(mepKachelDispo);
+        +mepVerw(mepKachelDispo);
   mepBarcodes();
 }
 
