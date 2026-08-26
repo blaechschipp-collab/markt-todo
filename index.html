@@ -712,7 +712,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.26-02"; // Negativbestand: Regalnummer + Erledigt-Knopf; Aufgabenkachel an Position 2 in allen Ansichten
+const APP_VERSION = "v2026.08.26-03"; // Tagesberichte behalten ihr echtes Datum; Umsatzkurve nur noch aus Donnerstagen
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -2597,13 +2597,32 @@ function detectZeitraumFromWorkbook(workbook){
     const flach = rows.map(r => (r||[]).map(c => String(c==null?"":c)).join(" ")).join(" ");
     const m = flach.match(/AJ:\s*(\d{2})\.(\d{2})\.(\d{4})\s*-\s*(\d{2})\.(\d{2})\.(\d{4})/);
     if(!m) continue;
+    const von = new Date(Number(m[3]), Number(m[2])-1, Number(m[1]));
     const bis = new Date(Number(m[6]), Number(m[5])-1, Number(m[4]));
+    const p = n => String(n).padStart(2,"0");
+    const iso = d => `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+    /* EINZELNER TAG bleibt ein einzelner Tag.
+       Bis zum 26.08.2026 wurde JEDER Bericht auf den Donnerstag seiner Woche
+       gezogen - auch der TAEGLICHE Kennzahlen-Dashboard-Bericht mit
+       "AJ: 25.08.2026 - 25.08.2026". Folgen, beide belegt am 26.08.2026:
+
+         1. Der Tageswert landete auf einem Donnerstag in der ZUKUNFT.
+            Der Bericht vom 26.08. (Daten vom 25.08.) stand auf dem 27.08.
+         2. Schlimmer: Er LOESCHTE die Wochenwerte desselben Donnerstags und
+            setzte sich an ihre Stelle. Auf dem 20.08. stand danach
+            56.789 EUR fuer Billigheim - das ist der Umsatz von Samstag,
+            dem 22.08., nicht der Woche 17.-23.08. (254.007 EUR).
+            Die Umsatzkurve sah aus, als sei das Geschaeft eingebrochen.
+
+       Der Donnerstag als Stichtag gilt weiterhin - aber nur fuer echte
+       Wochenberichte, bei denen von und bis auseinanderliegen. */
+    if(iso(von) === iso(bis)){
+      return {datum: iso(bis), von: iso(von), bis: iso(bis), einTag: true};
+    }
     // Donnerstag der Woche als Stichtag - ISO 8601, wie im uebrigen Bestand
     const dow = bis.getDay() || 7;
     const do_ = new Date(bis); do_.setDate(bis.getDate() - dow + 4);
-    const p = n => String(n).padStart(2,"0");
-    return {datum: `${do_.getFullYear()}-${p(do_.getMonth()+1)}-${p(do_.getDate())}`,
-            von: `${m[3]}-${m[2]}-${m[1]}`, bis: `${m[6]}-${m[5]}-${m[4]}`};
+    return {datum: iso(do_), von: iso(von), bis: iso(bis), einTag: false};
   }
   return null;
 }
@@ -10350,13 +10369,21 @@ function mepLinie(werte, beschriftung, titel, indexiert){
   </svg>`;
 }
 
-/* Wochenreihe aus metrics - dort liegen die Wochenstaende seit KW 19. */
+/* Wochenreihe aus metrics - dort liegen die Wochenstaende seit KW 19.
+
+   NUR DONNERSTAGE. Wochenwerte werden auf den Donnerstag ihrer Woche gelegt
+   (ISO 8601). Seit dem 26.08.2026 behalten Tagesberichte ihr echtes Datum -
+   sonst haetten sie die Wochenwerte ueberschrieben. Ohne diesen Filter
+   stuenden sie jetzt als eigene Punkte in der Kurve und wuerden dort als
+   Kalenderwochen beschriftet. Ein Dienstagswert ist keine Woche. */
 function mepVerlaufsreihe(){
   const abt=new Set(mepAbteilungen());
   const proWoche={};
   mepMetrics.forEach(m=>{
     if(m.metric_name!=="Umsatz") return;
     if(mepBl() ? !abt.has(m.area) : m.area!=="Markt Gesamt") return;
+    const d=new Date(m.metric_date+"T00:00:00");
+    if(d.getDay()!==4) return;      // 4 = Donnerstag
     proWoche[m.metric_date]=(proWoche[m.metric_date]||0)+Number(m.metric_value||0);
   });
   return Object.entries(proWoche).sort().map(([d,u])=>{
