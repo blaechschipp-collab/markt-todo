@@ -712,7 +712,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.25-11"; // Null- und Negativbestände: eigener Bericht, eigener Importer, Meldung ganz oben
+const APP_VERSION = "v2026.08.26-01"; // Negativbestand: Regalnummer angezeigt, danach aufsteigend sortiert
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -10025,7 +10025,44 @@ async function mepBestandNegativLaden(){
     const d=await fetchAllPaged(()=>mepFiltMarkt(db.from("negativbestand")
       .select("markt,sap_artnr,bezeichnung,menge,bestand_ek,bestand_vk,stand"),"markt")
       .eq("stand",mepBestandNegStand).order("menge"));
-    mepBestandNeg=(d||[]).sort((a,b)=>(a.menge||0)-(b.menge||0));
+    let liste=d||[];
+    /* Regalnummer dazuholen. Der BO-Bericht "Null und Negativbestände" führt
+       KEINE Regalspalte - geprüft am 26.08.2026 an der Datei vom selben Tag:
+       Markt, Bestandsartikel, Bestandsartikel2, Bestand in BasisME, Bestand EK,
+       Bestand VK, sonst nichts. Die Nummer kommt deshalb aus dem Regalbericht
+       (artikel_regal), verknüpft über Markt UND Artikelnummer.
+
+       Bewusst NICHT über mepRegale: das wird nur für einen einzelnen Markt
+       geladen, die Kachel steht aber auch in Marktleitung und Verwaltung über
+       alle vier Märkte. Die Liste ist klein (rund 45 Zeilen), eine eigene
+       Abfrage kostet nichts.
+
+       Vorgabe Benedikt Paul 26.08.2026: Regalnummer anzeigen und danach von
+       niedrig nach groß sortieren - damit man den Rundgang in einem Zug macht,
+       statt im Markt hin und her zu laufen. */
+    if(liste.length){
+      try{
+        const nrn=[...new Set(liste.map(x=>String(x.sap_artnr)).filter(Boolean))];
+        const rg=await fetchAllPaged(()=>mepFiltMarkt(db.from("artikel_regal")
+          .select("markt,sap_artnr,regal_nr,zweitplatzierung"),"markt")
+          .in("sap_artnr",nrn).order("sap_artnr"));
+        const karte={};
+        (rg||[]).forEach(r=>{ karte[r.markt+"|"+String(r.sap_artnr)]=r; });
+        liste=liste.map(x=>{
+          const r=karte[x.markt+"|"+String(x.sap_artnr)];
+          return r ? {...x, regal_nr:r.regal_nr, zweitplatzierung:r.zweitplatzierung} : x;
+        });
+      }catch(err){ console.warn("Regalnummer zum Negativbestand:",err); }
+    }
+    /* Sortierung: Regalnummer aufsteigend, ZAHLENMÄSSIG - als Text stünde
+       "1015" vor "225". Artikel ohne Regalnummer (Bedientheke, ausgelistet)
+       hängen hinten, dort nach dem größten Minus. */
+    const OHNE=1e15;   // Platzhalter statt Infinity: Infinity minus Infinity ist
+                       // NaN, und ein Vergleicher, der NaN liefert, sortiert
+                       // je nach Browser unvorhersehbar.
+    const rz=x=>{ const n=parseFloat(String(x.regal_nr||"").replace(/[^0-9.]/g,""));
+                  return isFinite(n)?n:OHNE; };
+    mepBestandNeg=liste.sort((a,b)=> (rz(a)-rz(b)) || ((a.menge||0)-(b.menge||0)));
   }catch(err){ console.warn("Negative Bestände:",err); }
 }
 function mepKachelBestandNegativ(){
@@ -10033,6 +10070,7 @@ function mepKachelBestandNegativ(){
   const l=mepBestandNeg;
   if(!l.length) return "";
   const wert=l.reduce((s,x)=>s+Math.abs(Number(x.bestand_ek)||0),0);
+  const ohneRegal=l.filter(x=>!x.regal_nr).length;
   const jeMarkt={}; l.forEach(x=>{jeMarkt[x.markt]=(jeMarkt[x.markt]||0)+1;});
   const de=s=>s?String(s).split("-").reverse().join("."):"";
   const alt=mepBestandNegStand
@@ -10049,11 +10087,16 @@ function mepKachelBestandNegativ(){
       ${Object.entries(jeMarkt).map(([m,n])=>`${mepEsc(m)} <b>${n}</b>`).join(" · ")}</div>
     <table style="width:100%;border-collapse:collapse;font-size:13.5px;margin-top:12px">
       <thead><tr style="text-align:left;color:#7f1d1d;font-size:11px;text-transform:uppercase">
+        <th style="padding:7px;width:62px">Regal</th>
         <th style="padding:7px">Artikel</th>
         ${mepAlleMaerkte()?'<th style="padding:7px">Markt</th>':""}
         <th style="text-align:right;padding:7px">Bestand</th>
         <th style="text-align:right;padding:7px">Wert EK</th></tr></thead><tbody>
       ${l.map(x=>`<tr style="border-top:1px solid #fecaca">
+        <td style="padding:7px;white-space:nowrap">${x.regal_nr
+          ? `<b style="font-size:14.5px">${mepEsc(x.regal_nr)}</b>${
+              x.zweitplatzierung?'<span style="display:block;font-size:10px;color:#7c3aed">Zweitplatz.</span>':""}`
+          : '<span style="color:#a8a29e">–</span>'}</td>
         <td style="padding:7px">${mepEsc(x.bezeichnung||"")}
           <span style="display:block;font-size:10.5px;color:#a16207">Art.-Nr. ${mepEsc(x.sap_artnr||"")}</span></td>
         ${mepAlleMaerkte()?`<td style="padding:7px;font-size:12.5px">${mepEsc(x.markt)}</td>`:""}
@@ -10062,8 +10105,12 @@ function mepKachelBestandNegativ(){
         <td style="text-align:right;padding:7px;color:#7f1d1d">${mepEur(x.bestand_ek)}</td></tr>`).join("")}
       </tbody></table>
     <div class="small" style="margin-top:8px;color:#7f1d1d">Zusammen <b>${mepEur(wert)}</b> Einstandswert
-      im Minus. Quelle: Bericht „Null und Negativbestände", täglich, selektiert über das
-      Dispositionsmerkmal – nur Artikel, bei denen ein Minus wirklich ein Fehler ist.</div>
+      im Minus. Nach <b>Regalnummer aufsteigend</b> sortiert – einmal durch den Markt, in einem Zug.${
+      ohneRegal?` <b>${mepZahl(ohneRegal)}</b> ${ohneRegal===1?"Artikel steht":"Artikel stehen"} am Ende: dazu liegt
+      im Regalbericht keine Nummer vor (Bedientheke oder ausgelistet).`:""}
+      <br>Quelle: Bericht „Null und Negativbestände", täglich, selektiert über das
+      Dispositionsmerkmal – nur Artikel, bei denen ein Minus wirklich ein Fehler ist.
+      Regalnummer aus dem Regalbericht, verknüpft über Markt und Artikelnummer.</div>
     </div>`;
 }
 const mepVerw=(fn)=> mepZugang.markt==="Verwaltung" ? "" : fn();
