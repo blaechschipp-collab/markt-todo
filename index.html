@@ -712,7 +712,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.26-03"; // Tagesberichte behalten ihr echtes Datum; Umsatzkurve nur noch aus Donnerstagen
+const APP_VERSION = "v2026.08.27-01"; // Umsatzkurve aus zwei Quellen, Wiederholungstaeter im Negativbestand, Nutzungsuebersicht in der Verwaltung
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -8662,7 +8662,7 @@ async function mepNeuLaden(){
      jetzt mepPassendePeriode beim Lesen, nicht eine gemerkte Auswahl. */
   await Promise.all([mepWerbungLaden(), mepLogsLaden(), mepVerwaltungLaden(),
                      mepScanLaden(), mepBestandLaden(), mepBestandNegativLaden(), mepBevorratungLaden(),
-                     ladeFrischeZuordnung()]);
+                     mepNutzungLaden(), ladeFrischeZuordnung()]);
   const jahr=mepKz.filter(x=>x.periode_von==="2026-01-01");
   if(jahr.length) mepStand=jahr[0].stand;
   mepZeichnen();
@@ -10031,7 +10031,7 @@ function mepJahresanteil(){
 
    LEERGUT wird ausgenommen. Dort ist ein negativer Wert der Normalfall, weil
    Pfand hereinkommt, bevor er gebucht wird. */
-let mepBestandNeg=[], mepBestandNegStand=null, mepBestandNegErl={};
+let mepBestandNeg=[], mepBestandNegStand=null, mepBestandNegErl={}, mepBestandNegWdh={};
 async function mepBestandNegativLaden(){
   mepBestandNeg=[]; mepBestandNegStand=null;
   try{
@@ -10092,6 +10092,35 @@ async function mepBestandNegativLaden(){
         .eq("stand",mepBestandNegStand).order("erledigt_am"));
       (e||[]).forEach(x=>{ mepBestandNegErl[x.markt+"|"+String(x.sap_artnr)]=x; });
     }catch(err){ console.warn("Erledigt-Haken Negativbestand:",err); }
+
+    /* WIEDERHOLUNGSTAETER.
+       Vorgabe Benedikt Paul 27.08.2026. Ein Artikel, der heute im Minus steht,
+       ist ein Einzelfall. Ein Artikel, der zum dritten Mal in vier Wochen dort
+       steht, ist ein PROZESSFEHLER: falsche Bestelleinheit, falsch kassierte
+       Nummer, fehlende Umlagerung. Den zu korrigieren bringt einmal Ruhe -
+       die Ursache zu finden bringt sie dauerhaft.
+
+       Gezaehlt wird, an wie vielen verschiedenen STAENDEN der Artikel in den
+       letzten 28 Tagen auftauchte, nicht wie viele Zeilen es gibt. */
+    mepBestandNegWdh={};
+    try{
+      const seit=new Date(Date.now()-28*86400000).toISOString().slice(0,10);
+      const nrn=[...new Set(mepBestandNeg.map(x=>String(x.sap_artnr)).filter(Boolean))];
+      if(nrn.length){
+        const h=await fetchAllPaged(()=>mepFiltMarkt(db.from("negativbestand")
+          .select("markt,sap_artnr,stand"),"markt")
+          .gte("stand",seit).in("sap_artnr",nrn).order("stand"));
+        const sammel={};
+        (h||[]).forEach(x=>{
+          const k=x.markt+"|"+String(x.sap_artnr);
+          (sammel[k]=sammel[k]||new Set()).add(String(x.stand).slice(0,10));
+        });
+        Object.entries(sammel).forEach(([k,menge])=>{
+          if(menge.size>=2) mepBestandNegWdh[k]={mal:menge.size,
+            erstmals:[...menge].sort()[0]};
+        });
+      }
+    }catch(err){ console.warn("Wiederholungen Negativbestand:",err); }
   }catch(err){ console.warn("Negative Bestände:",err); }
 }
 
@@ -10123,9 +10152,11 @@ function mepKachelBestandNegativ(){
   const l=mepBestandNeg;
   if(!l.length) return "";
   const erl=x=>mepBestandNegErl[x.markt+"|"+String(x.sap_artnr)];
+  const wdh=x=>mepBestandNegWdh[x.markt+"|"+String(x.sap_artnr)];
   const wert=l.filter(x=>!erl(x)).reduce((s,x)=>s+Math.abs(Number(x.bestand_ek)||0),0);
   const ohneRegal=l.filter(x=>!x.regal_nr).length;
   const fertig=l.filter(x=>erl(x)).length;
+  const wiederholer=l.filter(x=>{const w=wdh(x); return w && w.mal>=3;});
   const jeMarkt={}; l.forEach(x=>{jeMarkt[x.markt]=(jeMarkt[x.markt]||0)+1;});
   const de=s=>s?String(s).split("-").reverse().join("."):"";
   const alt=mepBestandNegStand
@@ -10159,7 +10190,9 @@ function mepKachelBestandNegativ(){
               x.zweitplatzierung?'<span style="display:block;font-size:10px;color:#7c3aed">Zweitplatz.</span>':""}`
           : '<span style="color:#a8a29e">–</span>'}</td>
         <td style="padding:7px${e?";text-decoration:line-through":""}">${mepEsc(x.bezeichnung||"")}
-          <span style="display:block;font-size:10.5px;color:#a16207;text-decoration:none">Art.-Nr. ${mepEsc(x.sap_artnr||"")}</span></td>
+          <span style="display:block;font-size:10.5px;color:#a16207;text-decoration:none">Art.-Nr. ${mepEsc(x.sap_artnr||"")}${
+            (()=>{const w=wdh(x); return w
+              ? ` · <b style="color:#7c2d12">${w.mal}. Mal in 28 Tagen</b>` : "";})()}</span></td>
         ${mepAlleMaerkte()?`<td style="padding:7px;font-size:12.5px">${mepEsc(x.markt)}</td>`:""}
         <td style="text-align:right;padding:7px"><b style="color:${e?"#78716c":"#b91c1c"};font-size:15px">${
           Number(x.menge).toLocaleString("de-DE",{maximumFractionDigits:3})}</b></td>
@@ -10176,6 +10209,15 @@ function mepKachelBestandNegativ(){
                       padding:6px 13px;font-size:12.5px;font-weight:600;cursor:pointer">Erledigt</button>`
         }</td></tr>`;}).join("")}
       </tbody></table>
+    ${wiederholer.length ? `<div style="margin-top:10px;padding:9px 12px;background:#fff7ed;
+      border-left:4px solid #c2410c;font-size:13px;color:#7c2d12">
+      <b>${mepZahl(wiederholer.length)} ${wiederholer.length===1?"Artikel steht":"Artikel stehen"}
+      mindestens zum dritten Mal in vier Wochen im Minus.</b>
+      Hier hilft Korrigieren allein nicht weiter – dahinter steckt meist eine falsche
+      Bestelleinheit, eine falsch kassierte Nummer oder eine fehlende Umlagerung:
+      ${wiederholer.slice(0,6).map(x=>mepEsc(x.bezeichnung||x.sap_artnr)
+        +` <b>(${wdh(x).mal}×)</b>`).join(" · ")}${
+        wiederholer.length>6?` und ${wiederholer.length-6} weitere`:""}.</div>` : ""}
     <div class="small" style="margin-top:8px;color:#7f1d1d">Noch <b>${mepEur(wert)}</b> Einstandswert
       im Minus${fertig?`, <b>${mepZahl(fertig)}</b> ${fertig===1?"Artikel":"Artikel"} bereits abgehakt`:""}.
       Nach <b>Regalnummer aufsteigend</b> sortiert – einmal durch den Markt, in einem Zug.
@@ -10188,6 +10230,108 @@ function mepKachelBestandNegativ(){
       Regalnummer aus dem Regalbericht, verknüpft über Markt und Artikelnummer.</div>
     </div>`;
 }
+/* ---------- Nutzung: wird in der Abteilung mit dem Werkzeug gearbeitet? ----------
+   Vorgabe Benedikt Paul 27.08.2026: "Zudem moechte ich langfristig in der
+   Verwaltung darauf zurueckgreifen, dass wir kontrollieren, ob in der
+   Abteilung mit dem Tool gearbeitet wird. Das ist fuer unsere Steuerung
+   wichtig."
+
+   Die Zahlen kommen aus der Datenbank (public.nutzung_uebersicht), nicht aus
+   dem Browser - dort liegen alle Spuren an einer Stelle und lassen sich mit
+   SQL nachrechnen.
+
+   Gezaehlt wird, was jemand VERAENDERT hat: abgehakte Aufgaben, korrigierte
+   Bestaende, abgehakte Werbepunkte, bearbeitete Dispo-Listen, Regalkontrollen.
+   Bewusst NICHT gezaehlt: Aufrufe und Anmeldungen. Wer die App nur oeffnet,
+   arbeitet nicht damit. */
+let mepNutzung=[], mepNutzungTage=7;
+async function mepNutzungLaden(){
+  mepNutzung=[];
+  if(mepZugang.markt!=="Verwaltung") return;   // nur dort gebraucht
+  try{
+    const {data,error}=await db.rpc("nutzung_uebersicht",{tage:mepNutzungTage});
+    if(error) throw error;
+    mepNutzung=data||[];
+  }catch(err){ console.warn("Nutzungsübersicht:",err); }
+}
+async function mepSetzeNutzungTage(t){
+  mepNutzungTage=Number(t)||7;
+  await mepNutzungLaden();
+  mepZeichnen();
+}
+function mepKachelNutzung(){
+  if(mepZugang.markt!=="Verwaltung") return "";
+  const l=mepNutzung;
+  const knopf=(t,txt)=>`<button onclick="mepSetzeNutzungTage(${t})"
+    style="border:1px solid ${mepNutzungTage===t?"#004f9e":"#dbe6f3"};
+    background:${mepNutzungTage===t?"#004f9e":"#fff"};color:${mepNutzungTage===t?"#fff":"#334155"};
+    border-radius:7px;padding:5px 12px;font-size:12.5px;
+    font-weight:${mepNutzungTage===t?"700":"500"};cursor:pointer">${txt}</button>`;
+  const kopf=`<div class="box"><h2>Wird mit dem Werkzeug gearbeitet?
+      <span style="font-weight:normal;font-size:14px;color:#64748b">letzte ${mepNutzungTage} Tage</span></h2>
+    <div style="display:flex;gap:7px;margin:10px 0 4px;flex-wrap:wrap">
+      ${knopf(7,"7 Tage")}${knopf(14,"14 Tage")}${knopf(28,"28 Tage")}</div>`;
+  if(!l.length) return kopf+`<div class="small" style="padding:8px 0">Keine Angaben.
+      Entweder liegen noch keine Spuren vor, oder die Abfrage kam nicht durch –
+      dann steht der Grund in der Browser-Konsole.</div></div>`;
+
+  // Stumm = gar keine Spur. Das ist der eigentliche Befund, deshalb zuerst.
+  const stumm =l.filter(x=>Number(x.spuren_gesamt)===0);
+  const lahm  =l.filter(x=>Number(x.spuren_gesamt)>0 && Number(x.tage_ohne)>=3);
+  const aktiv =l.filter(x=>Number(x.spuren_gesamt)>0 && Number(x.tage_ohne)<3);
+  const jeMarkt={};
+  l.forEach(x=>{ const m=jeMarkt[x.markt]=jeMarkt[x.markt]||{ges:0,stumm:0,spuren:0};
+    m.ges++; m.spuren+=Number(x.spuren_gesamt)||0;
+    if(Number(x.spuren_gesamt)===0) m.stumm++; });
+  const de=t=>t?new Date(t).toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"}):"–";
+
+  const zeile=(x,farbe)=>`<tr style="border-top:1px solid #e2e8f0">
+    <td style="padding:6px 7px">${mepEsc(x.markt)}</td>
+    <td style="padding:6px 7px"><b>${mepEsc(x.bereich)}</b></td>
+    <td style="text-align:right;padding:6px 7px;color:#64748b">${mepZahl(x.aufgaben_soll)}</td>
+    <td style="text-align:right;padding:6px 7px"><b style="color:${farbe}">${mepZahl(x.spuren_gesamt)}</b></td>
+    <td style="text-align:right;padding:6px 7px;color:#64748b">${
+      x.tage_ohne==null ? "–" : (Number(x.tage_ohne)===0 ? "heute" : x.tage_ohne+" Tage")}</td>
+    <td style="padding:6px 7px;font-size:11.5px;color:#94a3b8">${
+      mepEsc(String(x.personen||"").slice(0,60))}</td></tr>`;
+
+  return kopf+`
+    <div class="small" style="margin:4px 0 10px">Gezählt wird, was jemand <b>verändert</b> hat –
+      abgehakte Aufgaben, korrigierte Bestände, abgehakte Werbepunkte, bearbeitete Dispo-Listen.
+      Ein reiner Aufruf der App zählt nicht.</div>
+    ${stumm.length ? `<div style="padding:9px 12px;background:#fef2f2;border-left:4px solid #b91c1c;
+      font-size:13px;color:#7f1d1d;margin-bottom:10px">
+      <b>${mepZahl(stumm.length)} ${stumm.length===1?"Bereich hat":"Bereiche haben"}
+      in ${mepNutzungTage} Tagen keine einzige Spur hinterlassen</b>, obwohl dort Aufgaben
+      hinterlegt sind: ${stumm.map(x=>mepEsc(x.markt)+" · "+mepEsc(x.bereich)
+        +` <span style="color:#a16207">(${mepZahl(x.aufgaben_soll)} Aufgaben)</span>`).join(" · ")}.</div>` : ""}
+    <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px">
+      ${Object.entries(jeMarkt).map(([m,v])=>`<div style="border:1px solid #e2e8f0;border-radius:9px;
+        padding:8px 13px;min-width:150px">
+        <div style="font-size:12px;color:#64748b">${mepEsc(m)}</div>
+        <div style="font-size:19px;font-weight:700">${mepZahl(v.spuren)}</div>
+        <div style="font-size:11.5px;color:${v.stumm?"#b91c1c":"#16a34a"}">${
+          v.stumm ? v.stumm+" von "+v.ges+" Bereichen stumm" : "alle "+v.ges+" Bereiche aktiv"}</div>
+      </div>`).join("")}
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <thead><tr style="text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">
+        <th style="padding:6px 7px">Markt</th><th style="padding:6px 7px">Bereich</th>
+        <th style="text-align:right;padding:6px 7px">Aufgaben hinterlegt</th>
+        <th style="text-align:right;padding:6px 7px">Spuren</th>
+        <th style="text-align:right;padding:6px 7px">zuletzt vor</th>
+        <th style="padding:6px 7px">wer</th></tr></thead><tbody>
+      ${stumm.map(x=>zeile(x,"#b91c1c")).join("")}
+      ${lahm.map(x=>zeile(x,"#b45309")).join("")}
+      ${aktiv.map(x=>zeile(x,"#16a34a")).join("")}
+      </tbody></table>
+    <div class="small" style="margin-top:8px;color:#64748b">Rot: keine Spur.
+      Orange: seit drei Tagen oder länger nichts. Grün: in den letzten zwei Tagen gearbeitet.
+      <b>Die Namensspalte ist nur so gut wie das Namensfeld</b> – wo niemand seinen Namen
+      eintippt, steht dort Bereich und Markt.</div>
+    </div>`;
+}
+
 const mepVerw=(fn)=> mepZugang.markt==="Verwaltung" ? "" : fn();
 /* Umkehrung: nur die Verwaltung sieht es. Vorgabe Benedikt Paul 25.08.2026
    zu den Trendartikeln: "Dies moechten wir nur in die Verwaltung bringen." */
@@ -10265,7 +10409,8 @@ function mepZeichnen(){
          mepVerw() gekapselt - die Verwaltung sah sie ueberhaupt nicht. Beides
          ist jetzt aufgehoben: sie kommt an zweiter Stelle, in jeder Ansicht. */
       ? mepKachelBestandNegativ()+mepKachelAufgaben()
-        +mepKachelVerwaltung()+mepNurVerw(mepKachelTrend)+mepKachelOffen()+mepKachelScanquote()
+        +mepKachelVerwaltung()+mepNurVerw(mepKachelNutzung)+mepNurVerw(mepKachelTrend)
+        +mepKachelOffen()+mepKachelScanquote()
         +mepKachelBestand()+mepKachelBevorratung()
         +mepVerw(mepKachelDispo)+mepKachelBefunde()
       : mepKachelBestandNegativ()+mepKachelAufgaben()
@@ -10379,6 +10524,16 @@ function mepLinie(werte, beschriftung, titel, indexiert){
 function mepVerlaufsreihe(){
   const abt=new Set(mepAbteilungen());
   const proWoche={};
+
+  /* QUELLE 1: metrics, nur Donnerstage. Das ist der ALTBESTAND bis zum
+     13.08.2026 - damals lief der Kennzahlen-Dashboard-Bericht woechentlich
+     und legte seine Werte auf den Donnerstag der Woche.
+
+     Seit dem 19.08.2026 laeuft derselbe Bericht TAEGLICH. Er schreibt seither
+     Tageswerte mit Tagesdatum, also keine Donnerstage mehr. Die Kurve endete
+     dadurch am 13.08. und wuchs nicht weiter - gefunden am 27.08.2026, zwei
+     Wochen nach der Umstellung. Sie wurde nicht falsch, sie wurde nur kuerzer,
+     und genau deshalb ist es niemandem aufgefallen. */
   mepMetrics.forEach(m=>{
     if(m.metric_name!=="Umsatz") return;
     if(mepBl() ? !abt.has(m.area) : m.area!=="Markt Gesamt") return;
@@ -10386,6 +10541,38 @@ function mepVerlaufsreihe(){
     if(d.getDay()!==4) return;      // 4 = Donnerstag
     proWoche[m.metric_date]=(proWoche[m.metric_date]||0)+Number(m.metric_value||0);
   });
+
+  /* QUELLE 2: kennzahlen, der woechentliche Umsatzbericht (montags, fuer die
+     abgelaufene Woche). Das ist die LEBENDE Quelle. Seine Perioden laufen
+     Montag bis Sonntag; damit beide Reihen auf derselben Achse liegen, wird
+     der Donnerstag der Woche als Stichtag gerechnet - dieselbe Regel wie
+     vorher in metrics.
+
+     Bewusst NICHT die Jahresperiode (01.01.-31.12.): die ist kein
+     Wochenpunkt. Erkennbar daran, dass sie laenger als 10 Tage laeuft. */
+  const ausBericht={};
+  const wochentagIst = (x)=> x.wochentag==="Ergebnis" || x.wochentag==null;
+  (mepKz||[]).forEach(x=>{
+    if(x.kennzahl!=="Umsatz" || x.wert==null) return;
+    if(!x.periode_von || !x.periode_bis) return;
+    if(!wochentagIst(x)) return;
+    if(mepBl() ? x.bereich!==mepBl() : x.bereich==="Gesamt") return;
+    const von=new Date(x.periode_von+"T00:00:00"), bis=new Date(x.periode_bis+"T00:00:00");
+    const tage=Math.round((bis-von)/86400000)+1;
+    if(tage<5 || tage>10) return;           // keine Jahres- oder Quartalszeile
+    const dow=bis.getDay()||7;
+    const don=new Date(bis); don.setDate(bis.getDate()-dow+4);
+    const p=n=>String(n).padStart(2,"0");
+    const schl=`${don.getFullYear()}-${p(don.getMonth()+1)}-${p(don.getDate())}`;
+    ausBericht[schl]=(ausBericht[schl]||0)+Number(x.wert);
+  });
+
+  /* Zusammenfuehren. Wo BEIDE Quellen etwas haben, gewinnt der Wochenbericht -
+     er ist die genauere und die lebende Quelle. Bewusst ueberschreiben, nicht
+     addieren: sonst stuende der Wert doppelt da. Genau dieser Fehler hat am
+     25.08.2026 schon einmal +97,2 Prozent Umsatz erzeugt. */
+  Object.assign(proWoche, ausBericht);
+
   return Object.entries(proWoche).sort().map(([d,u])=>{
     const dt=new Date(d), s=new Date(dt.getFullYear(),0,4);
     const kw=1+Math.round(((dt-s)/86400000-3+((s.getDay()||7)-1))/7);
