@@ -712,7 +712,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.27-01"; // Umsatzkurve aus zwei Quellen, Wiederholungstaeter im Negativbestand, Nutzungsuebersicht in der Verwaltung
+const APP_VERSION = "v2026.08.28-01"; // Kontrollsummen in allen BO-Importern: gelesene gegen geschriebene Zeilen
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -3149,11 +3149,20 @@ async function uploadMetricsExcel(){
     inserted += slice.length;
   }
 
+  /* Kontrollsumme. Gerade hier: Am 26.08.2026 landete ein Tageswert in
+     dieser Tabelle auf dem Platz eines Wochenwerts und loeschte ihn dabei.
+     Gezaehlt wird der geschriebene Ausschnitt - die Maerkte und der
+     Zeitraum dieser Datei. */
+  const kMet = await kontrollsumme("metrics",
+    q=>q.in("market",[...marketsSet]).gte("metric_date",dateMin).lte("metric_date",dateMax),
+    inserted);
+
   // Erfolgsmeldung mit Zusammenfassung
   const marketList = [...marketsSet].join(", ");
   const periodStr = (dateMin && dateMax) ? ((dateMin === dateMax) ? formatDateDE(dateMin) : `${formatDateDE(dateMin)} bis ${formatDateDE(dateMax)}`) : "—";
-  msg.innerHTML = `✅ <strong>${inserted} Kennzahlen</strong> gespeichert für Märkte: <strong>${marketList}</strong>.<br>` +
+  msg.innerHTML = `${kMet.ok?"✅":"⚠"} <strong>${inserted} Kennzahlen</strong> gelesen für Märkte: <strong>${marketList}</strong>.<br>` +
     `Zeitraum: <strong>${periodStr}</strong> · ${deletedRows} alte Werte in diesem Zeitraum wurden ersetzt.<br>` +
+    kontrollzeile(kMet, `Kennzahlen ${periodStr}`) +
     `<details style="margin-top:8px"><summary style="cursor:pointer;color:#0284c7">Details anzeigen</summary><span class="small">${debug.join("<br>")}</span></details>`;
   input.value = "";
   await fillAnalyticsMarkets();
@@ -6719,10 +6728,13 @@ async function uploadWareneingang(){
       if(error) throw error;
       msg.innerHTML=`Gespeichert: ${Math.min(i+500,saetze.length).toLocaleString("de-DE")} von ${saetze.length.toLocaleString("de-DE")} …`;
     }
+    const k=await kontrollsumme("wareneingang",
+      q=>q.eq("stand",stand).in("markt",[...maerkte]), saetze.length);
     const {count}=await db.from("wareneingang").select("*",{count:"exact",head:true});
-    msg.style.color="#15803d";
-    msg.innerHTML=`✅ <b>${saetze.length.toLocaleString("de-DE")} Zeilen</b> gespeichert · Stand ${formatDateDE(stand)}<br>
-      Märkte: ${[...maerkte].join(", ")} · in der Datenbank stehen jetzt <b>${(count||0).toLocaleString("de-DE")}</b> Zeilen.`;
+    msg.style.color = k.ok ? "#15803d" : "#b91c1c";
+    msg.innerHTML=`${k.ok?"✅":"⚠"} <b>${saetze.length.toLocaleString("de-DE")} Zeilen</b> gelesen · Stand ${formatDateDE(stand)}<br>
+      Märkte: ${[...maerkte].join(", ")} · in der Datenbank stehen jetzt <b>${(count||0).toLocaleString("de-DE")}</b> Zeilen.`
+      + kontrollzeile(k, `Wareneingang ${formatDateDE(stand)}`);
     input.value="";
   }catch(e){
     msg.style.color="#c62828";
@@ -6867,6 +6879,9 @@ async function uploadNegativbestand(){
         const {error}=await db.from("negativbestand").insert(saetze.slice(i,i+500));
         if(error) throw error;
       }
+      const k=await kontrollsumme("negativbestand", q=>q.eq("stand",stand), saetze.length);
+      bericht.push(kontrollzeile(k, `Negativbestand ${formatDateDE(stand)}`));
+      if(!k.ok) continue;      // nicht als verarbeitet zaehlen
       gesamt+=saetze.length;
       const jeMarkt={}; saetze.forEach(s=>{jeMarkt[s.markt]=(jeMarkt[s.markt]||0)+1;});
       bericht.push(`<div>✅ <b>${formatDateDE(stand)}</b> · ${saetze.length} Artikel mit Null- oder Negativbestand
@@ -7008,6 +7023,11 @@ async function uploadUmsatzWoche(){
         const {error}=await db.from("kennzahlen").insert(saetze.slice(i,i+500));
         if(error) throw error;
       }
+      const k=await kontrollsumme("kennzahlen",
+        q=>q.eq("periode_von",von).eq("periode_bis",bis)
+             .in("markt",maerkte.map(m=>m.name)), saetze.length);
+      bericht.push(kontrollzeile(k, `Umsatzwoche ${von} – ${bis}`));
+      if(!k.ok) continue;
       gesamt+=saetze.length;
       const de=s=>s.split("-").reverse().join(".");
       bericht.push(`<div>✅ <b>${de(von)} – ${de(bis)}</b> · ${saetze.length.toLocaleString("de-DE")} Werte ·
@@ -7206,6 +7226,14 @@ async function uploadArtikelumsatz(){
         const {error}=await db.from("artikel_kennzahlen").insert(zeilen.slice(i,i+500));
         if(error) throw error;
       }
+      /* Der Bericht kann in mehreren Teilen kommen (Billigheim BI1/BI2/BI3).
+         Deshalb NUR die Abteilungen dieses Teils zaehlen, sonst zaehlt man
+         die Zeilen der uebrigen Teile mit und die Summe stimmt scheinbar. */
+      const kZahl=await kontrollsumme("artikel_kennzahlen",
+        q=>q.eq("markt",mkt).eq("periode_von",von).eq("periode_bis",bis)
+             .in("abteilung",abteilungen), zeilen.length);
+      bericht.push(kontrollzeile(kZahl, `Artikelumsatz ${mkt}`));
+      if(!kZahl.ok) continue;
       gesamt+=zeilen.length;
       const zeitraum = von===bis ? formatDateDE(von) : formatDateDE(von)+" – "+formatDateDE(bis);
       bericht.push(`<div>✅ <b>${escapeHtml(mkt)}</b> · ${zeitraum} · ${zeilen.length.toLocaleString("de-DE")} Artikel `
@@ -7366,11 +7394,14 @@ async function uploadSpannenanalyse(){
       const {error}=await db.from("spannenanalyse").insert(saetze.slice(i,i+500));
       if(error) throw error;
     }
+    const k=await kontrollsumme("spannenanalyse",
+      q=>q.eq("periode_von",von).eq("periode_bis",bis), saetze.length);
     const {count}=await db.from("spannenanalyse").select("*",{count:"exact",head:true});
-    msg.style.color="#15803d";
-    msg.innerHTML=`✅ <b>${saetze.length}</b> Zeilen gespeichert · Zeitraum ${formatDateDE(von)} – ${formatDateDE(bis)}<br>
+    msg.style.color = k.ok ? "#15803d" : "#b91c1c";
+    msg.innerHTML=`${k.ok?"✅":"⚠"} <b>${saetze.length}</b> Zeilen gelesen · Zeitraum ${formatDateDE(von)} – ${formatDateDE(bis)}<br>
       Märkte: ${escapeHtml(maerkte.join(", "))} <span style="color:#94a3b8">(${ueber} Summenzeilen übersprungen)</span><br>
-      In <code>spannenanalyse</code> stehen jetzt <b>${(count||0).toLocaleString("de-DE")}</b> Zeilen.`;
+      In <code>spannenanalyse</code> stehen jetzt <b>${(count||0).toLocaleString("de-DE")}</b> Zeilen.`
+      + kontrollzeile(k, `Spannenanalyse ${formatDateDE(von)} – ${formatDateDE(bis)}`);
     input.value="";
   }catch(e){
     msg.style.color="#c62828";
@@ -7477,14 +7508,21 @@ async function uploadBestandsverlauf(){
       if(error) throw error;
       msg.innerHTML=`Gespeichert: ${Math.min(i+500,saetze.length).toLocaleString("de-DE")} von ${saetze.length.toLocaleString("de-DE")} …`;
     }
-    // Gegenprobe - eine Erfolgsmeldung allein ist kein Nachweis
-    const {count}=await db.from("bestandsverlauf").select("*",{count:"exact",head:true});
+    /* Gegenprobe - eine Erfolgsmeldung allein ist kein Nachweis.
+       Frueher wurde hier die GANZE Tabelle gezaehlt. Das ist keine
+       Kontrollsumme: die Zahl steigt auch dann, wenn nur die Haelfte der
+       neuen Zeilen ankam. Gezaehlt wird jetzt genau der geschriebene
+       Ausschnitt - Maerkte dieser Datei, Tage dieser Datei. */
     const von=saetze.reduce((a,s)=>s.tag<a?s.tag:a,"9999"), bis=saetze.reduce((a,s)=>s.tag>a?s.tag:a,"0000");
-    msg.style.color="#15803d";
-    msg.innerHTML=`✅ <b>${saetze.length.toLocaleString("de-DE")} Tageszeilen</b> gespeichert,
+    const k=await kontrollsumme("bestandsverlauf",
+      q=>q.in("markt",[...maerkte]).gte("tag",von).lte("tag",bis), saetze.length);
+    const {count}=await db.from("bestandsverlauf").select("*",{count:"exact",head:true});
+    msg.style.color = k.ok ? "#15803d" : "#b91c1c";
+    msg.innerHTML=`${k.ok?"✅":"⚠"} <b>${saetze.length.toLocaleString("de-DE")} Tageszeilen</b> gelesen,
       ${anker} Anfangs- und Endbestände als Anker gesetzt.<br>
       Märkte: ${[...maerkte].join(", ")} · Zeitraum ${formatDateDE(von)} bis ${formatDateDE(bis)}<br>
-      In der Datenbank stehen jetzt <b>${(count||0).toLocaleString("de-DE")}</b> Zeilen.`;
+      In der Datenbank stehen insgesamt <b>${(count||0).toLocaleString("de-DE")}</b> Zeilen.`
+      + kontrollzeile(k, `Bestandsverlauf ${formatDateDE(von)}–${formatDateDE(bis)}`);
     input.value="";
   }catch(e){
     msg.style.color="#c62828";
@@ -7611,15 +7649,12 @@ async function uploadRegaldaten(){
 
     // Gegenprobe: nachzaehlen, was wirklich in der Datenbank steht.
     // Eine Erfolgsmeldung allein ist kein Nachweis.
-    let inDb = 0;
-    for(const m of maerkte){
-      const {count} = await db.from("artikel_regal").select("*", {count:"exact", head:true}).eq("markt", m);
-      inDb += (count||0);
-    }
-    msg.style.color = inDb===saetze.length ? "#15803d" : "#b45309";
-    msg.innerHTML = `${inDb.toLocaleString("de-DE")} Zeilen stehen in der Datenbank`
-      + (inDb===saetze.length ? "" : ` (gelesen: ${saetze.length.toLocaleString("de-DE")} – bitte nachsehen)`)
-      + `.<br>Märkte: ${[...maerkte].join(", ")} · davon ${zweit} Zweitplatzierungen (Regal ab 990000) · Stand ${stand}.`;
+    const k = await kontrollsumme("artikel_regal",
+      q=>q.in("markt",[...maerkte]), saetze.length);
+    msg.style.color = k.ok ? "#15803d" : "#b91c1c";
+    msg.innerHTML = `${k.ist == null ? "?" : k.ist.toLocaleString("de-DE")} Zeilen stehen in der Datenbank`
+      + `.<br>Märkte: ${[...maerkte].join(", ")} · davon ${zweit} Zweitplatzierungen (Regal ab 990000) · Stand ${stand}.`
+      + kontrollzeile(k, `Regaldaten ${[...maerkte].join(", ")}`);
   }catch(e){
     msg.style.color="#c62828";
     msg.innerHTML="Fehler: "+escapeHtml(e && e.message ? e.message : String(e));
@@ -7701,13 +7736,13 @@ async function uploadScanquote(){
         {onConflict:"markt,kassierer,periode_von,periode_bis"});
       if(error) throw error;
     }
-    const {count}=await db.from("scanquote").select("*",{count:"exact",head:true})
-      .eq("periode_von",von).eq("periode_bis",bis);
     const maerkte=[...new Set(saetze.map(s=>s.markt))];
-    msg.style.color = (count===saetze.length) ? "#15803d" : "#b45309";
-    msg.innerHTML = `${count} Zeilen stehen in der Datenbank`
-      + (count===saetze.length ? "" : ` (gelesen: ${saetze.length} – bitte nachsehen)`)
-      + `.<br>Märkte: ${maerkte.join(", ")} · Zeitraum ${von.split("-").reverse().join(".")}–${bis.split("-").reverse().join(".")}.`;
+    const k=await kontrollsumme("scanquote",
+      q=>q.eq("periode_von",von).eq("periode_bis",bis), saetze.length);
+    msg.style.color = k.ok ? "#15803d" : "#b91c1c";
+    msg.innerHTML = `${k.ist == null ? "?" : k.ist} Zeilen stehen in der Datenbank`
+      + `.<br>Märkte: ${maerkte.join(", ")} · Zeitraum ${von.split("-").reverse().join(".")}–${bis.split("-").reverse().join(".")}.`
+      + kontrollzeile(k, `Scanquote ${von}–${bis}`);
   }catch(e){
     msg.style.color="#c62828";
     msg.innerHTML="Fehler: "+escapeHtml(e && e.message ? e.message : String(e));
@@ -8054,6 +8089,72 @@ async function clearWerbungUmsatz(){
 
 function escapeHtml(s){
   return String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[c]));
+}
+
+/* =====================================================================
+   KONTROLLSUMMEN — eingebaut 28.08.2026, Vorgabe Benedikt Paul
+
+   ANLASS: In einer einzigen Woche gab es DREI Ausfaelle nach demselben
+   Muster - der Bericht kam puenktlich, wurde als Erfolg verbucht und
+   weggeraeumt, und der Inhalt kam trotzdem nicht dort an, wo er hingehoert:
+
+     25.08.  Der Wochen-Umsatzbericht landete in KEINER Tabelle. Zwei
+             aehnlich benannte Ziele (metrics und kennzahlen), die Erkennung
+             schickte ihn an das falsche, das Format passte dort nicht.
+     26.08.  Eine Wochencheck-PDF wurde abgelegt - es gab gar keinen
+             Importer dafuer. Sie lag tagelang im Ordner.
+     26.08.  Ein Tagesbericht wurde eingespielt und UEBERSCHRIEB dabei die
+             Wochenwerte. Die Umsatzkurve zeigte einen erfundenen Einbruch.
+
+   Jede Einzelpruefung, die daraufhin entstand, war ein Pflaster. Der
+   gemeinsame Nenner ist immer derselbe: Der Importer meldet, was er
+   GETAN hat, nicht was ANGEKOMMEN ist.
+
+   Deshalb zaehlt jeder Importer ab sofort nach dem Schreiben nach, wie
+   viele Zeilen wirklich in der Zieltabelle stehen, und vergleicht.
+
+   WICHTIG - die Meldung "KONTROLLSUMME STIMMT NICHT" ist ein festes
+   Erkennungszeichen. Der stuendliche Auftrag marktdaten-hochladen sucht
+   danach: Steht es in der Rueckmeldung, wird die Datei NICHT weggeraeumt
+   und der Fall kommt am selben Tag in die Mail. Diesen Wortlaut nicht
+   aendern, ohne die Aufgabe mitzuaendern. */
+
+let mepKontrollen = [];   // fuer die geplante Aufgabe zum Auslesen
+
+async function kontrollsumme(tabelle, filter, soll){
+  try{
+    let q = db.from(tabelle).select("*", {count:"exact", head:true});
+    if(typeof filter === "function") q = filter(q);
+    const {count, error} = await q;
+    if(error) return {tabelle, soll, ist:null, ok:false, fehler:error.message};
+    return {tabelle, soll, ist:count, ok: Number(count) === Number(soll)};
+  }catch(e){
+    return {tabelle, soll, ist:null, ok:false, fehler:String((e&&e.message)||e)};
+  }
+}
+
+/* Liefert die Berichtszeile UND merkt das Ergebnis. Immer benutzen, nie
+   selbst formulieren - der Wortlaut ist Teil der Schnittstelle. */
+function kontrollzeile(k, was){
+  mepKontrollen.push({...k, was, zeit:new Date().toISOString()});
+  if(k.fehler){
+    return `<div style="color:#b45309">⚠ ${escapeHtml(was)}: <b>Kontrollsumme nicht lesbar</b>
+      (${escapeHtml(k.fehler)}). Ob der Inhalt angekommen ist, steht damit nicht fest.</div>`;
+  }
+  if(k.ok){
+    return `<div class="small" style="margin-left:12px;color:#16a34a">Kontrollsumme:
+      ${k.ist} von ${k.soll} Zeilen in <b>${escapeHtml(k.tabelle)}</b> angekommen ✓</div>`;
+  }
+  /* Der Kern: NICHT als verarbeitet gelten lassen. Lieber eine Datei, die
+     liegen bleibt und morgen noch einmal versucht wird, als eine Tabelle,
+     in der stillschweigend die Haelfte fehlt. */
+  return `<div style="color:#b91c1c;font-weight:600;background:#fef2f2;padding:8px 11px;
+      border-left:4px solid #b91c1c;margin:6px 0">
+      ✗ ${escapeHtml(was)}: <b>KONTROLLSUMME STIMMT NICHT</b><br>
+      <span style="font-weight:normal">Gelesen wurden <b>${k.soll}</b> Zeilen, in
+      <b>${escapeHtml(k.tabelle)}</b> stehen <b>${k.ist == null ? "?" : k.ist}</b>.
+      Der Bericht gilt <b>nicht</b> als verarbeitet – die Datei bleibt im Eingang und
+      wird erneut versucht.</span></div>`;
 }
 
 const nameInput=document.getElementById("name");nameInput.value=localStorage.getItem("employeeName")||"";nameInput.addEventListener("input",function(){localStorage.setItem("employeeName",this.value)});const marketInput=document.getElementById("marketFilter"),areaInput=document.getElementById("areaFilter");marketInput.value=localStorage.getItem("selectedMarket")||"Freckenfeld";marketInput.addEventListener("change",function(){localStorage.setItem("selectedMarket",this.value)});document.getElementById("monthFilter").value=todayISO().slice(0,7);document.getElementById("controlDateFrom").value=todayISO();document.getElementById("controlDateTo").value=todayISO();document.getElementById("adminStartDate").value=todayISO();document.getElementById("adminEndDate").value=todayISO();document.getElementById("metricsUploadDate").value=todayISO();populateAllowedDays();loadAreas().then(()=>{handleAreaChange()});
