@@ -712,7 +712,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.31-02"; // Kontrollsumme zaehlt nur den geschriebenen Ausschnitt - Bestandsverlauf und jetzt auch metrics
+const APP_VERSION = "v2026.08.31-03"; // Kontrollsummen aller neun Importer geprueft; scanquote zaehlt jetzt auch je Markt
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -7770,8 +7770,22 @@ async function uploadScanquote(){
       if(error) throw error;
     }
     const maerkte=[...new Set(saetze.map(s=>s.markt))];
+    /* Markt mit in die Kontrollsumme - berichtigt 31.08.2026.
+       Die Zeile darueber berechnet die Maerkte der Datei, benutzt wurden sie
+       aber nie. Gezaehlt wurde alles im Zeitraum.
+
+       Warum das hier anders liegt als bei den uebrigen Importern: die
+       schreiben mit delete + insert, das Loeschen raeumt den Ausschnitt
+       vorher frei. Scanquote schreibt mit upsert auf
+       (markt, kassierer, periode_von, periode_bis) und raeumt nichts.
+       Kommt ein Markt getrennt nach, bleiben die Zeilen des ersten Laufs
+       stehen und die Pruefung meldet ist>soll - derselbe Fehlalarm wie beim
+       Bestandsverlauf am 29.08. und bei metrics am 31.08.
+
+       Geprueft wurden an diesem Tag alle neun Importer. Die uebrigen acht
+       zaehlen genau den Ausschnitt, den sie vorher geloescht haben. */
     const k=await kontrollsumme("scanquote",
-      q=>q.eq("periode_von",von).eq("periode_bis",bis), saetze.length);
+      q=>q.eq("periode_von",von).eq("periode_bis",bis).in("markt",maerkte), saetze.length);
     msg.style.color = k.ok ? "#15803d" : "#b91c1c";
     msg.innerHTML = `${k.ist == null ? "?" : k.ist} Zeilen stehen in der Datenbank`
       + `.<br>Märkte: ${maerkte.join(", ")} · Zeitraum ${von.split("-").reverse().join(".")}–${bis.split("-").reverse().join(".")}.`
