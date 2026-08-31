@@ -712,7 +712,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.31-01"; // Bestandsverlauf: Kontrollsumme gleicht Zeile fuer Zeile ab statt das Zeitfenster zu zaehlen
+const APP_VERSION = "v2026.08.31-02"; // Kontrollsumme zaehlt nur den geschriebenen Ausschnitt - Bestandsverlauf und jetzt auch metrics
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -3151,11 +3151,43 @@ async function uploadMetricsExcel(){
 
   /* Kontrollsumme. Gerade hier: Am 26.08.2026 landete ein Tageswert in
      dieser Tabelle auf dem Platz eines Wochenwerts und loeschte ihn dabei.
-     Gezaehlt wird der geschriebene Ausschnitt - die Maerkte und der
-     Zeitraum dieser Datei. */
-  const kMet = await kontrollsumme("metrics",
-    q=>q.in("market",[...marketsSet]).gte("metric_date",dateMin).lte("metric_date",dateMax),
-    inserted);
+
+     BERICHTIGT 31.08.2026 - derselbe Fehler wie beim Bestandsverlauf.
+     Vorher wurde alles gezaehlt, was im Zeitfenster steht:
+       .in("market", …).gte("metric_date", von).lte("metric_date", bis)
+     In metrics liegen aber die Werte ALLER Berichte nebeneinander - Umsatz,
+     Frequenz, Abschriften, Artikeldetails. Der Abschriftenbericht schreibt
+     2.684 Zeilen, im selben Fenster stehen 4.146. Der Fehlalarm hat die
+     Datei am 31.08. um 08:19 gesperrt; um 16:06 lag sie immer noch da.
+
+     Jetzt wird genau der Ausschnitt gezaehlt, den der Importer vorher
+     geloescht hat: je Markt, Bereich und Tag nur die Kennzahlen dieser
+     Datei. Dieselbe Filterung wie beim Loeschen oben, also dieselbe Anzahl
+     Abfragen - kein zusaetzlicher Aufwand. */
+  let kontrollIst = 0, kontrollFehler = null;
+  for(const [key, group] of Object.entries(dedupGroups)){
+    if(kontrollFehler) break;
+    const [market, area, date] = key.split("||");
+    const kpiArr = [...group.kpis];
+    for(let i = 0; i < kpiArr.length; i += 200){
+      const slice = kpiArr.slice(i, i + 200);
+      const r = await db.from("metrics").select("*", {count:"exact", head:true})
+        .eq("market", market).eq("area", area).eq("metric_date", date)
+        .in("metric_name", slice);
+      if(r.error){ kontrollFehler = r.error.message; break; }
+      kontrollIst += r.count || 0;
+    }
+    if(!kontrollFehler && group.hasArticles){
+      const r = await db.from("metrics").select("*", {count:"exact", head:true})
+        .eq("market", market).eq("area", area).eq("metric_date", date)
+        .like("metric_name", ART_PREFIX + "%");
+      if(r.error) kontrollFehler = r.error.message;
+      else kontrollIst += r.count || 0;
+    }
+  }
+  const kMet = kontrollFehler
+    ? {tabelle:"metrics", soll:inserted, ist:null, ok:false, fehler:kontrollFehler}
+    : {tabelle:"metrics", soll:inserted, ist:kontrollIst, ok: kontrollIst === inserted};
 
   // Erfolgsmeldung mit Zusammenfassung
   const marketList = [...marketsSet].join(", ");
