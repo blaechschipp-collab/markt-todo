@@ -712,7 +712,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.28-01"; // Kontrollsummen in allen BO-Importern: gelesene gegen geschriebene Zeilen
+const APP_VERSION = "v2026.08.31-01"; // Bestandsverlauf: Kontrollsumme gleicht Zeile fuer Zeile ab statt das Zeitfenster zu zaehlen
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -7514,8 +7514,9 @@ async function uploadBestandsverlauf(){
        neuen Zeilen ankam. Gezaehlt wird jetzt genau der geschriebene
        Ausschnitt - Maerkte dieser Datei, Tage dieser Datei. */
     const von=saetze.reduce((a,s)=>s.tag<a?s.tag:a,"9999"), bis=saetze.reduce((a,s)=>s.tag>a?s.tag:a,"0000");
-    const k=await kontrollsumme("bestandsverlauf",
-      q=>q.in("markt",[...maerkte]).gte("tag",von).lte("tag",bis), saetze.length);
+    /* Nicht das Zeitfenster zaehlen, sondern Zeile fuer Zeile abgleichen -
+       berichtigt 31.08.2026. Warum, steht bei kontrolleBestandsverlauf. */
+    const k=await kontrolleBestandsverlauf(saetze);
     const {count}=await db.from("bestandsverlauf").select("*",{count:"exact",head:true});
     msg.style.color = k.ok ? "#15803d" : "#b91c1c";
     msg.innerHTML=`${k.ok?"✅":"⚠"} <b>${saetze.length.toLocaleString("de-DE")} Tageszeilen</b> gelesen,
@@ -8121,6 +8122,59 @@ function escapeHtml(s){
 
 let mepKontrollen = [];   // fuer die geplante Aufgabe zum Auslesen
 
+/* SONDERFALL BESTANDSVERLAUF - berichtigt 31.08.2026.
+
+   Die einfache Kontrollsumme zaehlt alles, was im Zeitfenster steht:
+     q.in("markt", …).gte("tag", von).lte("tag", bis)
+   Das ist NICHT die Zahl der Zeilen dieser Datei. In der Tabelle stehen
+   im selben Fenster auch Zeilen aelterer Berichte - andere Abteilungen,
+   ein zusaetzlicher Randtag. Gemessen am 30.08.2026: soll 590, ist 688.
+
+   Die Folge war ein Fehlalarm ohne Datenverlust, und weil ein Fehlalarm
+   die Datei sperrt, blieb sie im Eingang liegen. Am 31.08. waren es zwei
+   Dateien und zwoelf Meldungen - jeden Morgen waere eine dazugekommen.
+
+   Es reicht NICHT, statt "gleich" einfach "mindestens" zu pruefen: dann
+   verdeckt der Altbestand im Fenster einen echten Verlust. Deshalb wird
+   jetzt genau abgeglichen, was diese Datei schreiben wollte.
+
+   Je Markt und Tag wird die Liste der Abteilungen geholt und mit der der
+   Datei verglichen:
+     in der Datei, nicht in der Tabelle  -> ECHTER VERLUST, Datei sperren
+     in der Tabelle, nicht in der Datei  -> Altbestand, unbedenklich
+   Das sind Markt x Tage Abfragen, bei vier Maerkten und sieben Tagen
+   also 28 - klein genug. */
+async function kontrolleBestandsverlauf(saetze){
+  /* Markt und Tag werden im Eintrag mitgefuehrt und NICHT aus dem
+     Schluessel zurueckgelesen: Marktnamen enthalten Leerzeichen und
+     Bindestriche, ein Zerlegen waere eine Fehlerquelle. */
+  const paare = new Map();
+  saetze.forEach(s=>{
+    const k = s.markt + "|" + s.tag;
+    let e = paare.get(k);
+    if(!e){ e = {markt:s.markt, tag:s.tag, abt:new Set()}; paare.set(k, e); }
+    e.abt.add(s.abteilung);
+  });
+  const fehlend = [];
+  let zusaetzlich = 0, sollGesamt = 0;
+  try{
+    for(const eintrag of paare.values()){
+      const markt = eintrag.markt, tag = eintrag.tag, sollAbt = eintrag.abt;
+      sollGesamt += sollAbt.size;
+      const {data, error} = await db.from("bestandsverlauf")
+        .select("abteilung").eq("markt", markt).eq("tag", tag);
+      if(error) return {tabelle:"bestandsverlauf", soll:saetze.length, ist:null, ok:false, fehler:error.message};
+      const istAbt = new Set((data||[]).map(r=>r.abteilung));
+      sollAbt.forEach(a=>{ if(!istAbt.has(a)) fehlend.push(markt+" · "+a+" · "+formatDateDE(tag)); });
+      istAbt.forEach(a=>{ if(!sollAbt.has(a)) zusaetzlich++; });
+    }
+  }catch(e){
+    return {tabelle:"bestandsverlauf", soll:saetze.length, ist:null, ok:false, fehler:String((e&&e.message)||e)};
+  }
+  return {tabelle:"bestandsverlauf", soll:sollGesamt, ist:sollGesamt - fehlend.length,
+          ok: fehlend.length === 0, fehlend:fehlend, zusaetzlich:zusaetzlich};
+}
+
 async function kontrollsumme(tabelle, filter, soll){
   try{
     let q = db.from(tabelle).select("*", {count:"exact", head:true});
@@ -8142,8 +8196,15 @@ function kontrollzeile(k, was){
       (${escapeHtml(k.fehler)}). Ob der Inhalt angekommen ist, steht damit nicht fest.</div>`;
   }
   if(k.ok){
+    /* Aeltere Zeilen im selben Zeitfenster sind kein Befund. Sie werden
+       genannt, damit die Zahl nachvollziehbar bleibt - frueher hat genau
+       dieser Ueberhang den Fehlalarm ausgeloest. */
+    const alt = k.zusaetzlich
+      ? ` · ${k.zusaetzlich} ältere Zeile${k.zusaetzlich===1?"":"n"} aus früheren Berichten
+          stehen zusätzlich im selben Zeitraum – unbedenklich`
+      : "";
     return `<div class="small" style="margin-left:12px;color:#16a34a">Kontrollsumme:
-      ${k.ist} von ${k.soll} Zeilen in <b>${escapeHtml(k.tabelle)}</b> angekommen ✓</div>`;
+      ${k.ist} von ${k.soll} Zeilen in <b>${escapeHtml(k.tabelle)}</b> angekommen ✓${alt}</div>`;
   }
   /* Der Kern: NICHT als verarbeitet gelten lassen. Lieber eine Datei, die
      liegen bleibt und morgen noch einmal versucht wird, als eine Tabelle,
@@ -8153,6 +8214,8 @@ function kontrollzeile(k, was){
       ✗ ${escapeHtml(was)}: <b>KONTROLLSUMME STIMMT NICHT</b><br>
       <span style="font-weight:normal">Gelesen wurden <b>${k.soll}</b> Zeilen, in
       <b>${escapeHtml(k.tabelle)}</b> stehen <b>${k.ist == null ? "?" : k.ist}</b>.
+      ${(k.fehlend && k.fehlend.length) ? `<br>Es fehlen <b>${k.fehlend.length}</b>:
+        ${escapeHtml(k.fehlend.slice(0,8).join(" | "))}${k.fehlend.length>8 ? " …" : ""}` : ""}
       Der Bericht gilt <b>nicht</b> als verarbeitet – die Datei bleibt im Eingang und
       wird erneut versucht.</span></div>`;
 }
