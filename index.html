@@ -597,6 +597,9 @@
       <div class="small">EDEKA-BO Umsatzbericht als <strong>Kreuztabelle</strong>: Zeilen Jahr und Woche,
         Spalten die vier Märkte. Kopfzeile mit „Jahr“ und „Woche“ wird gesucht, Ergebniszeilen
         („2025 Ergebnis“) werden übersprungen.<br>
+        <b>Nicht verwechseln</b> mit „Umsatzbericht je Woche“ weiter oben: der bringt <i>eine</i>
+        Woche mit allen Abteilungen und geht nach <code>kennzahlen</code>. Dieser hier bringt
+        <i>viele</i> Wochen als Summe je Markt.<br>
         <strong>Wofür:</strong> Das ist die Quelle für die Kachel „Umsatz je Markt“ und für
         <strong>jeden Vorjahresvergleich</strong>. Ohne diesen Bericht gäbe es Vorjahreswerte nur
         für einzelne Wochen. Am besten <strong>einmal im Quartal</strong> ab 01.01. des Vorjahres
@@ -747,7 +750,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.09.02-08"; // Umsatzkachel: Timeout behoben (2,2 s -> 0,15 s), Fehler wird angezeigt statt verschluckt
+const APP_VERSION = "v2026.09.02-09"; // Wochenumsatz-Kreuztabelle wird automatisch erkannt (lief sonst in den falschen Importer)
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -6405,6 +6408,7 @@ const AUTO_ZIELE = {
   regaldaten:    { feld: "regalFile",         msg: "regalMsg",           fn: "uploadRegaldaten",    text: "Regaldaten (Artikel je Regal)",     tabelle: "artikel_regal",       mehrere: false },
   scanquote:     { feld: "scanquoteFile",     msg: "scanquoteMsg",       fn: "uploadScanquote",     text: "Scanquote je Kassierer",            tabelle: "scanquote",           mehrere: false },
   aktion:        { feld: "aktionFile",        msg: "aktionMsg",          fn: "uploadAktionsumsatz", text: "Aktionsumsatz (wöchentlich)",       tabelle: "aktion_woche · article_sales_weekly", mehrere: true  },
+  wochenumsatz:  { feld: "wochenumsatzFile",  msg: "wochenumsatzMsg",    fn: "uploadWochenumsatz",  text: "Wochenumsatz je Markt (Kreuztabelle)", tabelle: "umsatz_woche",     mehrere: false },
   bestandsverlauf:{feld: "bestandFile",       msg: "bestandMsg",         fn: "uploadBestandsverlauf", text: "Bestandsverlauf je Abteilung",    tabelle: "bestandsverlauf",     mehrere: false },
   wareneingang:  { feld: "weFile",            msg: "weMsg",              fn: "uploadWareneingang",  text: "Wareneingangskontrollliste",        tabelle: "wareneingang",        mehrere: false },
   verwerfen:     { feld: null,                msg: null,                 fn: null,                  text: "Wird nicht gebraucht – verworfen",  tabelle: "—",                   mehrere: true  },
@@ -6481,6 +6485,19 @@ async function autoErkenne(file){
   if(/menge aktion/.test(flach) && /(artikel|gtin)/.test(flach))  return {art:"bevorratung", grund:"Kopfzeile enthält „Menge Aktion“ und Artikel/GTIN"};
   if(/^abschriften/.test(titel))  return {art:"kennzahlen", grund:"Titelzelle „Abschriften“"};
   if(/^frequenz/.test(titel))     return {art:"frequenz",   grund:"Titelzelle „Frequenz“"};
+
+  /* WOCHENUMSATZ-KREUZTABELLE (Jahr x Woche x Markt), neu 02.09.2026.
+     MUSS VOR dem Namensfallback „Umsatz“ weiter unten stehen. Beim Prüfen
+     der Übergabe getestet: die Datei UMSATZ02092026103954202.xlsx wurde
+     sonst als „kennzahlen“ erkannt und wäre in den metrics-Importer
+     gelaufen - die falsche Tabelle, weil der Dateiname mit UMSATZ beginnt.
+     Das Merkmal ist eindeutig und hat kein anderer Bericht: Kopfzeile in
+     Zeile 1 mit „Jahr“ UND „Woche“ als erste beiden Spalten. */
+  {
+    const k1 = (rows[0]||[]).map(c=>String(c==null?"":c).trim().toLowerCase());
+    if(k1[0]==="jahr" && k1[1]==="woche" && k1.some(c=>/^gesamtergebnis/.test(c)))
+      return {art:"wochenumsatz", grund:"Kreuztabelle Jahr × Woche × Markt (Wochenumsatz)"};
+  }
 
   /* WOCHEN-UMSATZBERICHT gegen TAGES-DASHBOARD (25.08.2026).
 
