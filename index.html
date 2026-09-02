@@ -747,7 +747,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.09.02-07"; // Wochenumsatz schreibt sich aus dem Wochencheck selbst fort (Sonntag steckt in der Wochensumme)
+const APP_VERSION = "v2026.09.02-08"; // Umsatzkachel: Timeout behoben (2,2 s -> 0,15 s), Fehler wird angezeigt statt verschluckt
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -8647,7 +8647,7 @@ const MEP_MAERKTE={
 const MEP_VOLLSORTIMENT=["Billigheim-Ingenheim","Steinfeld"];
 
 let mepZugang={markt:null,bereich:null}, mepGeladen=false;
-let mepKz=[], mepSpanne=[], mepBefunde=[], mepFeedback={}, mepBereichsMap={}, mepBereiche=[], mepDokumente=[], mepTrend=[], mepWochenumsatz=[];
+let mepKz=[], mepSpanne=[], mepBefunde=[], mepFeedback={}, mepBereichsMap={}, mepBereiche=[], mepDokumente=[], mepTrend=[], mepWochenumsatz=[], mepWochenumsatzFehler=null;
 let mepArtikel=[], mepDispo=[], mepAufgaben=[], mepMetrics=[], mepStand=null, mepSort="umsatz";
 let mepWerbung=[], mepWerbungErledigt={}, mepWerbungKW=null, mepWerbungDateien=[], mepWerbungWochen=[];
 let mepRegale={};   // sap_artnr -> {regal_nr, zweitplatzierung}, Stand des letzten Regalberichts
@@ -9070,6 +9070,12 @@ async function mepOeffnen(){
   if(b.error){ ziel.innerHTML=`<div class="box"><b>Datenbank nicht erreichbar:</b> ${mepEsc(b.error.message)}</div>`; return; }
   mepSpanne=b.data||[]; mepBefunde=c.data||[]; mepBereiche=f.data||[]; mepDokumente=g.data||[];
   mepTrend=h.data||[]; mepWochenumsatz=(i&&i.data)||[];
+  /* Den Fehler MITFUEHREN, nicht schlucken. Am 02.09.2026 lief
+     umsatz_uebersicht() ins Statement-Timeout (anon: 3 s) - die Kachel
+     schrieb daraufhin "Keine Umsatzzahlen verfuegbar", also genau das,
+     was auch bei einer leeren Tabelle dastuende. Aus dieser Meldung war
+     nicht zu erkennen, dass ueberhaupt etwas kaputt ist. */
+  mepWochenumsatzFehler = (i && i.error) ? (i.error.message || String(i.error)) : null;
   (d.data||[]).forEach(x=>{if(!mepFeedback[x.schluessel])mepFeedback[x.schluessel]=x;});
   (e.data||[]).forEach(x=>mepBereichsMap[x.aufgabenbereich]=x.bereich);
   mepGeladen=true;
@@ -10986,6 +10992,24 @@ function mepKachelTrend(){
 function mepKachelUmsatzMaerkte(){
   const r = mepWochenumsatz || [];
   if(!r.length){
+    /* Fehler und Leere klar auseinanderhalten. Vorher stand in BEIDEN
+       Faellen "Keine Umsatzzahlen verfuegbar" - am 02.09.2026 lief die
+       Funktion ins Timeout, und die Meldung sah aus wie eine leere
+       Tabelle. Eine stumme Panne ist schlimmer als eine haessliche
+       Fehlermeldung. */
+    if(mepWochenumsatzFehler){
+      const zeit = /timeout|57014|canceling statement/i.test(mepWochenumsatzFehler);
+      return `<div class="box" style="border-left:4px solid #b91c1c">
+        <h2>Umsatz je Markt</h2>
+        <div style="color:#b91c1c;font-weight:600;background:#fef2f2;padding:8px 11px;
+             border-left:4px solid #b91c1c;margin:6px 0">
+          ✗ <b>Die Umsatzzahlen konnten nicht geladen werden.</b>
+          <div style="font-weight:normal;margin-top:4px">${mepEsc(mepWochenumsatzFehler)}</div>
+          ${zeit ? `<div style="font-weight:normal;margin-top:4px">Das ist eine
+            Zeitüberschreitung – die Abfrage hat länger als 3 Sekunden gebraucht.
+            <b>Die Zahlen sind nicht weg</b>, sie kamen nur nicht rechtzeitig an.</div>` : ""}
+        </div></div>`;
+    }
     return `<div class="box" style="border-left:4px solid #004f9e">
       <h2>Umsatz je Markt</h2>
       <div class="small" style="padding:6px 0;font-style:italic">Keine Umsatzzahlen verfügbar.</div></div>`;
