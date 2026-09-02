@@ -577,6 +577,22 @@
       <div id="scanquoteMsg" class="small" style="margin-top:8px"></div>
     </div>
     <div class="box admin admin-uploads">
+      <h2>🏷️ Aktionsumsatz (wöchentlich, montags)</h2>
+      <div class="small">EDEKA-BO Bericht „Aktionen“ – eine Datei je Woche, alle vier Märkte als Spalten.
+        Je Artikel zwei Zeilen: „Aktionsumsatz“ und „Aktionsumsatz Vj“. Der Zeitraum kommt aus dem
+        Blatt „Filter“, die Kalenderwoche wird daraus berechnet.<br>
+        <strong>Wofür:</strong> Der Bericht sagt, welcher Artikel in welcher Woche in welchem Markt in
+        Aktion lief. Diese Artikel werden beim Wochenabsatz übersprungen – ein Aktionsverkauf sagt
+        nichts über den normalen Absatz. Nach dem Speichern wird der Wochenabsatz automatisch neu
+        gerechnet.<br>
+        → Tabellen <code>aktion_woche</code> und <code>article_sales_weekly</code></div>
+      <input id="aktionFile" type="file" accept=".xlsx,.xls,.xlsm" multiple style="margin-top:10px" />
+      <div style="margin-top:10px">
+        <button class="btn-green" style="width:auto" onclick="uploadAktionsumsatz()">Excel einlesen &amp; speichern</button>
+      </div>
+      <div id="aktionMsg" class="small" style="margin-top:8px"></div>
+    </div>
+    <div class="box admin admin-uploads">
       <h2>📉 Bestandsverlauf je Abteilung (wöchentlich)</h2>
       <div class="small">EDEKA-BO Bericht „Bestandsverlauf“ – eine Datei für alle vier Märkte.
         Enthält je Abteilung und Tag Anfangsbestand, Zugang, Abgang, Endbestand und Veränderung.
@@ -712,7 +728,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.08.31-03"; // Kontrollsummen aller neun Importer geprueft; scanquote zaehlt jetzt auch je Markt
+const APP_VERSION = "v2026.09.02-01"; // Aktionsumsatz-Import; Wochenabsatz kommt aus den Tageswerten statt aus einem eigenen Bericht
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -6369,6 +6385,7 @@ const AUTO_ZIELE = {
   ordersatz:     { feld: "ordersatzPdfFile",  msg: "ordersatzUploadMsg", fn: "uploadOrdersatzPdf",  text: "Backshop-Ordersatz",                tabelle: "ordersatz_items",  mehrere: false },
   regaldaten:    { feld: "regalFile",         msg: "regalMsg",           fn: "uploadRegaldaten",    text: "Regaldaten (Artikel je Regal)",     tabelle: "artikel_regal",       mehrere: false },
   scanquote:     { feld: "scanquoteFile",     msg: "scanquoteMsg",       fn: "uploadScanquote",     text: "Scanquote je Kassierer",            tabelle: "scanquote",           mehrere: false },
+  aktion:        { feld: "aktionFile",        msg: "aktionMsg",          fn: "uploadAktionsumsatz", text: "Aktionsumsatz (wöchentlich)",       tabelle: "aktion_woche · article_sales_weekly", mehrere: true  },
   bestandsverlauf:{feld: "bestandFile",       msg: "bestandMsg",         fn: "uploadBestandsverlauf", text: "Bestandsverlauf je Abteilung",    tabelle: "bestandsverlauf",     mehrere: false },
   wareneingang:  { feld: "weFile",            msg: "weMsg",              fn: "uploadWareneingang",  text: "Wareneingangskontrollliste",        tabelle: "wareneingang",        mehrere: false },
   verwerfen:     { feld: null,                msg: null,                 fn: null,                  text: "Wird nicht gebraucht – verworfen",  tabelle: "—",                   mehrere: true  },
@@ -6426,6 +6443,10 @@ async function autoErkenne(file){
   if(/regaldaten/i.test(name))  return {art:"regaldaten", grund:"Dateiname „Regaldaten“"};
   if(/scanquote/.test(flach))   return {art:"scanquote", grund:"Titelzelle „Scanquote“"};
   if(/scanquote/i.test(name))   return {art:"scanquote", grund:"Dateiname „Scanquote“"};
+  /* Aktionsumsatz - neu 02.09.2026. Der Bericht heisst im BO "Aktionen",
+     die Datei aber "Aktionsumsatz_<TT_MM_JJJJ>_<HH_MM>.xlsm". Beides faengt
+     die Regel, damit eine Umbenennung im BO sie nicht ins Leere laufen laesst. */
+  if(/aktionsumsatz|^aktionen[_ ]/i.test(name)) return {art:"aktion", grund:"Dateiname „Aktionsumsatz“"};
 
   if(/^spannenanalyse/.test(titel)) return {art:"spannenanalyse", grund:"Titelzelle „Spannenanalyse“"};
   if(/spannenanalyse/i.test(name))  return {art:"spannenanalyse", grund:"Dateiname „Spannenanalyse“"};
@@ -7709,6 +7730,151 @@ async function uploadRegaldaten(){
    Der Zeitraum steht im Blatt "Filter" hinter "Zeitfilter:" in der Form
    "AJ: 11.08.2026 - 17.08.2026". Ohne Zeitraum wird nichts gespeichert -
    sonst weiss spaeter niemand, welche Woche die Zahlen betreffen. */
+/* ====== Aktionsumsatz je Woche ======================================
+
+   Neu am 02.09.2026. Wofuer der Bericht da ist, steht ausfuehrlich in der
+   Datenbankfunktion wochenabsatz_berechnen. Kurz:
+
+   Der Wochenabsatz fuer die Bevorratung wird aus den TAEGLICHEN Werten in
+   artikel_kennzahlen gerechnet. Was fehlt, ist die Auskunft, ob ein Artikel
+   in der Woche in Werbung war - ein Aktionsverkauf sagt nichts ueber den
+   normalen Absatz. Genau das liefert dieser Bericht.
+
+   Aufbau der Datei:
+     Zeile 4  Artikel | Bezeichnung | GTIN | Markt | Gesamtergebnis | vier Maerkte
+     Zeilen   je Artikel ZWEI Zeilen, in Spalte 4 steht die Kennzahl:
+              "Aktionsumsatz" (laufendes Jahr) und "Aktionsumsatz Vj"
+     Blatt "Filter"  enthaelt "AJ: TT.MM.JJJJ - TT.MM.JJJJ"
+
+   Gespeichert wird nur, wo Aktionsumsatz groesser null ist - nur dann lief
+   der Artikel in diesem Markt tatsaechlich in Aktion. */
+function isoKalenderwoche(iso){
+  const d = new Date(iso + "T00:00:00Z");
+  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  t.setUTCDate(t.getUTCDate() + 4 - (t.getUTCDay() || 7));      // Donnerstag der Woche
+  const jahresbeginn = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  const kw = Math.ceil(((t - jahresbeginn) / 86400000 + 1) / 7);
+  return { jahr: t.getUTCFullYear(), kw: kw };
+}
+
+async function uploadAktionsumsatz(){
+  if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
+  const input = document.getElementById("aktionFile");
+  const msg = document.getElementById("aktionMsg");
+  if(!input || !input.files || !input.files.length){ alert("Bitte Aktionsumsatz-Excel wählen."); return; }
+  msg.style.color = "#0c1f3c";
+  const bericht = [];
+
+  for(const datei of Array.from(input.files)){
+    try{
+      msg.innerHTML = `Lese ${escapeHtml(datei.name)} …`;
+      const wb = XLSX.read(await datei.arrayBuffer(), {type:"array"});
+      const datenBlatt = wb.SheetNames.find(n=>!/filter|metadaten/i.test(n)) || wb.SheetNames[0];
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[datenBlatt], {header:1, defval:null, raw:false});
+
+      /* Zeitraum. Der Bericht deckt genau eine Woche ab; die Kalenderwoche
+         wird aus dem Montag gerechnet, nicht aus dem Dateinamen - der traegt
+         das Erstellungsdatum und liegt regelmaessig in der Folgewoche. */
+      let von=null, bis=null;
+      const fBlatt = wb.SheetNames.find(n=>/filter/i.test(n));
+      if(fBlatt){
+        const f = XLSX.utils.sheet_to_json(wb.Sheets[fBlatt], {header:1, defval:null, raw:false});
+        const text = f.map(r=>(r||[]).map(c=>String(c==null?"":c)).join(" ")).join(" ");
+        const m = text.match(/AJ:\s*(\d{2})\.(\d{2})\.(\d{4})\s*-\s*(\d{2})\.(\d{2})\.(\d{4})/);
+        if(m){ von=`${m[3]}-${m[2]}-${m[1]}`; bis=`${m[6]}-${m[5]}-${m[4]}`; }
+      }
+      if(!von){
+        bericht.push(`<div style="color:#c62828">✗ ${escapeHtml(datei.name)}: Zeitraum („AJ: …“) im Blatt „Filter“ nicht gefunden. Nichts gespeichert.</div>`);
+        continue;
+      }
+      const {jahr, kw} = isoKalenderwoche(von);
+
+      // Kopfzeile suchen statt annehmen
+      let kz=-1;
+      for(let i=0;i<Math.min(rows.length,12);i++){
+        const z=(rows[i]||[]).map(c=>String(c==null?"":c).toLowerCase());
+        if(z.some(c=>c.startsWith("artikel")) && z.some(c=>c==="markt")){ kz=i; break; }
+      }
+      if(kz<0){
+        bericht.push(`<div style="color:#c62828">✗ ${escapeHtml(datei.name)}: Kopfzeile mit „Artikel“ und „Markt“ nicht gefunden.</div>`);
+        continue;
+      }
+      const kopf = (rows[kz]||[]).map(c=>String(c==null?"":c).trim());
+      const cMarkt = kopf.findIndex(k=>k.toLowerCase()==="markt");
+      // Alles rechts von "Gesamtergebnis" sind die einzelnen Maerkte
+      const maerkte = {};
+      for(let i=cMarkt+1;i<kopf.length;i++){
+        const n=kopf[i];
+        if(n && !/^gesamtergebnis/i.test(n)) maerkte[i]=n;
+      }
+      if(!Object.keys(maerkte).length){
+        bericht.push(`<div style="color:#c62828">✗ ${escapeHtml(datei.name)}: keine Markt-Spalten erkannt.</div>`);
+        continue;
+      }
+
+      const saetze=[]; let artikelzeilen=0;
+      for(let i=kz+1;i<rows.length;i++){
+        const r=rows[i]||[];
+        const art=String(r[0]==null?"":r[0]).trim();
+        if(!art || /^gesamtergebnis$/i.test(art)) continue;
+        const kennzahl=String(r[cMarkt]==null?"":r[cMarkt]).trim();
+        if(!/^aktionsumsatz$/i.test(kennzahl)) continue;   // "Vj" wird nicht gebraucht
+        artikelzeilen++;
+        for(const sp of Object.keys(maerkte)){
+          const w=zahlAusZelle(null, r[sp]);
+          if(w!=null && w>0){
+            saetze.push({markt:maerkte[sp], sap_artnr:art, jahr:jahr, kw:kw, umsatz:w});
+          }
+        }
+      }
+      if(!saetze.length){
+        bericht.push(`<div style="color:#b45309">⚠ ${escapeHtml(datei.name)}: KW ${kw}/${jahr} – kein Artikel mit Aktionsumsatz. Nichts gespeichert.</div>`);
+        continue;
+      }
+
+      // Dieselbe Woche vollstaendig ersetzen, andere Wochen bleiben stehen
+      const del = await db.from("aktion_woche").delete().eq("jahr",jahr).eq("kw",kw);
+      if(del.error) throw del.error;
+      for(let i=0;i<saetze.length;i+=500){
+        const {error} = await db.from("aktion_woche").insert(saetze.slice(i,i+500));
+        if(error) throw error;
+      }
+
+      /* Kontrollsumme: gezaehlt wird genau der Ausschnitt, der vorher
+         geloescht wurde - Jahr und Kalenderwoche dieser Datei. */
+      const k = await kontrollsumme("aktion_woche", q=>q.eq("jahr",jahr).eq("kw",kw), saetze.length);
+
+      let zeile = `<div style="color:${k.ok?"#15803d":"#b91c1c"}">${k.ok?"✅":"⚠"} <b>${escapeHtml(datei.name)}</b>: `
+        + `KW ${kw}/${jahr} (${formatDateDE(von)}–${formatDateDE(bis)}) · `
+        + `${artikelzeilen.toLocaleString("de-DE")} Artikel gelesen, `
+        + `<b>${saetze.length.toLocaleString("de-DE")}</b> Artikel-Markt-Kombinationen in Aktion · `
+        + `Märkte: ${Object.values(maerkte).join(", ")}</div>`
+        + kontrollzeile(k, `Aktionsumsatz KW ${kw}/${jahr}`);
+
+      // Wochenabsatz sofort neu rechnen - sonst bliebe der alte, verfaelschte Stand
+      if(k.ok){
+        const r2 = await db.rpc("wochenabsatz_berechnen", {p_jahr: jahr, p_kw: kw});
+        if(r2.error){
+          zeile += `<div style="color:#b45309;margin-left:12px">⚠ Wochenabsatz nicht gerechnet: ${escapeHtml(r2.error.message)}</div>`;
+        }else{
+          const e = Array.isArray(r2.data) ? r2.data[0] : r2.data;
+          zeile += `<div class="small" style="margin-left:12px;color:#0369a1">Wochenabsatz neu gerechnet: `
+            + `<b>${(e.geschrieben||0).toLocaleString("de-DE")}</b> Artikel-Markt-Werte aus <b>${e.tage||0}</b> Tagen`
+            + (e.geloescht ? ` (${e.geloescht.toLocaleString("de-DE")} alte Werte ersetzt)` : "")
+            + ` · ${(e.in_aktion||0).toLocaleString("de-DE")} wegen Aktion übersprungen`
+            + (e.tage < 6 ? ` — <b style="color:#b45309">nur ${e.tage} Tage, die Woche ist untererfasst</b>` : "")
+            + `</div>`;
+        }
+      }
+      bericht.push(zeile);
+    }catch(e){
+      bericht.push(`<div style="color:#c62828">✗ ${escapeHtml(datei.name)}: ${escapeHtml(e.message||String(e))}</div>`);
+    }
+  }
+  msg.innerHTML = bericht.join("");
+  input.value = "";
+}
+
 async function uploadScanquote(){
   if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
   const input = document.getElementById("scanquoteFile");
