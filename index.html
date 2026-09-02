@@ -747,7 +747,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.09.02-05"; // Wochenumsatz-Importer + Vorjahresvergleich auch fuers Jahr, aus umsatz_woche
+const APP_VERSION = "v2026.09.02-06"; // laufende Woche mit Entwicklung ggue. denselben Wochentagen der Vorwoche
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -10980,26 +10980,32 @@ function mepKachelUmsatzMaerkte(){
      "0 %". Die Datenbank sperrt ihn fuer Maerkte, die im Vorjahr nicht
      durchgaengig liefen - das trifft Gossersweiler-Stein, dort gibt es 2025
      nur 10 Wochen. Vorgabe Benedikt Paul 27.08.2026: "Ignorieren." */
-  const vjZeile = (ist, vj) => {
-    if(ist==null || vj==null || !(vj>0)) return "";
-    const p=(ist-vj)/vj*100;
+  const vglZeile = (ist, ref, was) => {
+    if(ist==null || ref==null || !(ref>0)) return "";
+    const p=(ist-ref)/ref*100;
     return `<span style="display:block;font-size:10.5px;color:${farbe(p)}">${zeichen(p)} ${
-      p.toLocaleString("de-DE",{minimumFractionDigits:1,maximumFractionDigits:1})} % ggü. Vj</span>`;
+      p.toLocaleString("de-DE",{minimumFractionDigits:1,maximumFractionDigits:1})} % ggü. ${was}</span>`;
   };
+  const vjZeile = (ist, vj) => vglZeile(ist, vj, "Vj");
   const zelle = (v, zusatz) => v==null
     ? `<td style="text-align:right;padding:6px 7px;color:#cbd5e1">\u2013</td>`
     : `<td style="text-align:right;padding:6px 7px">${mepEur(v)}${zusatz||""}</td>`;
 
   const tr = (name, x) => `<tr style="border-top:1px solid #eef3f9">
       <td style="padding:6px 7px"><b>${mepEsc(name)}</b></td>
-      ${zelle(x.a, x.tage!=null ? `<span style="display:block;font-size:10.5px;color:#94a3b8">${
-          x.tage} ${x.tage===1?"Tag":"Tage"}</span>` : "")}
+      ${zelle(x.a, (x.tage!=null ? `<span style="display:block;font-size:10.5px;color:#94a3b8">${
+          x.tage} ${x.tage===1?"Tag":"Tage"}</span>` : "")
+        /* Die laufende Woche wird mit DENSELBEN Wochentagen der Vorwoche
+           verglichen, nicht mit dem Vorjahr - fuer 2025 gibt es keine
+           Tageswerte, und zwei Tage gegen eine volle Woche waere Unsinn. */
+        + vglZeile(x.a, x.vw, "Vorwoche"))}
       ${zelle(x.l, vjZeile(x.l, x.lvj))}
       ${zelle(x.v, vjZeile(x.v, x.vvj))}
       ${zelle(x.jahr, vjZeile(x.jahr, x.jvj))}</tr>`;
 
   const z = x => ({
     a: x.umsatz_aktuell==null?null:Number(x.umsatz_aktuell), tage: x.tage_aktuell,
+    vw: x.vw_aktuell==null?null:Number(x.vw_aktuell),
     l: x.umsatz_letzte==null?null:Number(x.umsatz_letzte),
     lvj: x.vj_letzte==null?null:Number(x.vj_letzte),
     v: x.umsatz_vorletzte==null?null:Number(x.umsatz_vorletzte),
@@ -11019,6 +11025,7 @@ function mepKachelUmsatzMaerkte(){
   const alleTage = [...new Set(zeilen.map(x=>x.tage_aktuell))];
   const gesamt = tr("Alle Märkte", {
     a: summe("umsatz_aktuell"), tage: alleTage.length===1 ? alleTage[0] : null,
+    vw: summe("vw_aktuell"),
     l: summe("umsatz_letzte"),  lvj: summe("vj_letzte"),
     v: summe("umsatz_vorletzte"), vvj: summe("vj_vorletzte"),
     jahr: summe("umsatz_jahr"), jvj: summe("vj_jahr")
@@ -11026,16 +11033,18 @@ function mepKachelUmsatzMaerkte(){
 
   return `<div class="box" style="border-left:4px solid #004f9e">
     <h2>Umsatz je Markt</h2>
-    <div class="small">Die laufende Woche zählt <b>bis gestern</b> und ist deshalb unvollständig –
-      die Zahl der erfassten Tage steht darunter.
-      <b>Unter den Wochenwerten steht die Abweichung zum Vorjahr</b>
+    <div class="small">Unter jedem Wert steht die Abweichung
       (<span style="color:#c0392b">rot</span> im Minus,
        <span style="color:#94a3b8">grau</span> bis +2 %,
        <span style="color:#16a34a">grün</span> darüber).<br>
+      Die <b>laufende Woche</b> zählt bis gestern und wird mit <b>denselben Wochentagen der
+      Vorwoche</b> verglichen – nicht mit dem Vorjahr: für ${new Date().getFullYear()-1}
+      liegen keine Tageswerte vor, und zwei Tage gegen eine volle Woche wäre kein Vergleich.
+      Verglichen werden nur Tage, die in <i>beiden</i> Wochen vorliegen.<br>
       Das <b>Jahr läuft bis einschließlich KW ${kwJ}</b> – die laufende Woche ist darin
-      <i>nicht</i> enthalten, sonst stünden zwei zusätzliche Tage gegen ein Vorjahr ohne sie.<br>
-      Kein Vorjahr gibt es für die <b>laufende Woche</b> – zwei Tage gegen eine volle Woche
-      wäre kein Vergleich. Und <b>Gossersweiler-Stein</b> lief 2025 noch nicht durchgängig.</div>
+      <i>nicht</i> enthalten, sonst stünden zusätzliche Tage gegen ein Vorjahr ohne sie.<br>
+      <b>Gossersweiler-Stein</b> lief 2025 noch nicht durchgängig und hat deshalb keinen
+      Vorjahresvergleich.</div>
     <div style="overflow-x:auto">
     <table style="width:100%;border-collapse:collapse;font-size:13.5px;margin-top:12px">
       <thead><tr style="text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">
