@@ -728,7 +728,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.09.02-01"; // Aktionsumsatz-Import; Wochenabsatz kommt aus den Tageswerten statt aus einem eigenen Bericht
+const APP_VERSION = "v2026.09.02-02"; // Verwaltungsansicht: Verwaltungskachel ganz oben, darunter Wochenumsatz je Markt
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -8468,7 +8468,7 @@ const MEP_MAERKTE={
 const MEP_VOLLSORTIMENT=["Billigheim-Ingenheim","Steinfeld"];
 
 let mepZugang={markt:null,bereich:null}, mepGeladen=false;
-let mepKz=[], mepSpanne=[], mepBefunde=[], mepFeedback={}, mepBereichsMap={}, mepBereiche=[], mepDokumente=[], mepTrend=[];
+let mepKz=[], mepSpanne=[], mepBefunde=[], mepFeedback={}, mepBereichsMap={}, mepBereiche=[], mepDokumente=[], mepTrend=[], mepWochenumsatz=[];
 let mepArtikel=[], mepDispo=[], mepAufgaben=[], mepMetrics=[], mepStand=null, mepSort="umsatz";
 let mepWerbung=[], mepWerbungErledigt={}, mepWerbungKW=null, mepWerbungDateien=[], mepWerbungWochen=[];
 let mepRegale={};   // sap_artnr -> {regal_nr, zweitplatzierung}, Stand des letzten Regalberichts
@@ -8871,7 +8871,7 @@ async function mepOeffnen(){
      Zeilen eines einzigen Marktes an, die Auswahl blieb leer und alle Kacheln
      waren ohne Zahlen. Deshalb: die kleinen Stammtabellen hier laden, die
      grossen erst gefiltert je Markt in mepNeuLaden(). */
-  const [b,c,d,e,f,g,h]=await Promise.all([
+  const [b,c,d,e,f,g,h,i]=await Promise.all([
     db.from("spannenanalyse").select("*"),
     db.from("befunde").select("*").eq("aktiv",true),
     db.from("befund_feedback").select("schluessel,bewertung,kommentar").order("wann",{ascending:false}),
@@ -8879,11 +8879,18 @@ async function mepOeffnen(){
     db.from("bereiche").select("markt,bereich,abteilung,hat_bereiche"),
     db.from("dispo_documents").select("market,doc_type,upload_date,file_name,public_url"),
     // Trendartikel, 25.08.2026 - nur die noch sichtbaren, das sind wenige Zeilen
-    db.from("trendartikel").select("*").gte("sichtbar_bis",todayISO()).order("faktor",{ascending:false})
+    db.from("trendartikel").select("*").gte("sichtbar_bis",todayISO()).order("faktor",{ascending:false}),
+    /* Wochenumsatz je Markt, 02.09.2026. Kommt aus wochenreihe_umsatz() und
+       nicht aus einer Tabelle: die Reihe steckt in ZWEI Quellen. Bis zum
+       13.08. lieferte metrics die Donnerstagswerte, seit dem 19.08. steht
+       der Wochenwert in kennzahlen. Die Funktion fuehrt beides zusammen -
+       ohne sie fehlte entweder die Vorgeschichte oder die Gegenwart.
+       Wenige Zeilen: vier Maerkte mal Wochen. */
+    db.rpc("wochenreihe_umsatz")
   ]);
   if(b.error){ ziel.innerHTML=`<div class="box"><b>Datenbank nicht erreichbar:</b> ${mepEsc(b.error.message)}</div>`; return; }
   mepSpanne=b.data||[]; mepBefunde=c.data||[]; mepBereiche=f.data||[]; mepDokumente=g.data||[];
-  mepTrend=h.data||[];
+  mepTrend=h.data||[]; mepWochenumsatz=(i&&i.data)||[];
   (d.data||[]).forEach(x=>{if(!mepFeedback[x.schluessel])mepFeedback[x.schluessel]=x;});
   (e.data||[]).forEach(x=>mepBereichsMap[x.aufgabenbereich]=x.bereich);
   mepGeladen=true;
@@ -10769,6 +10776,74 @@ function mepKachelTrend(){
     </div>`;
 }
 
+/* ---------- Wochenumsatz je Markt ----------
+   Vorgabe Benedikt Paul, 02.09.2026: "Bitte zudem die Umsätze der Märkte
+   (je Markt aufgesplittet) ebenfalls darunter abbilden." Steht in der
+   Verwaltungsansicht direkt unter der Verwaltungskachel.
+
+   Quelle ist wochenreihe_umsatz(). Die Reihe steckt in zwei Quellen: bis
+   zum 13.08.2026 in metrics (Donnerstagswerte), seit dem 19.08. in
+   kennzahlen (Wochenwerte). Die Funktion fuehrt beides zusammen und
+   ueberschreibt bei Ueberschneidung mit dem Berichtswert - so wie am
+   29.08.2026 festgelegt, nachdem vier falsche Wochenumsatz-Alarme durch
+   Tageswerte auf Donnerstagen entstanden waren.
+
+   Gezeigt werden die letzten acht Wochen. Die Spalte "gegen Vorwoche" ist
+   die eigentliche Aussage; die absolute Zahl allein sagt wenig, weil die
+   Maerkte um den Faktor 13 auseinanderliegen. */
+function mepKachelUmsatzMaerkte(){
+  const r = mepWochenumsatz || [];
+  if(!r.length){
+    return `<div class="box" style="border-left:4px solid #004f9e">
+      <h2>Wochenumsatz je Markt</h2>
+      <div class="small" style="padding:6px 0;font-style:italic">Keine Umsatzreihe verfügbar.
+        Sie entsteht aus dem wöchentlichen Umsatzbericht; solange keiner eingelesen wurde,
+        bleibt die Kachel leer.</div></div>`;
+  }
+  const wochen = [...new Set(r.map(x=>String(x.donnerstag)))].sort().slice(-8);
+  const maerkte = [...new Set(r.map(x=>String(x.markt)))].sort();
+  const wert = {};
+  r.forEach(x=>{ wert[x.markt+"|"+String(x.donnerstag)] = Number(x.umsatz)||0; });
+  const de = s => { const t=String(s).split("-"); return t[2]+"."+t[1]+"."; };
+
+  const zeile = (name, holen) => {
+    const zellen = wochen.map((w,idx)=>{
+      const v = holen(w);
+      if(v==null) return `<td style="text-align:right;padding:6px 7px;color:#cbd5e1">–</td>`;
+      const vor = idx>0 ? holen(wochen[idx-1]) : null;
+      let pfeil = "";
+      if(vor!=null && vor>0){
+        const p = (v-vor)/vor*100;
+        const f = p >= 1 ? "#16a34a" : (p <= -1 ? "#c0392b" : "#94a3b8");
+        const z = p >= 1 ? "▲" : (p <= -1 ? "▼" : "→");
+        pfeil = `<span style="display:block;font-size:10.5px;color:${f}">${z} ${
+          p.toLocaleString("de-DE",{maximumFractionDigits:1})} %</span>`;
+      }
+      return `<td style="text-align:right;padding:6px 7px">${mepEur(v)}${pfeil}</td>`;
+    }).join("");
+    return `<tr style="border-top:1px solid #eef3f9"><td style="padding:6px 7px"><b>${mepEsc(name)}</b></td>${zellen}</tr>`;
+  };
+
+  const zeilen = maerkte.map(m => zeile(m, w => wert[m+"|"+w] != null ? wert[m+"|"+w] : null)).join("")
+    + zeile("Alle Märkte", w => {
+        const vs = maerkte.map(m=>wert[m+"|"+w]).filter(v=>v!=null);
+        return vs.length===maerkte.length ? vs.reduce((a,b)=>a+b,0) : null;   // nur wenn alle da sind
+      });
+
+  return `<div class="box" style="border-left:4px solid #004f9e">
+    <h2>Wochenumsatz je Markt <span style="font-weight:normal;font-size:14px;color:#64748b">letzte ${
+      wochen.length} Wochen</span></h2>
+    <div class="small">Woche endet am angegebenen Donnerstag. Unter jedem Wert die Veränderung
+      gegenüber der Vorwoche. Die Zeile „Alle Märkte“ wird nur gebildet, wenn für die Woche
+      <b>alle vier</b> Märkte vorliegen – sonst stünde dort ein zu niedriger Wert.</div>
+    <div style="overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:13.5px;margin-top:12px">
+      <thead><tr style="text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">
+        <th style="padding:7px">Markt</th>
+        ${wochen.map(w=>`<th style="text-align:right;padding:7px">${de(w)}</th>`).join("")}
+      </tr></thead><tbody>${zeilen}</tbody></table></div></div>`;
+}
+
 function mepZeichnen(){
   const z=document.getElementById("mepKacheln"); if(!z) return;
   z.innerHTML = mepIstHausmeister()
@@ -10784,8 +10859,19 @@ function mepZeichnen(){
          Berichte setzen." Sie stand vorher ganz unten und war ausserdem in
          mepVerw() gekapselt - die Verwaltung sah sie ueberhaupt nicht. Beides
          ist jetzt aufgehoben: sie kommt an zweiter Stelle, in jeder Ansicht. */
-      ? mepKachelBestandNegativ()+mepKachelAufgaben()
-        +mepKachelVerwaltung()+mepNurVerw(mepKachelNutzung)+mepNurVerw(mepKachelTrend)
+      /* IN DER VERWALTUNGSANSICHT steht die Verwaltungskachel ganz oben,
+         darunter der Wochenumsatz je Markt. Vorgabe Benedikt Paul,
+         02.09.2026: "Mach bitte in der Verwaltungsansicht die 'Verwaltung
+         nur im Hausnetz' ganz nach oben, bitte zudem die Umsätze der Märkte
+         (je Markt aufgesplittet) ebenfalls darunter abbilden."
+
+         Die Regel vom 25.08. ("Negativbestand ganz oben") gilt damit
+         weiterhin fuer Markt und Marktleitung - dort arbeitet jemand die
+         Meldung ab. In der Verwaltung ist sie eine Kennzahl unter anderen. */
+      ? mepNurVerw(mepKachelVerwaltung)+mepNurVerw(mepKachelUmsatzMaerkte)
+        +mepKachelBestandNegativ()+mepKachelAufgaben()
+        +(mepZugang.markt==="Verwaltung" ? "" : mepKachelVerwaltung())
+        +mepNurVerw(mepKachelNutzung)+mepNurVerw(mepKachelTrend)
         +mepKachelOffen()+mepKachelScanquote()
         +mepKachelBestand()+mepKachelBevorratung()
         +mepVerw(mepKachelDispo)+mepKachelBefunde()
