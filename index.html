@@ -728,7 +728,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.09.02-02"; // Verwaltungsansicht: Verwaltungskachel ganz oben, darunter Wochenumsatz je Markt
+const APP_VERSION = "v2026.09.02-03"; // Umsatzkachel nach KW: laufende Woche bis gestern, zwei Vorwochen, aufgelaufenes Jahr
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -8880,13 +8880,13 @@ async function mepOeffnen(){
     db.from("dispo_documents").select("market,doc_type,upload_date,file_name,public_url"),
     // Trendartikel, 25.08.2026 - nur die noch sichtbaren, das sind wenige Zeilen
     db.from("trendartikel").select("*").gte("sichtbar_bis",todayISO()).order("faktor",{ascending:false}),
-    /* Wochenumsatz je Markt, 02.09.2026. Kommt aus wochenreihe_umsatz() und
-       nicht aus einer Tabelle: die Reihe steckt in ZWEI Quellen. Bis zum
-       13.08. lieferte metrics die Donnerstagswerte, seit dem 19.08. steht
-       der Wochenwert in kennzahlen. Die Funktion fuehrt beides zusammen -
-       ohne sie fehlte entweder die Vorgeschichte oder die Gegenwart.
-       Wenige Zeilen: vier Maerkte mal Wochen. */
-    db.rpc("wochenreihe_umsatz")
+    /* Umsatzuebersicht je Markt, 02.09.2026. Kommt aus umsatz_uebersicht()
+       und nicht aus einer Tabelle: die Zahlen stecken in DREI Quellen -
+       Wochenwerte in metrics bis 13.08., Wochenwerte in kennzahlen ab
+       19.08., Tageswerte in metrics ab 26.08. Die Funktion setzt daraus
+       laufende Woche, die beiden Vorwochen und das aufgelaufene Jahr
+       zusammen. Vier Zeilen, eine je Markt. */
+    db.rpc("umsatz_uebersicht")
   ]);
   if(b.error){ ziel.innerHTML=`<div class="box"><b>Datenbank nicht erreichbar:</b> ${mepEsc(b.error.message)}</div>`; return; }
   mepSpanne=b.data||[]; mepBefunde=c.data||[]; mepBereiche=f.data||[]; mepDokumente=g.data||[];
@@ -10776,72 +10776,91 @@ function mepKachelTrend(){
     </div>`;
 }
 
-/* ---------- Wochenumsatz je Markt ----------
-   Vorgabe Benedikt Paul, 02.09.2026: "Bitte zudem die Umsätze der Märkte
-   (je Markt aufgesplittet) ebenfalls darunter abbilden." Steht in der
-   Verwaltungsansicht direkt unter der Verwaltungskachel.
+/* ---------- Umsatz je Markt ----------
+   Vorgabe Benedikt Paul, 02.09.2026: "Bitte anpassen, sodass immer die KW
+   angezeigt wird. immer diese woche bis gestern, letzte Woche, vorletzte
+   Woche, aufgelaufen jahr."
 
-   Quelle ist wochenreihe_umsatz(). Die Reihe steckt in zwei Quellen: bis
-   zum 13.08.2026 in metrics (Donnerstagswerte), seit dem 19.08. in
-   kennzahlen (Wochenwerte). Die Funktion fuehrt beides zusammen und
-   ueberschreibt bei Ueberschneidung mit dem Berichtswert - so wie am
-   29.08.2026 festgelegt, nachdem vier falsche Wochenumsatz-Alarme durch
-   Tageswerte auf Donnerstagen entstanden waren.
+   Quelle ist umsatz_uebersicht(). Warum eine Datenbankfunktion und keine
+   Rechnung hier: die Zahlen stecken in DREI Quellen mit unterschiedlicher
+   Bedeutung.
 
-   Gezeigt werden die letzten acht Wochen. Die Spalte "gegen Vorwoche" ist
-   die eigentliche Aussage; die absolute Zahl allein sagt wenig, weil die
-   Maerkte um den Faktor 13 auseinanderliegen. */
+     bis 13.08.2026  metrics, Donnerstagswerte = WOCHENwerte
+     ab  19.08.2026  kennzahlen, echte Wochenwerte
+     ab  26.08.2026  metrics, jetzt TAGESwerte (31.579 statt 250.000)
+
+   Wer das in JavaScript zusammensetzt, baut denselben Fehler ein wie am
+   26.08.2026, als vier falsche Wochenumsatz-Alarme entstanden, weil
+   Tageswerte auf Donnerstagen als Wochenwerte gelesen wurden.
+
+   Gegengeprueft am 02.09.2026 gegen den BO-Jahreswert: Billigheim und
+   Steinfeld auf den Euro genau, Freckenfeld 146 EUR und Gossersweiler
+   15 EUR daneben - Rundung im Bericht. */
 function mepKachelUmsatzMaerkte(){
   const r = mepWochenumsatz || [];
   if(!r.length){
     return `<div class="box" style="border-left:4px solid #004f9e">
-      <h2>Wochenumsatz je Markt</h2>
-      <div class="small" style="padding:6px 0;font-style:italic">Keine Umsatzreihe verfügbar.
-        Sie entsteht aus dem wöchentlichen Umsatzbericht; solange keiner eingelesen wurde,
-        bleibt die Kachel leer.</div></div>`;
+      <h2>Umsatz je Markt</h2>
+      <div class="small" style="padding:6px 0;font-style:italic">Keine Umsatzzahlen verfügbar.</div></div>`;
   }
-  const wochen = [...new Set(r.map(x=>String(x.donnerstag)))].sort().slice(-8);
-  const maerkte = [...new Set(r.map(x=>String(x.markt)))].sort();
-  const wert = {};
-  r.forEach(x=>{ wert[x.markt+"|"+String(x.donnerstag)] = Number(x.umsatz)||0; });
-  const de = s => { const t=String(s).split("-"); return t[2]+"."+t[1]+"."; };
+  const zeilen = r.slice().sort((a,b)=>String(a.markt).localeCompare(String(b.markt)));
+  const kwA = zeilen[0].kw_aktuell, kwL = zeilen[0].kw_letzte, kwV = zeilen[0].kw_vorletzte;
 
-  const zeile = (name, holen) => {
-    const zellen = wochen.map((w,idx)=>{
-      const v = holen(w);
-      if(v==null) return `<td style="text-align:right;padding:6px 7px;color:#cbd5e1">–</td>`;
-      const vor = idx>0 ? holen(wochen[idx-1]) : null;
-      let pfeil = "";
-      if(vor!=null && vor>0){
-        const p = (v-vor)/vor*100;
-        const f = p >= 1 ? "#16a34a" : (p <= -1 ? "#c0392b" : "#94a3b8");
-        const z = p >= 1 ? "▲" : (p <= -1 ? "▼" : "→");
-        pfeil = `<span style="display:block;font-size:10.5px;color:${f}">${z} ${
-          p.toLocaleString("de-DE",{maximumFractionDigits:1})} %</span>`;
-      }
-      return `<td style="text-align:right;padding:6px 7px">${mepEur(v)}${pfeil}</td>`;
-    }).join("");
-    return `<tr style="border-top:1px solid #eef3f9"><td style="padding:6px 7px"><b>${mepEsc(name)}</b></td>${zellen}</tr>`;
+  /* Veraenderung nur zwischen ZWEI VOLLEN Wochen. Die laufende Woche hat
+     erst zwei von sechs Tagen - ein Prozentwert daraus waere Unsinn und
+     saehe nach Einbruch aus. */
+  const pfeil = (jetzt, vor) => {
+    if(jetzt==null || vor==null || !(vor>0)) return "";
+    const p=(jetzt-vor)/vor*100;
+    const f = p >= 1 ? "#16a34a" : (p <= -1 ? "#c0392b" : "#94a3b8");
+    const z = p >= 1 ? "\u25b2" : (p <= -1 ? "\u25bc" : "\u2192");
+    return `<span style="display:block;font-size:10.5px;color:${f}">${z} ${
+      p.toLocaleString("de-DE",{maximumFractionDigits:1})} %</span>`;
   };
+  const zelle = (v, zusatz) => v==null
+    ? `<td style="text-align:right;padding:6px 7px;color:#cbd5e1">\u2013</td>`
+    : `<td style="text-align:right;padding:6px 7px">${mepEur(v)}${zusatz||""}</td>`;
 
-  const zeilen = maerkte.map(m => zeile(m, w => wert[m+"|"+w] != null ? wert[m+"|"+w] : null)).join("")
-    + zeile("Alle Märkte", w => {
-        const vs = maerkte.map(m=>wert[m+"|"+w]).filter(v=>v!=null);
-        return vs.length===maerkte.length ? vs.reduce((a,b)=>a+b,0) : null;   // nur wenn alle da sind
-      });
+  const tr = (name, a, tage, l, v, jahr) => `<tr style="border-top:1px solid #eef3f9">
+      <td style="padding:6px 7px"><b>${mepEsc(name)}</b></td>
+      ${zelle(a, tage!=null ? `<span style="display:block;font-size:10.5px;color:#94a3b8">${tage} ${tage===1?"Tag":"Tage"}</span>` : "")}
+      ${zelle(l, pfeil(l, v))}
+      ${zelle(v)}
+      ${zelle(jahr)}</tr>`;
+
+  const koerper = zeilen.map(x => tr(x.markt,
+        x.umsatz_aktuell==null?null:Number(x.umsatz_aktuell), x.tage_aktuell,
+        x.umsatz_letzte==null?null:Number(x.umsatz_letzte),
+        x.umsatz_vorletzte==null?null:Number(x.umsatz_vorletzte),
+        x.umsatz_jahr==null?null:Number(x.umsatz_jahr))).join("");
+
+  /* Summenzeile nur, wenn ALLE Maerkte den jeweiligen Wert haben. Fehlt
+     einer, stuende dort eine zu niedrige Zahl - dieselbe Falle wie bei der
+     Wochenreihe. */
+  const summe = feld => {
+    const w = zeilen.map(x=>x[feld]).filter(v=>v!=null).map(Number);
+    return w.length===zeilen.length ? w.reduce((a,b)=>a+b,0) : null;
+  };
+  const alleTage = [...new Set(zeilen.map(x=>x.tage_aktuell))];
+  const gesamt = tr("Alle Märkte", summe("umsatz_aktuell"),
+                    alleTage.length===1 ? alleTage[0] : null,
+                    summe("umsatz_letzte"), summe("umsatz_vorletzte"), summe("umsatz_jahr"));
 
   return `<div class="box" style="border-left:4px solid #004f9e">
-    <h2>Wochenumsatz je Markt <span style="font-weight:normal;font-size:14px;color:#64748b">letzte ${
-      wochen.length} Wochen</span></h2>
-    <div class="small">Woche endet am angegebenen Donnerstag. Unter jedem Wert die Veränderung
-      gegenüber der Vorwoche. Die Zeile „Alle Märkte“ wird nur gebildet, wenn für die Woche
-      <b>alle vier</b> Märkte vorliegen – sonst stünde dort ein zu niedriger Wert.</div>
+    <h2>Umsatz je Markt</h2>
+    <div class="small">Die laufende Woche zählt <b>bis gestern</b> und ist deshalb unvollständig –
+      die Zahl der erfassten Tage steht darunter. Der Pfeil bei KW ${kwL} vergleicht mit KW ${kwV};
+      für die laufende Woche gibt es bewusst keinen, ein Prozentwert aus einer angebrochenen Woche
+      wäre irreführend.</div>
     <div style="overflow-x:auto">
     <table style="width:100%;border-collapse:collapse;font-size:13.5px;margin-top:12px">
       <thead><tr style="text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">
         <th style="padding:7px">Markt</th>
-        ${wochen.map(w=>`<th style="text-align:right;padding:7px">${de(w)}</th>`).join("")}
-      </tr></thead><tbody>${zeilen}</tbody></table></div></div>`;
+        <th style="text-align:right;padding:7px">KW ${kwA}<br><span style="font-weight:normal;text-transform:none">bis gestern</span></th>
+        <th style="text-align:right;padding:7px">KW ${kwL}<br><span style="font-weight:normal;text-transform:none">letzte Woche</span></th>
+        <th style="text-align:right;padding:7px">KW ${kwV}<br><span style="font-weight:normal;text-transform:none">vorletzte Woche</span></th>
+        <th style="text-align:right;padding:7px">Jahr<br><span style="font-weight:normal;text-transform:none">aufgelaufen</span></th>
+      </tr></thead><tbody>${koerper}${gesamt}</tbody></table></div></div>`;
 }
 
 function mepZeichnen(){
