@@ -593,6 +593,25 @@
       <div id="aktionMsg" class="small" style="margin-top:8px"></div>
     </div>
     <div class="box admin admin-uploads">
+      <h2>💶 Wochenumsatz je Markt (Kreuztabelle)</h2>
+      <div class="small">EDEKA-BO Umsatzbericht als <strong>Kreuztabelle</strong>: Zeilen Jahr und Woche,
+        Spalten die vier Märkte. Kopfzeile mit „Jahr“ und „Woche“ wird gesucht, Ergebniszeilen
+        („2025 Ergebnis“) werden übersprungen.<br>
+        <strong>Wofür:</strong> Das ist die Quelle für die Kachel „Umsatz je Markt“ und für
+        <strong>jeden Vorjahresvergleich</strong>. Ohne diesen Bericht gäbe es Vorjahreswerte nur
+        für einzelne Wochen. Am besten <strong>einmal im Quartal</strong> ab 01.01. des Vorjahres
+        neu ziehen – es wird nur ersetzt, was in der Datei steht.<br>
+        <strong>Die laufende Woche wird verworfen</strong>, auch wenn sie im Export steht: eine
+        Teilwoche als Wochenwert würde den Vorjahresvergleich im Folgejahr verfälschen. Die
+        laufende Woche rechnet die Übersicht aus den Tageswerten.<br>
+        → Tabelle <code>umsatz_woche</code></div>
+      <input id="wochenumsatzFile" type="file" accept=".xlsx,.xls,.xlsm" style="margin-top:10px" />
+      <div style="margin-top:10px">
+        <button class="btn-green" style="width:auto" onclick="uploadWochenumsatz()">Excel einlesen &amp; speichern</button>
+      </div>
+      <div id="wochenumsatzMsg" class="small" style="margin-top:8px"></div>
+    </div>
+    <div class="box admin admin-uploads">
       <h2>📉 Bestandsverlauf je Abteilung (wöchentlich)</h2>
       <div class="small">EDEKA-BO Bericht „Bestandsverlauf“ – eine Datei für alle vier Märkte.
         Enthält je Abteilung und Tag Anfangsbestand, Zugang, Abgang, Endbestand und Veränderung.
@@ -728,7 +747,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.09.02-03"; // Umsatzkachel nach KW: laufende Woche bis gestern, zwei Vorwochen, aufgelaufenes Jahr
+const APP_VERSION = "v2026.09.02-05"; // Wochenumsatz-Importer + Vorjahresvergleich auch fuers Jahr, aus umsatz_woche
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -7875,6 +7894,142 @@ async function uploadAktionsumsatz(){
   input.value = "";
 }
 
+/* ---------- Wochenumsatz je Markt (BO-Kreuztabelle) ----------
+   Neu am 02.09.2026. Benedikt Paul hat den Bericht ueber 01.01.2025 bis
+   heute geliefert; er ist die Quelle fuer die Kachel "Umsatz je Markt" und
+   fuer JEDEN Vorjahresvergleich. Ohne ihn gab es Vorjahreswerte nur fuer
+   drei Wochen und drei Maerkte.
+
+   Aufbau der Datei - Blatt "Kreuztabelle":
+     Kopfzeile  Jahr | Woche | Markt | Gesamtergebnis | vier Marktspalten
+     Zeilen     je Jahr/Woche eine Zeile; Spalte "Markt" traegt die
+                Kennzahl (nicht den Marktnamen), die Maerkte stehen rechts
+                von "Gesamtergebnis" als eigene Spalten.
+     Zwischendrin stehen Ergebniszeilen ("2025 Ergebnis") - die werden
+     uebersprungen, sonst laege die Jahressumme als Woche in der Tabelle.
+
+   TEILWOCHEN WERDEN VERWORFEN. Der Export vom 02.09.2026 enthielt eine
+   Zeile fuer KW 36 mit nur zwei Tagen (Billigheim 73.934 statt ~250.000).
+   Stuende die als Wochenwert in der Tabelle, zeigte der Vorjahresvergleich
+   der KW 36 im Jahr 2027 einen Einbruch von 70 %. Deshalb wird jede Woche
+   verworfen, deren Montag in der laufenden oder einer spaeteren Woche
+   liegt. Die laufende Woche rechnet umsatz_uebersicht() ohnehin aus den
+   Tageswerten in metrics.
+
+   ERSETZT WIRD JE JAHR+KW, nicht die ganze Tabelle. Ein Export ueber vier
+   Wochen laesst alles Aeltere unberuehrt. */
+async function uploadWochenumsatz(){
+  if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
+  const input = document.getElementById("wochenumsatzFile");
+  const msg = document.getElementById("wochenumsatzMsg");
+  if(!input || !input.files || !input.files.length){ alert("Bitte Umsatz-Excel wählen."); return; }
+  msg.style.color = "#0c1f3c"; msg.innerHTML = "Lese Excel …";
+  try{
+    const wb = XLSX.read(await input.files[0].arrayBuffer(), {type:"array"});
+    const datenBlatt = wb.SheetNames.find(n=>/kreuztabelle/i.test(n))
+                    || wb.SheetNames.find(n=>!/filter|metadaten/i.test(n)) || wb.SheetNames[0];
+    /* ZWEIMAL LESEN, roh UND formatiert. Grund, gefunden am 02.09.2026:
+       dieser Bericht formatiert die Zellen ENGLISCH. Der Wert 250.889,29 €
+       steht als Text "250,889" da - Komma als TAUSENDERtrennung. Wer nur
+       raw:false liest, gibt das an zahlAusZelle, die zu Recht deutsch
+       denkt, das Komma als Dezimaltrenner nimmt und 250,889 zurueckgibt:
+       Faktor 1000 zu klein. Die Jahressumme 2025 waere statt 22.400.698 €
+       auf 22.401 € geschrumpft.
+       zahlAusZelle(roh, text) nimmt genau deshalb zwei Werte: die Rohzahl
+       gewinnt, der Text ist nur die Rueckfallebene. */
+    const rows    = XLSX.utils.sheet_to_json(wb.Sheets[datenBlatt], {header:1, defval:null, raw:true});
+    const rowsTxt = XLSX.utils.sheet_to_json(wb.Sheets[datenBlatt], {header:1, defval:null, raw:false});
+
+    // Kopfzeile suchen statt annehmen
+    let kz=-1;
+    for(let i=0;i<Math.min(rows.length,15);i++){
+      const z=(rows[i]||[]).map(c=>String(c==null?"":c).trim().toLowerCase());
+      if(z.includes("jahr") && z.includes("woche")){ kz=i; break; }
+    }
+    if(kz<0){ msg.style.color="#c62828"; msg.innerHTML="✗ Kopfzeile mit „Jahr“ und „Woche“ nicht gefunden. Nichts gespeichert."; return; }
+
+    const kopf = (rows[kz]||[]).map(c=>String(c==null?"":c).trim());
+    const cJahr  = kopf.findIndex(k=>k.toLowerCase()==="jahr");
+    const cWoche = kopf.findIndex(k=>k.toLowerCase()==="woche");
+    const cGes   = kopf.findIndex(k=>/^gesamtergebnis/i.test(k));
+    if(cGes<0){ msg.style.color="#c62828"; msg.innerHTML="✗ Spalte „Gesamtergebnis“ nicht gefunden – ohne sie lassen sich die Marktspalten nicht abgrenzen."; return; }
+    const maerkte = {};
+    for(let i=cGes+1;i<kopf.length;i++){ if(kopf[i]) maerkte[i]=kopf[i]; }
+    if(!Object.keys(maerkte).length){ msg.style.color="#c62828"; msg.innerHTML="✗ Keine Markt-Spalten rechts von „Gesamtergebnis“."; return; }
+
+    /* Grenze fuer Teilwochen: der Montag der laufenden Woche. Alles ab
+       hier ist noch nicht abgeschlossen. */
+    const heute = new Date();
+    const mo = new Date(Date.UTC(heute.getFullYear(), heute.getMonth(), heute.getDate()));
+    mo.setUTCDate(mo.getUTCDate() - ((mo.getUTCDay()||7) - 1));
+    const grenze = isoKalenderwoche(mo.toISOString().slice(0,10));
+
+    const saetze=[]; const wochen=new Set(); let uebersprungen=0, teilwochen=[];
+    for(let i=kz+1;i<rows.length;i++){
+      const r=rows[i]||[], rT=rowsTxt[i]||[];
+      const jahrTxt = String(r[cJahr]==null?"":r[cJahr]).trim();
+      const kwTxt   = String(r[cWoche]==null?"":r[cWoche]).trim();
+      const jahr = parseInt(jahrTxt,10), kw = parseInt(kwTxt,10);
+      // Ergebniszeilen ("2025 Ergebnis") und Leerzeilen fallen hier raus
+      if(!(jahr>=2000 && jahr<=2100) || !(kw>=1 && kw<=53)){ if(jahrTxt||kwTxt) uebersprungen++; continue; }
+      if(jahr>grenze.jahr || (jahr===grenze.jahr && kw>=grenze.kw)){
+        teilwochen.push(`KW ${kw}/${jahr}`); continue;
+      }
+      wochen.add(jahr+"-"+kw);
+      for(const sp of Object.keys(maerkte)){
+        const w=zahlAusZelle(r[sp], rT[sp]);
+        if(w!=null && w>0) saetze.push({jahr:jahr, kw:kw, markt:maerkte[sp], umsatz:Math.round(w*100)/100});
+      }
+    }
+    if(!saetze.length){ msg.style.color="#b45309"; msg.innerHTML="⚠ Keine abgeschlossene Woche in der Datei. Nichts gespeichert."; return; }
+
+    // Je Woche ersetzen - aeltere und juengere Wochen bleiben unberuehrt
+    msg.innerHTML = `Speichere ${saetze.length.toLocaleString("de-DE")} Werte …`;
+    for(const w of wochen){
+      const [j,k] = w.split("-").map(Number);
+      const del = await db.from("umsatz_woche").delete().eq("jahr",j).eq("kw",k);
+      if(del.error) throw del.error;
+    }
+    for(let i=0;i<saetze.length;i+=500){
+      const {error} = await db.from("umsatz_woche").insert(saetze.slice(i,i+500));
+      if(error) throw error;
+    }
+
+    /* Kontrollsumme: gezaehlt wird genau der Ausschnitt, der geloescht
+       wurde. NICHT mit .in("jahr",[…]).in("kw",[…]) - das ist ein
+       Kreuzprodukt und zaehlt bei einer Datei mit 2025 KW 1 und 2026 KW 5
+       auch 2025 KW 5 und 2026 KW 1 mit. Genau dieser Fehlertyp hat am
+       01.09.2026 zwei falsche Kontrollsummen erzeugt. Also je Woche
+       einzeln zaehlen und aufsummieren. */
+    let ist = 0, zaehlFehler = null;
+    for(const w of wochen){
+      const [j,kwz] = w.split("-").map(Number);
+      const {count, error} = await db.from("umsatz_woche")
+        .select("*", {count:"exact", head:true}).eq("jahr",j).eq("kw",kwz);
+      if(error){ zaehlFehler = error.message; break; }
+      ist += Number(count||0);
+    }
+    const k = zaehlFehler
+      ? {tabelle:"umsatz_woche", soll:saetze.length, ist:null, ok:false, fehler:zaehlFehler}
+      : {tabelle:"umsatz_woche", soll:saetze.length, ist:ist, ok: ist === saetze.length};
+
+    const summe = saetze.reduce((a,b)=>a+b.umsatz,0);
+    const jahrListe = [...new Set([...wochen].map(w=>w.split("-")[0]))].sort();
+    msg.style.color = k.ok ? "#15803d" : "#b91c1c";
+    msg.innerHTML = `${k.ok?"✅":"⚠"} <b>${saetze.length.toLocaleString("de-DE")}</b> Werte gespeichert · `
+      + `<b>${wochen.size}</b> Wochen (${jahrListe.join(", ")}) · `
+      + `Summe ${mepEur(summe)} · Märkte: ${Object.values(maerkte).join(", ")}`
+      + kontrollzeile(k, `Wochenumsatz ${jahrListe.join(", ")}`)
+      + (teilwochen.length ? `<div style="color:#b45309;margin-top:4px">⚠ Nicht abgeschlossen und deshalb verworfen: ${teilwochen.join(", ")}. `
+          + `Die laufende Woche rechnet die Übersicht aus den Tageswerten.</div>` : "")
+      + (uebersprungen ? `<div class="small" style="color:#64748b">${uebersprungen} Ergebnis-/Leerzeilen übersprungen.</div>` : "");
+    input.value = "";
+  }catch(e){
+    msg.style.color = "#c62828";
+    msg.innerHTML = "✗ " + escapeHtml(e.message||String(e));
+  }
+}
+
 async function uploadScanquote(){
   if(!adminUnlocked){ alert("Admin-PIN erforderlich."); return; }
   const input = document.getElementById("scanquoteFile");
@@ -10781,9 +10936,14 @@ function mepKachelTrend(){
    angezeigt wird. immer diese woche bis gestern, letzte Woche, vorletzte
    Woche, aufgelaufen jahr."
 
-   Quelle ist umsatz_uebersicht(). Warum eine Datenbankfunktion und keine
-   Rechnung hier: die Zahlen stecken in DREI Quellen mit unterschiedlicher
-   Bedeutung.
+   Quelle ist umsatz_uebersicht(). Die abgeschlossenen Wochen und ALLE
+   Vorjahreswerte kommen seit 02.09.2026 aus der Tabelle umsatz_woche - dem
+   BO-Export ueber 01.01.2025 bis heute, den Benedikt Paul geliefert hat.
+   Nur die laufende Woche wird aus den Tageswerten in metrics gerechnet,
+   weil der Export eine Momentaufnahme ist und die Tageswerte nachlaufen.
+
+   Davor musste die Reihe aus DREI Quellen mit unterschiedlicher Bedeutung
+   zusammengesetzt werden:
 
      bis 13.08.2026  metrics, Donnerstagswerte = WOCHENwerte
      ab  19.08.2026  kennzahlen, echte Wochenwerte
@@ -10791,11 +10951,14 @@ function mepKachelTrend(){
 
    Wer das in JavaScript zusammensetzt, baut denselben Fehler ein wie am
    26.08.2026, als vier falsche Wochenumsatz-Alarme entstanden, weil
-   Tageswerte auf Donnerstagen als Wochenwerte gelesen wurden.
+   Tageswerte auf Donnerstagen als Wochenwerte gelesen wurden. Deshalb
+   bleibt die Rechnung in der Datenbank.
 
-   Gegengeprueft am 02.09.2026 gegen den BO-Jahreswert: Billigheim und
-   Steinfeld auf den Euro genau, Freckenfeld 146 EUR und Gossersweiler
-   15 EUR daneben - Rundung im Bericht. */
+   ZWEI GEGENPROBEN am 02.09.2026:
+   - Summe 2025 ueber alle Maerkte = 22.400.698 EUR, auf den Euro genau die
+     Ergebniszeile des Berichts.
+   - KW 36 aus metrics (Mo+Di, 73.935 EUR Billigheim) deckt sich mit der
+     Teilwoche im Export (73.934,40) - zwei unabhaengige Wege, ein Wert. */
 function mepKachelUmsatzMaerkte(){
   const r = mepWochenumsatz || [];
   if(!r.length){
@@ -10805,53 +10968,74 @@ function mepKachelUmsatzMaerkte(){
   }
   const zeilen = r.slice().sort((a,b)=>String(a.markt).localeCompare(String(b.markt)));
   const kwA = zeilen[0].kw_aktuell, kwL = zeilen[0].kw_letzte, kwV = zeilen[0].kw_vorletzte;
+  const kwJ = zeilen[0].kw_jahr_bis;
 
-  /* Veraenderung nur zwischen ZWEI VOLLEN Wochen. Die laufende Woche hat
-     erst zwei von sechs Tagen - ein Prozentwert daraus waere Unsinn und
-     saehe nach Einbruch aus. */
-  const pfeil = (jetzt, vor) => {
-    if(jetzt==null || vor==null || !(vor>0)) return "";
-    const p=(jetzt-vor)/vor*100;
-    const f = p >= 1 ? "#16a34a" : (p <= -1 ? "#c0392b" : "#94a3b8");
-    const z = p >= 1 ? "\u25b2" : (p <= -1 ? "\u25bc" : "\u2192");
-    return `<span style="display:block;font-size:10.5px;color:${f}">${z} ${
-      p.toLocaleString("de-DE",{maximumFractionDigits:1})} %</span>`;
+  /* FARBREGEL - Vorgabe Benedikt Paul, 02.09.2026:
+     "Alle negativen werte immer rot, grau bis +2% und grün über 2%".
+     Also: jedes Minus ist rot, auch -0,1 %. Kein Toleranzband nach unten. */
+  const farbe = p => p < 0 ? "#c0392b" : (p <= 2 ? "#94a3b8" : "#16a34a");
+  const zeichen = p => p < 0 ? "\u25bc" : (p <= 2 ? "\u2192" : "\u25b2");
+
+  /* Vorjahresvergleich. Fehlt der Vorjahreswert, steht nichts da - nicht
+     "0 %". Die Datenbank sperrt ihn fuer Maerkte, die im Vorjahr nicht
+     durchgaengig liefen - das trifft Gossersweiler-Stein, dort gibt es 2025
+     nur 10 Wochen. Vorgabe Benedikt Paul 27.08.2026: "Ignorieren." */
+  const vjZeile = (ist, vj) => {
+    if(ist==null || vj==null || !(vj>0)) return "";
+    const p=(ist-vj)/vj*100;
+    return `<span style="display:block;font-size:10.5px;color:${farbe(p)}">${zeichen(p)} ${
+      p.toLocaleString("de-DE",{minimumFractionDigits:1,maximumFractionDigits:1})} % ggü. Vj</span>`;
   };
   const zelle = (v, zusatz) => v==null
     ? `<td style="text-align:right;padding:6px 7px;color:#cbd5e1">\u2013</td>`
     : `<td style="text-align:right;padding:6px 7px">${mepEur(v)}${zusatz||""}</td>`;
 
-  const tr = (name, a, tage, l, v, jahr) => `<tr style="border-top:1px solid #eef3f9">
+  const tr = (name, x) => `<tr style="border-top:1px solid #eef3f9">
       <td style="padding:6px 7px"><b>${mepEsc(name)}</b></td>
-      ${zelle(a, tage!=null ? `<span style="display:block;font-size:10.5px;color:#94a3b8">${tage} ${tage===1?"Tag":"Tage"}</span>` : "")}
-      ${zelle(l, pfeil(l, v))}
-      ${zelle(v)}
-      ${zelle(jahr)}</tr>`;
+      ${zelle(x.a, x.tage!=null ? `<span style="display:block;font-size:10.5px;color:#94a3b8">${
+          x.tage} ${x.tage===1?"Tag":"Tage"}</span>` : "")}
+      ${zelle(x.l, vjZeile(x.l, x.lvj))}
+      ${zelle(x.v, vjZeile(x.v, x.vvj))}
+      ${zelle(x.jahr, vjZeile(x.jahr, x.jvj))}</tr>`;
 
-  const koerper = zeilen.map(x => tr(x.markt,
-        x.umsatz_aktuell==null?null:Number(x.umsatz_aktuell), x.tage_aktuell,
-        x.umsatz_letzte==null?null:Number(x.umsatz_letzte),
-        x.umsatz_vorletzte==null?null:Number(x.umsatz_vorletzte),
-        x.umsatz_jahr==null?null:Number(x.umsatz_jahr))).join("");
+  const z = x => ({
+    a: x.umsatz_aktuell==null?null:Number(x.umsatz_aktuell), tage: x.tage_aktuell,
+    l: x.umsatz_letzte==null?null:Number(x.umsatz_letzte),
+    lvj: x.vj_letzte==null?null:Number(x.vj_letzte),
+    v: x.umsatz_vorletzte==null?null:Number(x.umsatz_vorletzte),
+    vvj: x.vj_vorletzte==null?null:Number(x.vj_vorletzte),
+    jahr: x.umsatz_jahr==null?null:Number(x.umsatz_jahr),
+    jvj: x.vj_jahr==null?null:Number(x.vj_jahr)
+  });
+  const koerper = zeilen.map(x => tr(x.markt, z(x))).join("");
 
-  /* Summenzeile nur, wenn ALLE Maerkte den jeweiligen Wert haben. Fehlt
-     einer, stuende dort eine zu niedrige Zahl - dieselbe Falle wie bei der
-     Wochenreihe. */
+  /* Summenzeile nur, wenn ALLE Maerkte den Wert haben. Fehlt einer, stuende
+     dort eine zu niedrige Zahl. Beim Vorjahr trifft das immer zu, weil
+     Gossersweiler keines hat - dort bleibt die Vj-Zeile deshalb leer. */
   const summe = feld => {
     const w = zeilen.map(x=>x[feld]).filter(v=>v!=null).map(Number);
     return w.length===zeilen.length ? w.reduce((a,b)=>a+b,0) : null;
   };
   const alleTage = [...new Set(zeilen.map(x=>x.tage_aktuell))];
-  const gesamt = tr("Alle Märkte", summe("umsatz_aktuell"),
-                    alleTage.length===1 ? alleTage[0] : null,
-                    summe("umsatz_letzte"), summe("umsatz_vorletzte"), summe("umsatz_jahr"));
+  const gesamt = tr("Alle Märkte", {
+    a: summe("umsatz_aktuell"), tage: alleTage.length===1 ? alleTage[0] : null,
+    l: summe("umsatz_letzte"),  lvj: summe("vj_letzte"),
+    v: summe("umsatz_vorletzte"), vvj: summe("vj_vorletzte"),
+    jahr: summe("umsatz_jahr"), jvj: summe("vj_jahr")
+  });
 
   return `<div class="box" style="border-left:4px solid #004f9e">
     <h2>Umsatz je Markt</h2>
     <div class="small">Die laufende Woche zählt <b>bis gestern</b> und ist deshalb unvollständig –
-      die Zahl der erfassten Tage steht darunter. Der Pfeil bei KW ${kwL} vergleicht mit KW ${kwV};
-      für die laufende Woche gibt es bewusst keinen, ein Prozentwert aus einer angebrochenen Woche
-      wäre irreführend.</div>
+      die Zahl der erfassten Tage steht darunter.
+      <b>Unter den Wochenwerten steht die Abweichung zum Vorjahr</b>
+      (<span style="color:#c0392b">rot</span> im Minus,
+       <span style="color:#94a3b8">grau</span> bis +2 %,
+       <span style="color:#16a34a">grün</span> darüber).<br>
+      Das <b>Jahr läuft bis einschließlich KW ${kwJ}</b> – die laufende Woche ist darin
+      <i>nicht</i> enthalten, sonst stünden zwei zusätzliche Tage gegen ein Vorjahr ohne sie.<br>
+      Kein Vorjahr gibt es für die <b>laufende Woche</b> – zwei Tage gegen eine volle Woche
+      wäre kein Vergleich. Und <b>Gossersweiler-Stein</b> lief 2025 noch nicht durchgängig.</div>
     <div style="overflow-x:auto">
     <table style="width:100%;border-collapse:collapse;font-size:13.5px;margin-top:12px">
       <thead><tr style="text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">
@@ -10859,7 +11043,7 @@ function mepKachelUmsatzMaerkte(){
         <th style="text-align:right;padding:7px">KW ${kwA}<br><span style="font-weight:normal;text-transform:none">bis gestern</span></th>
         <th style="text-align:right;padding:7px">KW ${kwL}<br><span style="font-weight:normal;text-transform:none">letzte Woche</span></th>
         <th style="text-align:right;padding:7px">KW ${kwV}<br><span style="font-weight:normal;text-transform:none">vorletzte Woche</span></th>
-        <th style="text-align:right;padding:7px">Jahr<br><span style="font-weight:normal;text-transform:none">aufgelaufen</span></th>
+        <th style="text-align:right;padding:7px">Jahr<br><span style="font-weight:normal;text-transform:none">KW 1–${kwJ}</span></th>
       </tr></thead><tbody>${koerper}${gesamt}</tbody></table></div></div>`;
 }
 
