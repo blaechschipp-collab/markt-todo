@@ -747,7 +747,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.09.02-06"; // laufende Woche mit Entwicklung ggue. denselben Wochentagen der Vorwoche
+const APP_VERSION = "v2026.09.02-07"; // Wochenumsatz schreibt sich aus dem Wochencheck selbst fort (Sonntag steckt in der Wochensumme)
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -7107,11 +7107,35 @@ async function uploadUmsatzWoche(){
         <div class="small" style="margin-left:12px;color:#475569">Umsatz je Markt:
         ${maerkte.map(m=>`${escapeHtml(m.name)} ${sollUmsatz[m.name]!=null?Math.round(sollUmsatz[m.name]).toLocaleString("de-DE")+" €":"–"}`).join(" · ")}</div></div>`);
     }
+    /* Wochenumsatz fortschreiben. Der Wochencheck traegt unter
+       "Gesamtergebnis" die volle Wochensumme je Markt - EINSCHLIESSLICH
+       Sonntag, den es als Tageswert nicht gibt. Benedikt Paul, 02.09.2026:
+       "der Sonntag kommt montags als differenz zwischen den einzeltagen
+       und der Wochensumme." Genau so ist es; nachgerechnet fuer KW 34 und
+       35, Abweichung zum BO-Export 0,00 EUR in allen acht Faellen.
+       Die Funktion ERGAENZT nur und ueberschreibt nie - der Export ist die
+       genauere Quelle. */
+    let fortschreibung = "";
+    if(gesamt){
+      const fs = await db.rpc("umsatz_woche_fortschreiben");
+      if(fs.error){
+        fortschreibung = `<div style="color:#b45309;margin-top:6px">⚠ Wochenumsatz nicht fortgeschrieben:
+          ${escapeHtml(fs.error.message)}</div>`;
+      }else{
+        const neu = (fs.data||[]).filter(r=>r.r_aktion==="neu eingetragen");
+        fortschreibung = `<div class="small" style="margin-top:6px;color:#0369a1">Wochenumsatz:
+          <b>${neu.length}</b> neue Werte in <code>umsatz_woche</code>`
+          + (neu.length ? ` (${[...new Set(neu.map(r=>"KW "+r.r_kw))].join(", ")})` : "")
+          + ` · ${(fs.data||[]).length - neu.length} standen schon drin.</div>`;
+      }
+    }
+
     msg.style.color = gesamt ? "#15803d" : "#c62828";
     const {count}=await db.from("kennzahlen").select("*",{count:"exact",head:true});
     msg.innerHTML = bericht.join("")
       + `<div style="margin-top:6px">Insgesamt <b>${gesamt.toLocaleString("de-DE")}</b> Werte gespeichert.
-         In <code>kennzahlen</code> stehen jetzt <b>${(count||0).toLocaleString("de-DE")}</b> Zeilen.</div>`;
+         In <code>kennzahlen</code> stehen jetzt <b>${(count||0).toLocaleString("de-DE")}</b> Zeilen.</div>`
+      + fortschreibung;
     input.value="";
   }catch(e){
     msg.style.color="#c62828";
