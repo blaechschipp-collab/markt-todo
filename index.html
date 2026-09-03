@@ -750,7 +750,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.09.02-09"; // Wochenumsatz-Kreuztabelle wird automatisch erkannt (lief sonst in den falschen Importer)
+const APP_VERSION = "v2026.09.03-01"; // Wochenabsatz wird je Markt gerechnet (lief mit allen vier in den 3-s-Timeout, KW 34 fehlte)
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -7912,17 +7912,35 @@ async function uploadAktionsumsatz(){
         + kontrollzeile(k, `Aktionsumsatz KW ${kw}/${jahr}`);
 
       // Wochenabsatz sofort neu rechnen - sonst bliebe der alte, verfaelschte Stand
+      /* JE MARKT, nicht alle vier auf einmal (03.09.2026). Mit allen vier
+         brauchte die Datenbankfunktion 5,3 s, spaeter mit Index 2,2 s - die
+         anonyme Rolle hat 3 s. Am 02.09. brach sie deshalb ab, KW 34 fehlte
+         in article_sales_weekly, und niemand hat es gesehen, weil die Meldung
+         unter den gruenen Kontrollsummen stand. Je Markt sind es rund 0,9 s
+         fuer Billigheim, weniger fuer die anderen. Ein Markt, der scheitert,
+         wird einzeln genannt - die anderen drei sind dann trotzdem gerechnet. */
       if(k.ok){
-        const r2 = await db.rpc("wochenabsatz_berechnen", {p_jahr: jahr, p_kw: kw});
-        if(r2.error){
-          zeile += `<div style="color:#b45309;margin-left:12px">⚠ Wochenabsatz nicht gerechnet: ${escapeHtml(r2.error.message)}</div>`;
-        }else{
+        const summe = {geschrieben:0, geloescht:0, in_aktion:0, tage:null};
+        const fehler = [];
+        for(const m of Object.values(maerkte)){
+          const r2 = await db.rpc("wochenabsatz_berechnen", {p_jahr: jahr, p_kw: kw, p_markt: m});
+          if(r2.error){ fehler.push(`${m}: ${r2.error.message}`); continue; }
           const e = Array.isArray(r2.data) ? r2.data[0] : r2.data;
-          zeile += `<div class="small" style="margin-left:12px;color:#0369a1">Wochenabsatz neu gerechnet: `
-            + `<b>${(e.geschrieben||0).toLocaleString("de-DE")}</b> Artikel-Markt-Werte aus <b>${e.tage||0}</b> Tagen`
-            + (e.geloescht ? ` (${e.geloescht.toLocaleString("de-DE")} alte Werte ersetzt)` : "")
-            + ` · ${(e.in_aktion||0).toLocaleString("de-DE")} wegen Aktion übersprungen`
-            + (e.tage < 6 ? ` — <b style="color:#b45309">nur ${e.tage} Tage, die Woche ist untererfasst</b>` : "")
+          if(!e) continue;
+          summe.geschrieben += e.geschrieben||0;
+          summe.geloescht   += e.geloescht||0;
+          summe.in_aktion   += e.in_aktion||0;
+          summe.tage = summe.tage==null ? (e.tage||0) : Math.min(summe.tage, e.tage||0);
+        }
+        if(fehler.length){
+          zeile += `<div style="color:#b45309;margin-left:12px"><b>⚠ WOCHENABSATZ NICHT GERECHNET</b> für ${fehler.length} von ${Object.keys(maerkte).length} Märkten: ${escapeHtml(fehler.join(" · "))}</div>`;
+        }
+        if(summe.geschrieben || !fehler.length){
+          zeile += `<div class="small" style="margin-left:12px;color:#0369a1">Wochenabsatz neu gerechnet (je Markt): `
+            + `<b>${summe.geschrieben.toLocaleString("de-DE")}</b> Artikel-Markt-Werte aus <b>${summe.tage||0}</b> Tagen`
+            + (summe.geloescht ? ` (${summe.geloescht.toLocaleString("de-DE")} alte Werte ersetzt)` : "")
+            + ` · ${summe.in_aktion.toLocaleString("de-DE")} wegen Aktion übersprungen`
+            + ((summe.tage||0) < 6 ? ` — <b style="color:#b45309">nur ${summe.tage||0} Tage, die Woche ist untererfasst</b>` : "")
             + `</div>`;
         }
       }
