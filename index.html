@@ -750,7 +750,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.09.04-02"; // Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
+const APP_VERSION = "v2026.09.04-03"; // Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -11788,7 +11788,7 @@ const MEP_TF_KENNZAHLEN=[
   {id:"abschrift",   text:"Abschrift", hochIstGut:false,
    wert:x=>{ const f=mepFlopWerte(x); return f ? (mepFlopMass==="euro"?f.verlust:f.anteil) : null; },
    gross:x=>{ const f=mepFlopWerte(x); return f ? (mepFlopMass==="euro"?mepEur(f.verlust):mepPrz(f.anteil)) : "–"; },
-   klein:x=>{ const f=mepFlopWerte(x); return f ? (mepFlopMass==="euro"?mepPrz(f.anteil)+" vom Umsatz":mepEur(f.verlust)) : "kein Verlust"; }}
+   klein:x=>{ const f=mepFlopWerte(x); return f ? (mepFlopMass==="euro"?mepPrz(f.anteil)+" vom Umsatz":mepEur(f.verlust))+(f.gemeldet?"":" ~") : "kein Verlust"; }}
 ];
 const mepTfKennzahl=()=>MEP_TF_KENNZAHLEN.find(k=>k.id===mepSort)||MEP_TF_KENNZAHLEN[3];
 /* Grundmenge: alle Artikel des berechtigten Bereichs im gewaehlten Zeitraum,
@@ -11834,7 +11834,12 @@ function mepKachelTopFlop(){
   const {alle,liste,kennzahl}=mepTfListe();
   const zeig=liste.slice(0,12);
   const top=mepRichtung==="top";
-  const gemeldet=zeig.length&&mepSort==="abschrift"&&mepFlopWerte(zeig[0])&&mepFlopWerte(zeig[0]).gemeldet;
+  /* Gemeldet oder gerechnet - je Artikel, nicht je Liste (04.09.2026): der
+     Quartalsbericht liefert Abschriften nur fuer einen Teil der Artikel
+     (Billigheim 2.419 von 22.356), die Tagesberichte fuer keinen. */
+  const nGem=mepSort==="abschrift"?liste.filter(x=>{const f=mepFlopWerte(x); return f&&f.gemeldet;}).length:0;
+  const nGer=mepSort==="abschrift"?liste.length-nGem:0;
+  const gemeldet=nGem>0&&nGer===0;
   /* Kacheln zum Anklicken (Vorgabe 04.09.2026) - keine Auswahlfelder fuer
      Richtung und Kennzahl. Aktiv: blau (Renner) bzw. rot (Penner) gefuellt. */
   const farbe=top?"#004f9e":"#b91c1c";
@@ -11875,13 +11880,15 @@ function mepKachelTopFlop(){
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">
       ${MEP_TF_KENNZAHLEN.map(k=>kachel(mepSort===k.id,`mepSetzeSort('${k.id}')`,k.text,
-        k.id==="abschrift"?(gemeldet?"gemeldet":"gerechnet"):"")).join("")}
+        k.id==="abschrift"?(mepSort==="abschrift"?(nGer===0?"gemeldet":nGem===0?"gerechnet":`${mepZahl(nGem)} gemeldet · ${mepZahl(nGer)} gerechnet`):"gemeldet oder gerechnet"):"")).join("")}
     </div>
     ${mepSort==="abschrift"?`<div style="display:flex;gap:6px;align-items:center;margin:2px 0 8px">
       ${massKnopf(mepFlopMass==="anteil","mepSetzeFlopMass('anteil')","Anteil am VK brutto")}
       ${massKnopf(mepFlopMass==="euro","mepSetzeFlopMass('euro')","Betrag in Euro")}
       <span class="small">${gemeldet
         ? "Gemeldete Abschriften je Artikel aus dem Quartalsbericht – der Anteil ist die Kennzahl „Ant. Abschr. VK [br] am Umsatz %“."
+        : nGem>0
+        ? `<b>${mepZahl(nGem)} gemeldet, ${mepZahl(nGer)} gerechnet (mit „~“):</b> der Quartalsbericht liefert Abschriften nur für einen Teil der Artikel; für die übrigen wird der Spannenverlust gerechnet (Umsatz- minus Nettoertragsspanne).`
         : "<b>Gerechnet, nicht gemeldet:</b> die Tagesberichte liefern keine Abschriften je Artikel. Gezeigt wird der Spannenverlust (Umsatz- minus Nettoertragsspanne) – er enthält Abschriften, Inventur und Rechnungsprüfung zusammen."}</span>
     </div>`:""}
     <div id="mepTopFlopListe">
