@@ -750,7 +750,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.09.04-01"; // Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
+const APP_VERSION = "v2026.09.04-02"; // Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -9068,7 +9068,7 @@ function mepAbmelden(){
   mepWerbungErledigt={}; mepWerbungKW=null; mepScanWochen=[];
   mepPerioden={kennzahlen:[],artikel:[],spannen:[],abschriften:[]};
   mepErledigtHeute=new Set(); mepStand=null;
-  mepArtAbteilung=""; mepArtRegal=""; mepTfZeitraum="woche"; mepRichtung="top"; mepSort="abschrift";
+  mepArtAbteilung=""; mepArtRegal=""; mepTfZeitraum="woche"; mepRichtung="flop"; mepSort="abschrift";
   document.getElementById("mepTor").style.display="block";
   document.getElementById("mepInhalt").style.display="none";
 }
@@ -9200,10 +9200,12 @@ let mepTfZeitraum="woche";
 async function mepArtikelZeitraumLaden(abt){
   const a=abt||mepAbteilungen();
   if(!a.length||mepIstHausmeister()||mepAlleMaerkte()) return [];
-  return fetchAllPaged(()=>db.rpc("artikel_zeitraum",
-      {p_markt:mepMk(), p_zeitraum:mepTfZeitraum, p_abteilungen:a})
-    .select("sap_artnr,bezeichnung,abteilung,umsatz,menge,umsatzsp,nettoertragssp,warenrohgewinn,abschr_vk_br,vollabschr_vk_br,vk_umbew_br,periode_von,periode_bis,tage,quelle")
-    .order("sap_artnr"));
+  /* Als JSON in EINER Antwort: seitenweise wuerde die Datenbank die Summen
+     je Seite neu rechnen (14 Seiten = 14 Berechnungen, gemessen 18 s Serverzeit). */
+  const {data,error}=await db.rpc("artikel_zeitraum_json",
+      {p_markt:mepMk(), p_zeitraum:mepTfZeitraum, p_abteilungen:a});
+  if(error) throw error;
+  return Array.isArray(data)?data:[];
 }
 async function mepSetzeTfZeitraum(id){
   mepTfZeitraum=id;
@@ -9268,10 +9270,11 @@ async function mepNeuLaden(){
        einen doppelt eingelesenen Lauf. Fuer Freckenfeld standen dadurch
        41.371 offene Positionen da, tatsaechlich sind es 2.984 Artikel.
        Die Sicht zeigt je Listenart nur den juengsten Lauf, jeden Artikel einmal. */
+    /* dispo_offen_json (04.09.2026): die Sicht einmal rechnen und als JSON
+       liefern - seitenweise wurde sie je Seite neu gerechnet (8 x 1 s). */
     mepIstHausmeister() ? Promise.resolve([])
-      : fetchAllPaged(()=>mepFiltMarkt(db.from("dispo_offen_aktuell")
-          .select("markt,id,bereich,abteilung,artikelnr,ean,bezeichnung,rolle,listenart,upload_date,regal_nr,regal_platz,anmerkung"),"markt")
-          .order("id")),
+      : db.rpc("dispo_offen_json",{p_maerkte: alleM ? mepMarktListe() : [mepMk()]})
+          .then(r=>{ if(r.error) throw r.error; return Array.isArray(r.data)?r.data:[]; }),
     /* Aufgaben: ALLE des Marktes, nicht nur die offenen. Welche gelten,
        entscheidet taskApplies je Datum - genau wie im Reiter ToDo. Der Filter
        auf done=false war falsch: wiederkehrende Aufgaben stehen dort dauerhaft
@@ -11629,9 +11632,11 @@ function mepKachelSpannen(){
    je Abteilung und die Aufteilung des Verlusts in Abschriften und Inventur -
    beides erscheint, wenn die Kennzahl "Abschrift" gewaehlt ist.
 
-   RENNER/PENNER heisst nur: hoechster Wert oben oder niedrigster Wert oben.
-   Ob "hoch" gut ist, haengt von der Kennzahl ab - bei Abschriften sind die
-   "Renner" die Artikel, die am meisten kosten.
+   RENNER/PENNER heisst: die BESTEN oben oder die SCHLECHTESTEN oben. Was
+   "gut" ist, haengt von der Kennzahl ab: viel Umsatz, viel Menge, hohe
+   Nettoertragsspanne sind gut - viel Abschrift ist schlecht. Erste Fassung
+   vom 04.09. sortierte stur nach Hoehe; Benedikt Paul: "Penner Abschrift
+   kommen die besten" - korrigiert am selben Tag.
 
    WAS DIE ZAHLEN SIND: Die Artikelzeilen kommen aus artikel_zeitraum() in
    der Datenbank. Woche und Monat sind aus den Tagesberichten summiert; die
@@ -11639,8 +11644,13 @@ function mepKachelSpannen(){
    Abschrift als Spannenverlust gerechnet (siehe mepFlopWerte). Der
    Quartalsbericht liefert gemeldete Abschriften je Artikel. Die Kachel sagt
    jeweils dazu, was sie zeigt. */
-let mepRichtung="top";        // "top" = Renner (hoechster Wert oben), "flop" = Penner
+let mepRichtung="flop";       // "top" = Renner (die Besten oben), "flop" = Penner (die Schlechtesten oben)
 let mepSort="abschrift";      // umsatz | menge | nettoertrag | abschrift
+/* Standard "Penner nach Abschrift": die Artikel mit der hoechsten Abschrift
+   der letzten Woche oben. Die Vorgabe vom 04.09. sagte "Renner nach
+   Abschriften"; mit der Bedeutung Renner = die Besten waeren das die Artikel
+   mit der GERINGSTEN Abschrift - das will morgens niemand sehen. Falls doch:
+   hier "top" eintragen. */
 let mepArtAbteilung="", mepArtRegal="";
 function mepSetzeRichtung(r){ mepRichtung=r; mepZeichnen(); }
 function mepSetzeSort(s){ mepSort=s; mepZeichnen(); }
@@ -11766,16 +11776,16 @@ function mepVerlustAufteilung(){
 /* Kennzahlen der Kachel. wert() liefert die Zahl, nach der sortiert wird,
    gross() und klein() die Anzeige. null = fuer diesen Artikel nicht bestimmbar. */
 const MEP_TF_KENNZAHLEN=[
-  {id:"umsatz",      text:"Umsatz",
+  {id:"umsatz",      text:"Umsatz", hochIstGut:true,
    wert:x=>x.umsatz!=null?Number(x.umsatz):null,
    gross:x=>mepEur(x.umsatz), klein:x=>mepZahl(x.menge)+" St"},
-  {id:"menge",       text:"Menge",
+  {id:"menge",       text:"Menge", hochIstGut:true,
    wert:x=>x.menge!=null?Number(x.menge):null,
    gross:x=>mepZahl(x.menge)+" St", klein:x=>mepEur(x.umsatz)},
-  {id:"nettoertrag", text:"Nettoertrag",
+  {id:"nettoertrag", text:"Nettoertrag", hochIstGut:true,
    wert:x=>x.nettoertragssp!=null?Number(x.nettoertragssp):null,
    gross:x=>mepPrz(x.nettoertragssp), klein:x=>`Umsatzsp. ${mepPrz(x.umsatzsp)} · ${mepEur(x.umsatz)}`},
-  {id:"abschrift",   text:"Abschrift",
+  {id:"abschrift",   text:"Abschrift", hochIstGut:false,
    wert:x=>{ const f=mepFlopWerte(x); return f ? (mepFlopMass==="euro"?f.verlust:f.anteil) : null; },
    gross:x=>{ const f=mepFlopWerte(x); return f ? (mepFlopMass==="euro"?mepEur(f.verlust):mepPrz(f.anteil)) : "–"; },
    klein:x=>{ const f=mepFlopWerte(x); return f ? (mepFlopMass==="euro"?mepPrz(f.anteil)+" vom Umsatz":mepEur(f.verlust)) : "kein Verlust"; }}
@@ -11790,7 +11800,21 @@ function mepTfListe(){
   const roh=(mepArtikel||[]).filter(x=>(!mepArtAbteilung||x.abteilung===mepArtAbteilung)
                                      &&(!mepArtRegal||x.regal_nr===mepArtRegal));
   const mit=roh.map(x=>({...x, w:k.wert(x)})).filter(x=>x.w!=null&&isFinite(x.w));
-  mit.sort((a,b)=> mepRichtung==="top" ? b.w-a.w : a.w-b.w);
+  // Renner = die Besten oben. Bei "hoch ist gut" absteigend, sonst aufsteigend.
+  const besteOben=(mepRichtung==="top")===(k.hochIstGut!==false);
+  /* Prozentwerte bei Kleinstumsatz ans ENDE, nicht ausblenden (04.09.2026).
+     Auf Wochenbasis gibt es Artikel mit 0,30 EUR Umsatz und -2.496 %
+     Nettoertragsspanne (G&G Mineralwasser, 27.08.: Pfand- und
+     Korrekturbuchungen). Nach Anteil sortiert standen die ganz oben und
+     verdeckten alles. Die Vorgabe vom 18.08. - kein Mindestumsatz, nichts
+     ausblenden - bleibt: sie stehen unten, grau, und im "mehr"-Fenster. */
+  const prozent=(k.id==="abschrift"&&mepFlopMass==="anteil")||k.id==="nettoertrag";
+  const klein=x=>prozent&&(Number(x.umsatz)||0)<MEP_FLOP_HINWEIS_UMSATZ;
+  mit.sort((a,b)=>{
+    const ka=klein(a), kb=klein(b);
+    if(ka!==kb) return ka?1:-1;
+    return besteOben ? b.w-a.w : a.w-b.w;
+  });
   return {alle:roh, liste:mit, kennzahl:k};
 }
 /* Was die Artikelzeilen sind - steht in jeder Zeile aus artikel_zeitraum(). */
@@ -11826,8 +11850,8 @@ function mepKachelTopFlop(){
   const abschr=mepSort==="abschrift"?mepAbschriftenAbteilung():[];
   const auf=mepSort==="abschrift"?mepVerlustAufteilung():null;
   return `<div class="box" style="border-left:4px solid ${farbe}">
-    <h2>${top?"Renner":"Penner"} · ${kennzahl.text}
-      <span style="font-weight:normal;font-size:14px;color:#64748b">${mepZahl(liste.length)} von ${mepZahl(alle.length)} Artikeln</span>
+    <h2>Top/Flop-Artikel
+      <span style="font-weight:normal;font-size:14px;color:#64748b">${top?"Renner":"Penner"} · ${kennzahl.text} · ${mepZahl(liste.length)} von ${mepZahl(alle.length)} Artikeln</span>
       ${mepAbsprung("mepZeigeTopFlop()","mehr")}</h2>
     <div class="small" style="margin:6px 0 2px">${mepTfZeitraumText()}</div>
     ${mepArtikelFehler?`<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 10px;margin:6px 0">
@@ -11846,8 +11870,8 @@ function mepKachelTopFlop(){
       ${mepRegalWahl(regale,mepArtRegal,"mepSetzeArtRegal")}
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">
-      ${kachel(top,"mepSetzeRichtung('top')","▲ Renner","höchster Wert oben")}
-      ${kachel(!top,"mepSetzeRichtung('flop')","▼ Penner","niedrigster Wert oben")}
+      ${kachel(top,"mepSetzeRichtung('top')","▲ Top · Renner",kennzahl.hochIstGut===false?"geringste Abschrift oben":"höchster Wert oben")}
+      ${kachel(!top,"mepSetzeRichtung('flop')","▼ Flop · Penner",kennzahl.hochIstGut===false?"höchste Abschrift oben":"niedrigster Wert oben")}
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0">
       ${MEP_TF_KENNZAHLEN.map(k=>kachel(mepSort===k.id,`mepSetzeSort('${k.id}')`,k.text,
@@ -11863,7 +11887,7 @@ function mepKachelTopFlop(){
     <div id="mepTopFlopListe">
     ${zeig.length?zeig.map(x=>{
       const dp=mepDispo.find(d=>d.artikelnr===String(x.sap_artnr));
-      const klein=mepSort==="abschrift"&&mepFlopMass==="anteil"&&(Number(x.umsatz)||0)<MEP_FLOP_HINWEIS_UMSATZ;
+      const klein=((mepSort==="abschrift"&&mepFlopMass==="anteil")||mepSort==="nettoertrag")&&(Number(x.umsatz)||0)<MEP_FLOP_HINWEIS_UMSATZ;
       return `<div style="display:flex;gap:12px;align-items:center;padding:9px 0;
         border-bottom:1px solid #f1f5f9;flex-wrap:wrap">
       <svg class="mepbc" data-code="${mepEsc(x.sap_artnr)}" style="width:112px;height:40px;flex:none"></svg>
@@ -11878,8 +11902,8 @@ function mepKachelTopFlop(){
       :`<div class="small" style="padding:10px 0;font-style:italic">Für diese Auswahl liegen keine Artikel mit
         bestimmbarem Wert vor.</div>`}
     </div>
-    ${mepSort==="abschrift"&&mepFlopMass==="anteil"?`<div class="small" style="margin-top:6px">Bei Artikeln unter ${MEP_FLOP_HINWEIS_UMSATZ} € Umsatz
-      ist der Prozentwert mit Vorsicht zu lesen – er steht dann in Grau. Ausgeblendet wird nichts.</div>`:""}
+    ${(mepSort==="abschrift"&&mepFlopMass==="anteil")||mepSort==="nettoertrag"?`<div class="small" style="margin-top:6px">Artikel unter ${MEP_FLOP_HINWEIS_UMSATZ} € Umsatz
+      stehen am Ende der Liste und in Grau – ein Prozentwert bei winzigem Umsatz sagt wenig. Ausgeblendet wird nichts.</div>`:""}
 
     ${mepSort==="abschrift"?`
     <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b;margin:14px 0 0">
@@ -11969,7 +11993,7 @@ function mepZeigeTopFlop(){
     <td style="text-align:right">${mepPrz(x.nettoertragssp)}</td>
     <td style="text-align:right">${f?`<b>${mepEur(f.verlust)}</b>${f.gemeldet?"":" <span style=\"color:#94a3b8\">~</span>"}`:'<span style="color:#15803d">–</span>'}</td>
     <td style="text-align:right">${f?mepPrz(f.anteil):"–"}</td></tr>`; });
-  mepModal(`${top?"Renner":"Penner"} · ${kennzahl.text} · ${mepMk()}${mepBl()?" · "+mepBl():""}`,
+  mepModal(`Top/Flop · ${top?"Renner":"Penner"} · ${kennzahl.text} · ${mepMk()}${mepBl()?" · "+mepBl():""}`,
     h+`</tbody></table>
     ${l.length>600?`<div class="small" style="margin-top:8px">Angezeigt sind die ersten 600 von ${mepZahl(l.length)}.</div>`:""}
     <div class="small" style="margin-top:8px">„~“ = Spannenverlust gerechnet, nicht gemeldet.</div>`);
