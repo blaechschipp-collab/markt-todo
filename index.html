@@ -750,7 +750,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.09.04-03"; // Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
+const APP_VERSION = "v2026.09.08-01"; // Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -4669,10 +4669,13 @@ let dispoState = { items: [], filteredOpen: 0, filteredDone: 0, filteredCooldown
 
 function dispoParseFilename(name){
   // Ablage-Praefix des Mail-Holers abstreifen: "2026-08-15_2234_<Originalname>"
+  // Seit 08.09.2026 stempelt der Mail-Holer mit Sekunden: "2026-09-08_144604_<Originalname>".
+  // Deshalb 3 bis 6 Ziffern. NICHT mehr: ein 8-stelliges Datum (20260831_...) muss
+  // hier durchfallen, sonst frisst der Praefix die FEA-Datumsgruppe.
   // Das Datum daraus dient als Ersatz, wenn im Originalnamen keines steckt.
   let rest = String(name || "");
   let ablageDatum = null;
-  const praefix = rest.match(/^(\d{4}-\d{2}-\d{2})_\d{3,4}_(.+)$/);
+  const praefix = rest.match(/^(\d{4}-\d{2}-\d{2})_\d{3,6}_(.+)$/);
   if(praefix){ ablageDatum = praefix[1]; rest = praefix[2]; }
 
   // FEA: 20260511_046206_FEA_<rest>.pdf
