@@ -7506,7 +7506,19 @@ async function uploadSpannenanalyse(){
        Abteilungen entsprechen. Gemessen am 22.08.2026 fuer Billigheim:
        -1.675 gegen -1.676 EUR, also 0,06 % - Zeilenrundung.
        Maerkte mit sehr kleinen Abschriften werden uebersprungen, sonst
-       schlaegt der Prozentvergleich bei Kleinstbetraegen grundlos an. */
+       schlaegt der Prozentvergleich bei Kleinstbetraegen grundlos an.
+
+       ERGAENZT 12.09.2026 - absolute Mindestabweichung von 25 EUR.
+       Anlass: Am 11.09.2026 wurde die Spannenanalyse abgewiesen, weil
+       Freckenfeld -157 EUR ergab, die Zeile "Gesamtergebnis" aber -155 EUR
+       nannte. Zwei Euro auf einen Wert nahe null sind 1,3 Prozent und rissen
+       damit die Prozentschwelle - die Datei blieb zwei Tage liegen, obwohl
+       nichts fehlte. Eine reine Prozentschwelle ist bei Betraegen nahe null
+       unbrauchbar. Es muss jetzt BEIDES zutreffen: mehr als ein Prozent UND
+       mehr als 25 EUR. Ein echter Abbruch des BO-Exports laesst Hunderte von
+       Euro fehlen und wird weiterhin sicher erkannt; Zeilenrundung nicht mehr.
+       Entschieden von Benedikt Paul. */
+    const MIND_ABW_EUR = 25;
     const AB = REIHE.indexOf("abschr_ek");
     const schief=[];
     for(const [markt,spalten] of Object.entries(gruppen)){
@@ -7515,7 +7527,8 @@ async function uploadSpannenanalyse(){
       if(soll==null || Math.abs(soll) < 100) continue;
       const ist = saetze.filter(s=>s.markt===markt)
                         .reduce((a,s)=>a+(s.abschr_ek||0),0);
-      if(Math.abs(ist-soll)/Math.abs(soll) > 0.01)
+      const abw = Math.abs(ist-soll);
+      if(abw > MIND_ABW_EUR && abw/Math.abs(soll) > 0.01)
         schief.push(`${markt}: Abteilungen ergeben ${ist.toLocaleString("de-DE")} €, `
                   + `Gesamtergebnis nennt ${soll.toLocaleString("de-DE")} €`);
     }
