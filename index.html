@@ -750,7 +750,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.09.12-01"; // Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
+const APP_VERSION = "v2026.09.15-01"; // Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -5782,16 +5782,33 @@ async function loadWerbungData(){
      schnitt_fuer_werbeartikel() rechnet den Schnitt nur fuer promo_articles:
      2.400 Zeilen, unter einer Sekunde. Die Suche "auch in Umsatz-Daten" im
      Pruefwerkzeug findet dadurch nur noch Werbeartikel - das ist gewollt. */
-  const [pRes, sRes] = await Promise.all([
-    db.from("promo_articles").select("*"),
-    fetchAllPaged(()=>db.rpc("schnitt_fuer_werbeartikel").select("sap_artnr,market,wochen_erfasst,menge_pro_woche,name,abteilung").order("sap_artnr").order("market"))
-  ]);
-  if(pRes.error){ list.innerHTML = `<div style="color:#c62828">Fehler Werbeartikel: ${escapeHtml(pRes.error.message)}</div>`; return; }
+  /* BERICHTIGT 15.09.2026. Hier stand db.from("promo_articles").select("*") -
+     OHNE Paginierung. Supabase liefert dann hoechstens 1.000 Zeilen, und ohne
+     ORDER BY in beliebiger Reihenfolge. Bei 4.418 Zeilen (KW 36 = 1.727,
+     KW 37 = 1.232, KW 38 = 1.459) kamen nur die ersten 1.000 an - faktisch die
+     aelteste Woche. Die Wochenauswahl zeigte deshalb "KW 36: 999 Artikel",
+     "KW 38: 1 Artikel", und KW 37 fehlte ganz; die Bevorratung rechnete am
+     15.09.2026 mit Angeboten, die am 05.09. abgelaufen waren - 11 Artikel,
+     29 Kartons, 241,02 EUR Ersparnis. Anzeigefehler, kein Datenverlust.
+     Gefunden vom 9-Uhr-Lauf der App-Pruefung, dem ersten seit sieben Tagen
+     mit Bildschirmpruefung.
+     fetchAllPaged holt alles in Seiten. Es verlangt eine EINDEUTIGE
+     Sortierung - (year, kw, sap_artnr) ist es: 4.418 von 4.418 am 15.09.2026
+     in der Datenbank geprueft. */
+  let pAlle, sRes;
+  try{
+    [pAlle, sRes] = await Promise.all([
+      fetchAllPaged(()=>db.from("promo_articles").select("*").order("year").order("kw").order("sap_artnr")),
+      fetchAllPaged(()=>db.rpc("schnitt_fuer_werbeartikel").select("sap_artnr,market,wochen_erfasst,menge_pro_woche,name,abteilung").order("sap_artnr").order("market"))
+    ]);
+  }catch(e){
+    list.innerHTML = `<div style="color:#c62828">Fehler Werbeartikel: ${escapeHtml((e&&e.message)||String(e))}</div>`; return;
+  }
   /* Seit 25.08.2026 liegen MEHRERE Aktionswochen in der Datenbank - der Import
      ersetzt nur noch die eigene KW. promoAlle haelt alles, promo die gewaehlte
      Woche. Ohne diese Trennung wuerde die Bevorratung Wochen vermischen und
      Mengen doppelt vorschlagen. */
-  werbungState.promoAlle = pRes.data || [];
+  werbungState.promoAlle = pAlle || [];
   werbungState.promo = werbungState.promoAlle;
   werbungState.sales = {};
   // Geaendert 15.08.2026: Gelesen wird aus der Sicht article_sales_schnitt.
