@@ -750,7 +750,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.09.16-01"; // Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
+const APP_VERSION = "v2026.09.17-01"; // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -10328,6 +10328,41 @@ function mepZeigeBestand(){
    spaeter unterschiedliche Zahlen in zwei Reitern zu haben
    (Vorgabe Benedikt Paul 18.08.2026: in die Abteilungs- und
    Marktleiteransicht aufnehmen). */
+/* Welche Werbewoche soll die MEP-Ansicht rechnen?
+   Die MEP-Ansicht oeffnet den Reiter Bevorratung nicht - dort laufen also
+   weder fuelleWerbungWochen() noch setzeWerbungWoche(). Ohne die beiden bleibt
+   werbungState.promo auf ALLEN geladenen Wochen stehen, und mepWerbewoche()
+   nimmt davon die mit den meisten Artikeln. Seit dem 06.09.2026 war das
+   KW 36 mit 1.727 Zeilen - die Kachel rechnete zehn Tage lang gegen eine
+   abgelaufene Woche, waehrend die laufende danebenlag. app-pruefen hat das
+   taeglich gemeldet.
+   Dieselbe Regel wie im Reiter: die naechste Woche, wenn dafuer Artikel
+   vorliegen - fuer die bevorratet man -, sonst die laufende, sonst die
+   juengste Woche mit Daten. */
+function mepWerbungWocheSetzen(){
+  const alle=(werbungState && (werbungState.promoAlle||werbungState.promo))||[];
+  if(!alle.length) return;
+  const schluessel=x=>x.year+"-"+String(x.kw).padStart(2,"0");
+  const zaehl={};
+  for(const x of alle){ if(x.kw==null||x.year==null) continue;
+    const k=schluessel(x); zaehl[k]=(zaehl[k]||0)+1; }
+  /* Steht in promo schon genau EINE Woche, hat jemand bewusst gewaehlt -
+     dann nicht dazwischenfunken. */
+  const drin=new Set(((werbungState&&werbungState.promo)||[])
+    .filter(x=>x.kw!=null&&x.year!=null).map(schluessel));
+  if(drin.size===1) return;
+  const isoK=d=>{ const t=new Date(d); t.setDate(d.getDate()+3-((d.getDay()+6)%7));
+    const j1=new Date(t.getFullYear(),0,1);
+    const w=Math.ceil((((t-j1)/86400000)+1)/7);
+    return t.getFullYear()+"-"+String(w).padStart(2,"0"); };
+  const heute=new Date(); heute.setHours(0,0,0,0);
+  const naechste=new Date(heute); naechste.setDate(heute.getDate()+7);
+  const kN=isoK(naechste), kH=isoK(heute);
+  const mitDaten=Object.keys(zaehl).sort().reverse();
+  const ziel = zaehl[kN] ? kN : (zaehl[kH] ? kH : mitDaten[0]);
+  if(!ziel) return;
+  werbungState.promo=alle.filter(x=>x.kw!=null&&x.year!=null&&schluessel(x)===ziel);
+}
 async function mepBevorratungLaden(){
   try{
     if(!werbungState.loaded && typeof loadWerbungData==="function"){
@@ -10335,8 +10370,15 @@ async function mepBevorratungLaden(){
       const merker=feld?feld.value:null;
       if(feld && !mepAlleMaerkte()) feld.value=mepMk();
       await loadWerbungData();
+      /* Woche setzen BEVOR die Haken geladen werden: loadWerbungTicked()
+         liest die KW ueber currentPromoKwYear() aus werbungState.promo. */
+      mepWerbungWocheSetzen();
       if(typeof loadWerbungTicked==="function") await loadWerbungTicked();
       if(feld && merker!=null) feld.value=merker;
+    } else {
+      /* Schon geladen - etwa weil der Reiter vorher offen war. Die Woche
+         trotzdem pruefen, sonst rechnet die Kachel weiter ueber alle Wochen. */
+      mepWerbungWocheSetzen();
     }
   }catch(err){ console.warn("Bevorratung:",err); }
 }
