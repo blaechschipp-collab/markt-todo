@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Markt ToDo</title>
+  <title>meinMarkt</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/legacy/build/pdf.min.js"></script>
@@ -750,7 +750,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.09.15-01"; // Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
+const APP_VERSION = "v2026.09.16-01"; // Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
