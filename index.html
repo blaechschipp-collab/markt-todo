@@ -750,7 +750,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.09.18-01"; // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
+const APP_VERSION = "v2026.09.18-02"; // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -5629,6 +5629,7 @@ let werbungState = {
   weeksCovered: 10,
   loaded: false,
   ticked: new Set(),
+  tickedJeMarkt: new Map(),   // Markt -> Set(sap_artnr), fuer die Gesamtansicht (18.09.2026)
   frischeOverrides: new Set(), // manuelle "als Frische" Kennzeichnungen (persistent)
   settings: { threshold: 20, bevWochen: 6, bevFrische: 1 }
 };
@@ -6139,25 +6140,49 @@ function currentPromoKwYear(){
 }
 
 async function loadWerbungTicked(){
+  // Berichtigt 18.09.2026: Vorher wurden nur die Haken EINES Marktes geladen und ohne
+  // Marktbezug geprueft. In der Gesamtansicht "Alle Maerkte" galten dadurch die Haken aus
+  // Steinfeld auch fuer Billigheim (20 statt 65 offen). Jetzt werden die Haken aller Maerkte
+  // der Werbewoche geladen und je Markt gehalten; werbungState.ticked bleibt wie bisher die
+  // Menge des im Reiter gewaehlten Marktes.
   werbungState.ticked = new Set();
+  werbungState.tickedJeMarkt = new Map();
   const kwy = currentPromoKwYear();
   const market = document.getElementById("werbungMarket").value;
-  if(!kwy || !market) return;
-  const r = await db.from("promo_ticked").select("sap_artnr").eq("market", market).eq("kw", kwy.kw).eq("year", kwy.year);
+  if(!kwy) return;
+  const r = await db.from("promo_ticked").select("market,sap_artnr").eq("kw", kwy.kw).eq("year", kwy.year);
   if(r.error) return;
-  for(const row of (r.data || [])){ werbungState.ticked.add(row.sap_artnr); }
+  for(const row of (r.data || [])){
+    if(!werbungState.tickedJeMarkt.has(row.market)) werbungState.tickedJeMarkt.set(row.market, new Set());
+    werbungState.tickedJeMarkt.get(row.market).add(row.sap_artnr);
+  }
+  if(market && werbungState.tickedJeMarkt.has(market)) werbungState.ticked = new Set(werbungState.tickedJeMarkt.get(market));
+}
+function werbungTickedFuer(market){
+  // Menge der Haken eines Marktes; ohne Markt (oder unbekannt) die Menge des Reiters
+  if(market && werbungState.tickedJeMarkt && werbungState.tickedJeMarkt.has(market)) return werbungState.tickedJeMarkt.get(market);
+  if(market && werbungState.tickedJeMarkt) return new Set();
+  return werbungState.ticked;
 }
 
-async function toggleWerbungTick(sapArtnr){
+async function toggleWerbungTick(sapArtnr, marktVorgabe){
+  // marktVorgabe (18.09.2026): aus der Gesamtansicht kommt der Markt der Zeile mit,
+  // sonst gilt wie bisher der im Reiter gewaehlte Markt.
   const kwy = currentPromoKwYear();
-  const market = document.getElementById("werbungMarket").value;
+  const reiterMarkt = document.getElementById("werbungMarket").value;
+  const market = marktVorgabe || reiterMarkt;
   if(!kwy || !market) return;
-  if(werbungState.ticked.has(sapArtnr)){
+  if(!werbungState.tickedJeMarkt) werbungState.tickedJeMarkt = new Map();
+  if(!werbungState.tickedJeMarkt.has(market)) werbungState.tickedJeMarkt.set(market, new Set());
+  const menge = werbungState.tickedJeMarkt.get(market);
+  const istGesetzt = marktVorgabe ? menge.has(sapArtnr) : werbungState.ticked.has(sapArtnr);
+  if(istGesetzt){
     // Aus DB entfernen
     const r = await db.from("promo_ticked").delete()
       .eq("market", market).eq("sap_artnr", sapArtnr).eq("kw", kwy.kw).eq("year", kwy.year);
     if(r.error){ alert("Fehler: " + r.error.message); return; }
-    werbungState.ticked.delete(sapArtnr);
+    menge.delete(sapArtnr);
+    if(market === reiterMarkt) werbungState.ticked.delete(sapArtnr);
   } else {
     const r = await db.from("promo_ticked").insert({
       market, sap_artnr: sapArtnr, kw: kwy.kw, year: kwy.year, ticked_at: berlinNowForDB()
@@ -6165,7 +6190,8 @@ async function toggleWerbungTick(sapArtnr){
     if(r.error && !String(r.error.message).toLowerCase().includes("duplicate")){
       alert("Fehler: " + r.error.message); return;
     }
-    werbungState.ticked.add(sapArtnr);
+    menge.add(sapArtnr);
+    if(market === reiterMarkt) werbungState.ticked.add(sapArtnr);
   }
   renderWerbung();
 }
@@ -10443,7 +10469,7 @@ function mepKachelBevorratung(){
       Die aktuelle Werbe-PDF wird im Admin-Bereich eingespielt.</div></div>`;
   }
   const l=d.liste.slice().sort((a,b)=>b.ersparnisGes-a.ersparnisGes);
-  const offen=l.filter(x=>!werbungState.ticked.has(x.sap_artnr));
+  const offen=l.filter(x=>!werbungTickedFuer(x.markt).has(x.sap_artnr));
   const kartons=l.reduce((s,x)=>s+(x.kartons||0),0);
   const ersparnis=l.reduce((s,x)=>s+(x.ersparnisGes||0),0);
   const zeig=offen.slice(0,6);
@@ -10481,13 +10507,13 @@ function mepKachelBevorratung(){
           <svg class="mepbc" data-code="${mepEsc(x.sap_artnr)}" style="width:130px;height:44px"></svg>
         </div>
         <button class="btn-green" style="width:auto;padding:8px 14px;font-size:13.5px;flex:none"
-          onclick="mepBevAbhaken('${mepEsc(x.sap_artnr)}')">✓ Erledigt</button>
+          onclick="mepBevAbhaken('${mepEsc(x.sap_artnr)}','${mepEsc(x.markt||"")}')">✓ Erledigt</button>
       </div>`).join("")
       :`<div class="small" style="padding:10px 0;font-style:italic">Für diese Auswahl ist nichts zu bevorraten.</div>`}
     </div>`;
 }
-async function mepBevAbhaken(art){
-  if(typeof toggleWerbungTick==="function"){ await toggleWerbungTick(art); }
+async function mepBevAbhaken(art, markt){
+  if(typeof toggleWerbungTick==="function"){ await toggleWerbungTick(art, markt||undefined); }
   mepZeichnen();
 }
 function mepZeigeBevorratung(){
@@ -10500,7 +10526,7 @@ function mepZeigeBevorratung(){
     Die Vorgaben werden im Reiter Bevorratung eingestellt.</div>
     <table style="width:100%;border-collapse:collapse;font-size:13.5px">${
     mepTh("Artikel","Abteilung","~St./Woche","~Wochen","~Kartons","~Stück","~Ersparnis")}<tbody>`;
-  l.forEach(x=>{ const erl=werbungState.ticked.has(x.sap_artnr);
+  l.forEach(x=>{ const erl=werbungTickedFuer(x.markt).has(x.sap_artnr);
     h+=`<tr style="border-top:1px solid #eef3f9;${erl?"opacity:.45":""}">
     <td style="padding:8px;${erl?"text-decoration:line-through":""}">${mepEsc(x.name)}
       <span style="display:block;font-size:10.5px;color:#94a3b8">Art.-Nr. ${mepEsc(x.sap_artnr)}</span></td>
