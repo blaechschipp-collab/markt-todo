@@ -758,7 +758,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.09.19-02"; // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
+const APP_VERSION = "v2026.09.19-03"; // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -12527,6 +12527,150 @@ function mepBarcodes(){
     catch(e){ el.outerHTML=`<span style="font-size:11px;color:#64748b">${c}</span>`; }
   });
 }
+</script>
+
+<script>
+/* ===== Rauchtest (19.09.2026) =====
+   Liegt hier, damit der 09-Uhr-Lauf ihn nicht mehr einfuegen muss. Laeuft NUR auf Aufruf:
+   await rauchtest({erwarteteFassung: "v2026.09.19-03"}). Quelle und Anleitung:
+   20_MarktToDo\rauchtest\rauchtest.js, 90_Aufgaben\app-rauchtest.md. Aendert nichts. */
+window.rauchtest = async function(opt){
+  opt = opt || {};
+  const T0 = Date.now();
+  const p = [];                                   // Pruefungen
+  const ok  = (nr, name, beleg) => p.push({nr, name, stand:"PASS", beleg});
+  const nok = (nr, name, beleg) => p.push({nr, name, stand:"FAIL", beleg});
+  const warte = ms => new Promise(r => setTimeout(r, ms));
+  const iso = d => { const t=new Date(d); t.setHours(0,0,0,0); t.setDate(t.getDate()+3-((t.getDay()+6)%7));
+    const j1=new Date(t.getFullYear(),0,1); return {jahr:t.getFullYear(), kw:Math.ceil((((t-j1)/864e5)+1)/7)}; };
+
+  // Konsolenfehler ab jetzt einsammeln (Fehler beim Neuzeichnen sollen auffallen)
+  const fehler = [];
+  const origErr = console.error, origWarn = console.warn;
+  const lesbar = x => (x && typeof x === "object" && (x.message || x.code)) ? (x.message || x.code) : String(x);   // Fehlerobjekte nicht als [object Object]
+  console.error = (...a) => { fehler.push("error: " + a.map(lesbar).join(" ").slice(0,160)); origErr.apply(console,a); };
+  console.warn  = (...a) => { fehler.push("warn: "  + a.map(lesbar).join(" ").slice(0,160)); origWarn.apply(console,a); };
+  const onErr = e => fehler.push("uncaught: " + String(e.message||e).slice(0,160));
+  window.addEventListener("error", onErr);
+  window.requestAnimationFrame = cb => setTimeout(() => cb(performance.now()), 16);   // Hintergrund-Tab
+
+  try {
+    // (2) Fassung
+    const html = await (await fetch(location.pathname + "?rt=" + Date.now(), {cache:"no-store"})).text();
+    const fass = (html.match(/v20\d\d\.\d\d\.\d\d-\d\d/g) || []);
+    const fassung = fass.length ? fass.sort().pop() : null;
+    if(!fassung) nok(2, "Fassung lesbar", "keine APP_VERSION im ausgelieferten HTML gefunden");
+    else if(opt.erwarteteFassung && fassung !== opt.erwarteteFassung) nok(2, "Fassung", "ausgeliefert " + fassung + ", erwartet " + opt.erwarteteFassung);
+    else ok(2, "Fassung", fassung + (opt.erwarteteFassung ? " = erwartet" : " (kein Sollwert uebergeben)"));
+
+    // Anmeldung
+    let z = null; try { z = JSON.parse(localStorage.getItem("mep_zugang")||"null"); } catch(e){}
+    const rest = z && z.bis ? Math.round((new Date(z.bis).getTime()-Date.now())/864e5*10)/10 : null;
+    if(!z || rest === null || rest <= 0) { nok(0, "Anmeldung Pruef-Tab", "mep_zugang fehlt oder abgelaufen - Rauchtest kann die Kacheln nicht pruefen"); }
+    else if(z.markt !== "Verwaltung") { nok(0, "Anmeldung Pruef-Tab", "angemeldet als Markt-PIN '" + z.markt + "', nicht Verwaltung - nur ein Markt pruefbar; Restlaufzeit " + rest + " Tage"); }
+    else ok(0, "Anmeldung Pruef-Tab", "Verwaltung, noch " + rest + " Tage");
+
+    // MEP-Reiter oeffnen und Alle Maerkte laden
+    const knopf = [...document.querySelectorAll("button,[role=tab],a")].find(x => x.textContent.trim().includes("Mein EDEKA Paul"));
+    if(knopf) knopf.click();
+    await warte(2500);
+    const sel = document.getElementById("mepMarkt");
+    const maerkte = sel ? [...sel.options].map(o => o.value) : [];
+    if(!sel) { nok(1, "MEP-Bereich laedt", "Auswahlfeld mepMarkt fehlt - Tor noch offen?"); throw new Error("stop"); }
+
+    async function markt(m){
+      sel.value = m; sel.dispatchEvent(new Event("change", {bubbles:true}));
+      if(sel.value !== m) return null;
+      // Die Abfragen je Markt sind schwer; laufen sie sich gegenseitig in den Statement-Timeout
+      // (belegt 19.09.2026: "canceling statement due to statement timeout" bei vier Maerkten),
+      // hilft ein zweiter Anlauf nach kurzer Pause. Erst der zweite Fehlschlag zaehlt.
+      try { await mepNeuLaden(); }
+      catch(e){ await warte(6000); await mepNeuLaden(); }
+      await warte(3000);
+      if(!werbungState.loaded && typeof mepBevorratungLaden === "function"){ await mepBevorratungLaden(); mepZeichnen(); await warte(1500); }
+      const t = document.getElementById("mepKacheln").innerText;
+      const g = re => { const m2 = t.match(re); return m2 ? {offen:+m2[1], gesamt:+m2[2]} : null; };
+      return { text:t, laenge:t.length,
+        kacheln:(t.match(/\n[A-ZÄÖÜ][^\n]{5,60}\n/g)||[]).length,
+        aufgaben: g(/Aufgaben\s+(\d+)\s+von\s+(\d+)\s+offen/),
+        bevorratung: g(/Bevorratung\s+(\d+)\s+von\s+(\d+)\s+offen/),
+        bestand: g(/korrigieren\s+(\d+)\s+von\s+(\d+)\s+offen/),
+        // NaN/undefined nur als ganzes Wort und in Gross-/Kleinschreibung - sonst treffen
+        // "Wochenanfang" und "uebereinander" (belegt 19.09.2026, 20 Scheintreffer)
+        fehltext: (t.match(/nicht erreichbar|Zeitüberschreitung|Datenbank nicht|\bNaN\b|\bundefined\b/g)||[]).length,
+        leer: /keine Daten für diese Auswahl/.test(t) };
+    }
+
+    const erg = {}; const marktFehler = []; let dbProbe = null;
+    for(const m of maerkte){
+      try { erg[m] = await markt(m);
+        if(m === "Alle Märkte"){   // Datenbankprobe JETZT, solange mepAufgaben alle Maerkte enthaelt
+          try {
+            const isoT = mepTagISO(), tag = dayNameFromISO(isoT);
+            const ids = (mepAufgaben||[]).filter(x => taskApplies(x, isoT, tag)).map(x => x.id);
+            let erl = 0; for(let i=0;i<ids.length;i+=200){ erl += Object.keys(await fetchLogs(ids.slice(i,i+200), isoT)).length; }
+            dbProbe = {gesamt: ids.length, offen: ids.length - erl};
+          } catch(e){ dbProbe = {fehler: String(e && e.message || e).slice(0,80)}; }
+        }
+      }
+      catch(e){ erg[m] = null; marktFehler.push(m + ": " + (e && (e.message || e.code) ? (e.message || e.code) : JSON.stringify(e)).slice(0,120)); }
+    }
+    if(marktFehler.length) nok(1, "Marktwechsel", marktFehler.join(" · "));
+
+    // (1) Seite laedt, Kacheln kommen, keine Fehler
+    const kaputt = Object.entries(erg).filter(([m,r]) => !r || r.laenge < 5000 || r.kacheln < 40);
+    if(kaputt.length) nok(1, "Kacheln laden", "zu wenig Inhalt bei: " + kaputt.map(([m,r]) => m + " (" + (r?r.laenge+" Zeichen":"kein Wert") + ")").join(", "));
+    else ok(1, "Kacheln laden", Object.entries(erg).map(([m,r]) => m + " " + r.kacheln + " Kacheln").join(" · "));
+
+    // (4) Zahlen statt null/leer
+    const nullig = Object.entries(erg).filter(([m,r]) => r && (r.fehltext > 0 || r.leer || !r.aufgaben));
+    if(nullig.length) nok(4, "Zahlen statt Leerstellen", nullig.map(([m,r]) => m + ": " + (r.leer?"'keine Daten' ":"") + (r.fehltext?r.fehltext+" Fehltexte ":"") + (!r.aufgaben?"Aufgabenzaehler fehlt":"")).join(" · "));
+    else ok(4, "Zahlen statt Leerstellen", "kein 'keine Daten', kein NaN/undefined/timeout, Aufgabenzaehler ueberall");
+
+    // (3) Bevorratung gegen die richtige Werbewoche
+    const ww = (typeof mepWerbewoche === "function") ? mepWerbewoche() : null;
+    const heute = new Date(); const naechste = new Date(heute); naechste.setDate(heute.getDate()+7);
+    const soll = [iso(heute), iso(naechste)].map(x => x.jahr + "-" + String(x.kw).padStart(2,"0"));
+    if(!ww || ww.kw == null) nok(3, "Bevorratung: Werbewoche", "mepWerbewoche() liefert nichts - Werbung nicht geladen?");
+    else {
+      const istKey = (ww.year||ww.jahr||heute.getFullYear()) + "-" + String(ww.kw).padStart(2,"0");
+      let dbZahl = null;
+      try { const r = await db.from("promo_articles").select("sap_artnr", {count:"exact", head:true}).eq("kw", ww.kw).eq("year", ww.year||ww.jahr||heute.getFullYear()); dbZahl = r.count; } catch(e){}
+      if(!soll.includes(istKey)) nok(3, "Bevorratung: Werbewoche", "Kachel rechnet gegen KW " + istKey + ", laufend/naechste waeren " + soll.join("/"));
+      else if(dbZahl != null && ww.artikel != null && dbZahl !== ww.artikel) nok(3, "Bevorratung: Werbewoche", "KW " + ww.kw + " richtig, aber Kachel " + ww.artikel + " Artikel gegen " + dbZahl + " in promo_articles");
+      else ok(3, "Bevorratung: Werbewoche", "KW " + ww.kw + " (" + ww.von + " bis " + ww.bis + "), " + ww.artikel + " Artikel" + (dbZahl!=null?" = promo_articles":""));
+    }
+
+    // (5) Summe der Maerkte = Gesamtansicht = Datenbank
+    const einzel = Object.entries(erg).filter(([m]) => m !== "Alle Märkte");
+    const ges = erg["Alle Märkte"];
+    const sum = k => einzel.reduce((s,[m,r]) => s + ((r && r[k]) ? r[k].offen : 0), 0);
+    const sumG = k => einzel.reduce((s,[m,r]) => s + ((r && r[k]) ? r[k].gesamt : 0), 0);
+    const probleme = [];
+    if(ges && ges.aufgaben && (sum("aufgaben") !== ges.aufgaben.offen || sumG("aufgaben") !== ges.aufgaben.gesamt))
+      probleme.push("Aufgaben: Einzel " + sum("aufgaben") + "/" + sumG("aufgaben") + " gegen Gesamt " + ges.aufgaben.offen + "/" + ges.aufgaben.gesamt);
+    if(ges && ges.bevorratung && (sum("bevorratung") !== ges.bevorratung.offen || sumG("bevorratung") !== ges.bevorratung.gesamt))
+      probleme.push("Bevorratung: Einzel " + sum("bevorratung") + "/" + sumG("bevorratung") + " gegen Gesamt " + ges.bevorratung.offen + "/" + ges.bevorratung.gesamt);
+    // Datenbank: erledigte Aufgaben heute (Probe wurde bei "Alle Maerkte" genommen)
+    if(!dbProbe || dbProbe.fehler) probleme.push("Datenbankprobe Aufgaben nicht moeglich: " + (dbProbe ? dbProbe.fehler : "Alle Maerkte nicht geladen"));
+    else if(ges && ges.aufgaben && (dbProbe.gesamt !== ges.aufgaben.gesamt || dbProbe.offen !== ges.aufgaben.offen))
+      probleme.push("Aufgaben gegen Datenbank: " + dbProbe.offen + "/" + dbProbe.gesamt + " (task_logs) gegen Kachel " + ges.aufgaben.offen + "/" + ges.aufgaben.gesamt);
+    if(probleme.length) nok(5, "Summen gegen Gesamt und Datenbank", probleme.join(" · "));
+    else ok(5, "Summen gegen Gesamt und Datenbank", "Aufgaben " + (ges&&ges.aufgaben?ges.aufgaben.offen+"/"+ges.aufgaben.gesamt:"-") + ", Bevorratung " + (ges&&ges.bevorratung?ges.bevorratung.offen+"/"+ges.bevorratung.gesamt:"-") + " - Einzelansichten und task_logs stimmen ueberein");
+
+    // (1b) Konsole
+    const echte = fehler.filter(f => !/Erledigt-Stand konnte nicht/.test(f) || true);
+    if(echte.length) nok(6, "Konsole waehrend des Tests", echte.slice(0,5).join(" | "));
+    else ok(6, "Konsole waehrend des Tests", "keine Fehler, keine Warnungen");
+  } catch(e) {
+    if(String(e && e.message) !== "stop") nok(9, "Testlauf", "Abbruch: " + ((e && e.message) ? e.message : JSON.stringify(e)).slice(0,200));
+  } finally {
+    console.error = origErr; console.warn = origWarn; window.removeEventListener("error", onErr);
+  }
+  const gesamt = p.every(x => x.stand === "PASS") ? "PASS" : "FAIL";
+  return { gesamt, zeit: new Date().toISOString(), dauer_s: Math.round((Date.now()-T0)/1000), pruefungen: p.sort((a,b)=>a.nr-b.nr) };
+};
+
 </script>
 </body>
 </html>
