@@ -734,15 +734,23 @@
       <div class="control-grid" style="margin-top:14px">
         <div><label>Markt</label>
           <select id="mepTorMarkt" onchange="mepTorBereiche()"></select></div>
-        <div><label>Bereich</label><select id="mepTorBereich"></select></div>
+        <div><label>Bereich</label><select id="mepTorBereich" onchange="mepTorNutzerSetzen()"></select></div>
         <div><label>PIN</label>
-          <input id="mepPin" type="password" inputmode="numeric" autocomplete="off"
-                 placeholder="•••••"
-                 onkeydown="if(event.key==='Enter')mepPruefePin()"></div>
+          <!-- 19.09.2026: Als echtes Anmeldeformular aufgebaut, damit der Browser die PIN
+               speichern und beim naechsten Mal selbst ausfuellen darf (Anordnung Benedikt:
+               Anmeldungen sollen ohne Tippen laufen). Der unsichtbare Nutzername traegt
+               Markt und Bereich, damit Chrome mehrere PINs auseinanderhaelt. -->
+          <form id="mepTorForm" onsubmit="event.preventDefault();mepPruefePin();" style="margin:0">
+            <input id="mepTorNutzer" name="username" type="text" autocomplete="username"
+                   value="meinMarkt" tabindex="-1" aria-hidden="true"
+                   style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+            <input id="mepPin" name="password" type="password" inputmode="numeric"
+                   autocomplete="current-password" placeholder="•••••">
+          </form></div>
         <div><label>&nbsp;</label><button class="btn-yellow" onclick="mepPruefePin()">Öffnen</button></div>
       </div>
       <label style="display:flex;align-items:center;gap:7px;margin-top:12px;font-size:14px;cursor:pointer">
-        <input type="checkbox" id="mepMerken" style="width:auto"> Für 7 Tage merken</label>
+        <input type="checkbox" id="mepMerken" style="width:auto"> Für 30 Tage merken</label>
       <div id="mepPinFehler" style="color:#c62828;font-weight:bold;margin-top:8px;min-height:19px"></div>
     </div>
     <div id="mepInhalt" style="display:none"></div>
@@ -750,7 +758,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.09.18-02"; // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
+const APP_VERSION = "v2026.09.19-02"; // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -9002,6 +9010,15 @@ function mepTorBereiche(){
   const m=document.getElementById("mepTorMarkt").value;
   document.getElementById("mepTorBereich").innerHTML=
     (MEP_MAERKTE[m]||["Alle Bereiche"]).map(b=>`<option>${b}</option>`).join("");
+  mepTorNutzerSetzen();
+}
+/* Nutzername fuer den Passwortspeicher des Browsers: "Markt · Bereich". So kann Chrome die
+   Verwaltungs-PIN und eine Markt-PIN nebeneinander halten (19.09.2026). */
+function mepTorNutzerSetzen(){
+  const u=document.getElementById("mepTorNutzer"); if(!u) return;
+  const m=(document.getElementById("mepTorMarkt")||{}).value||"";
+  const b=(document.getElementById("mepTorBereich")||{}).value||"";
+  u.value=(m+" · "+b).trim();
 }
 function mepZugangLesen(){
   for(const s of [localStorage,sessionStorage]){
@@ -9089,8 +9106,11 @@ async function mepPruefePin(){
     if(error) throw error;
     z=(data && data.length) ? data[0] : null;
     // Tuer 3: persoenliche PIN - Ausweis holen, bevor irgendetwas geladen wird
+    // 30 statt 7 Tage (19.09.2026, Anordnung Benedikt): die Anmeldung des Pruef-Tabs lief
+    // woechentlich aus und kostete jedes Mal einen Tag ohne Bildschirmpruefung. 30 ist die
+    // Obergrenze, die sitzung_anlegen in der Datenbank zulaesst - Client und Server passen zusammen.
     if(z) await sitzungHolen("anmelden","p_pin",pin,
-                             document.getElementById("mepMerken").checked?7:0);
+                             document.getElementById("mepMerken").checked?30:0);
   }catch(x){
     console.error("zugang_pruefen",x);
     f.style.color="#c62828";
@@ -9107,7 +9127,7 @@ async function mepPruefePin(){
   mepZugang = mepZugangAus(z,
                 document.getElementById("mepTorMarkt").value,
                 document.getElementById("mepTorBereich").value);
-  const tage=document.getElementById("mepMerken").checked?7:0;
+  const tage=document.getElementById("mepMerken").checked?30:0;   // 30 statt 7, siehe oben
   try{ (tage>0?localStorage:sessionStorage)
         .setItem("mep_zugang",JSON.stringify({...mepZugang,bis:Date.now()+(tage||1)*864e5})); }catch(x){}
   e.value="";
