@@ -758,7 +758,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.09.19-03"; // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
+const APP_VERSION = "v2026.09.19-04"; // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -10837,10 +10837,15 @@ async function mepBestandNegativLaden(){
     const {data:s}=await db.from("negativbestand").select("stand")
       .order("stand",{ascending:false}).limit(1);
     if(!s||!s.length) return;
-    mepBestandNegStand=s[0].stand;
+    // Lokal festhalten (19.09.2026, vom Rauchtest gefunden): Bei schnellem Marktwechsel laeuft
+    // dieser Aufruf noch, waehrend der naechste mepBestandNegStand schon auf null gesetzt hat.
+    // Die Erledigt-Abfrage unten ging dann mit stand=null raus - "invalid input syntax for
+    // type date" - und die Haken fehlten. Deshalb hier den Stand dieses Aufrufs benutzen.
+    const standDieserAufruf=s[0].stand;
+    mepBestandNegStand=standDieserAufruf;
     const d=await fetchAllPaged(()=>mepFiltMarkt(db.from("negativbestand")
       .select("markt,sap_artnr,bezeichnung,menge,bestand_ek,bestand_vk,stand"),"markt")
-      .eq("stand",mepBestandNegStand).order("menge"));
+      .eq("stand",standDieserAufruf).order("menge"));
     let liste=d||[];
     /* Regalnummer dazuholen. Der BO-Bericht "Null und Negativbestände" führt
        KEINE Regalspalte - geprüft am 26.08.2026 an der Datei vom selben Tag:
@@ -10886,7 +10891,7 @@ async function mepBestandNegativLaden(){
     try{
       const e=await fetchAllPaged(()=>mepFiltMarkt(db.from("negativbestand_erledigt")
         .select("markt,sap_artnr,erledigt_von,erledigt_am"),"markt")
-        .eq("stand",mepBestandNegStand).order("erledigt_am"));
+        .eq("stand",standDieserAufruf).order("erledigt_am"));
       (e||[]).forEach(x=>{ mepBestandNegErl[x.markt+"|"+String(x.sap_artnr)]=x; });
     }catch(err){ console.warn("Erledigt-Haken Negativbestand:",err); }
 
@@ -12532,7 +12537,7 @@ function mepBarcodes(){
 <script>
 /* ===== Rauchtest (19.09.2026) =====
    Liegt hier, damit der 09-Uhr-Lauf ihn nicht mehr einfuegen muss. Laeuft NUR auf Aufruf:
-   await rauchtest({erwarteteFassung: "v2026.09.19-03"}). Quelle und Anleitung:
+   await rauchtest({erwarteteFassung: "<aktuelle Fassung>"}). Quelle und Anleitung:
    20_MarktToDo\rauchtest\rauchtest.js, 90_Aufgaben\app-rauchtest.md. Aendert nichts. */
 window.rauchtest = async function(opt){
   opt = opt || {};
