@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Backempfehlung – Test</title>
+<style>
+  :root{--blue:#004f9e;--blue-dark:#00315f;--yellow:#ffdd00;--border:#d8e2ef;--text:#08213f;--g:#2e7d32;--r:#c62828;--o:#b45309;--rand:#b8c7d9;--grau:#64748b}
+  /* Farben und Kaesten wie markt-todo.html (Vorgabe Benedikt 22.09.: gleiche Farbgebung wie der Bestand) */
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.45 Arial,Helvetica,sans-serif;background:linear-gradient(180deg,var(--blue-dark),var(--blue));color:var(--text);min-height:100vh}
+  header{background:linear-gradient(135deg,#002b55,#0059ad);border-bottom:6px solid var(--yellow);padding:14px 16px 12px}
+  h1{margin:0;font-size:22px;font-weight:900;font-style:italic;color:#fff}
+  .sub{color:#d9ecff;font-size:13px;margin-top:4px}
+  .sub a{color:var(--yellow);font-weight:bold;text-decoration:none}
+  main{padding:14px 12px 40px;max-width:720px;margin:0 auto}
+  .box{background:#fff;border-radius:14px;padding:16px;margin-bottom:14px;box-shadow:0 8px 24px rgba(0,0,0,.14)}
+  .box h2{margin:0 0 8px;font-size:17px;color:var(--blue-dark)}
+  .box h2 .nr{display:inline-block;background:var(--yellow);color:var(--blue-dark);border-radius:50%;width:26px;height:26px;line-height:26px;text-align:center;font-size:13px;margin-right:6px}
+  label{display:block;font-weight:bold;font-size:14px;margin-bottom:6px}
+  select,input[type=text],input[type=number]{width:100%;font:inherit;padding:12px;border:1px solid var(--rand);border-radius:8px;background:#fff}
+  .module{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .modul{border:2px dashed var(--rand);border-radius:10px;padding:8px;text-align:center;min-height:150px;position:relative}
+  .modul b{display:block;font-size:.85rem;margin-bottom:6px}
+  .modul img{width:100%;height:110px;object-fit:cover;border-radius:6px;display:none}
+  .modul input{position:absolute;inset:0;opacity:0;width:100%;height:100%;cursor:pointer}
+  .modul .hint{color:var(--grau);font-size:.8rem;padding-top:34px}
+  .modul.hat .hint{display:none}.modul.hat img{display:block}
+  button{font:inherit;font-weight:bold;padding:12px 16px;border:0;border-radius:8px;background:var(--yellow);color:var(--blue-dark);width:100%;cursor:pointer}
+  button:disabled{background:#e9e2a4;color:#7a7452}
+  button.zweit{background:var(--blue-dark);color:#fff}
+  .status{margin-top:10px;font-size:.9rem;color:var(--grau);white-space:pre-line}
+  table{border-collapse:collapse;width:100%;font-size:.92rem}
+  td,th{padding:6px 6px;border-bottom:1px solid #eee;text-align:left;vertical-align:top}
+  th{font-size:.78rem;color:var(--grau);font-weight:600}
+  td.z{text-align:right;white-space:nowrap}
+  .nachbacken{color:var(--g);font-weight:700}.zuviel{color:var(--r);font-weight:700}.reicht{color:var(--grau)}
+  /* Backprogramm-Kopfzeilen wie im Backshop-Reiter der App (.bs-color-*) */
+  .bs-color-header{margin:12px 0 4px;padding:8px 12px;border-radius:8px;font-weight:bold;color:#1e293b;font-size:14px;border:2px solid rgba(0,0,0,.08)}
+  .bs-color-yellow{background:#fff200}.bs-color-blue{background:#8db4e2;color:#0c1f3c}.bs-color-orange{background:#ffc000}
+  .bs-color-pink{background:#e6b8b7}.bs-color-green{background:#92d050}.bs-color-darkgreen{background:#00b050;color:#fff}.bs-color-none{background:#e2e8f0}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}
+  .fach{border:2px solid var(--rand);border-radius:8px;padding:6px;font-size:.78rem;min-height:62px;background:#fafafa;cursor:pointer;position:relative}
+  .fach .n{font-size:1.2rem;font-weight:700}
+  .fach.gruen{border-color:var(--g);background:#eef8f0}
+  .fach.gelb{border-color:var(--o);background:#fff7e6}
+  .fach.rot{border-color:var(--r);background:#fdeeed}
+  .fach.aktiv{outline:3px solid var(--blue)}
+  .fach .mark{position:absolute;top:4px;right:6px;font-size:.8rem;font-weight:700}
+  .fach.gruen .mark{color:var(--g)}.fach.gelb .mark{color:var(--o)}.fach.rot .mark{color:var(--r)}
+  .legende{display:flex;gap:12px;flex-wrap:wrap;font-size:.8rem;color:var(--grau);margin:4px 0 6px}
+  .legende span::before{content:"";display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-1px;border:2px solid}
+  .legende .lg::before{border-color:var(--g);background:#eef8f0}.legende .lo::before{border-color:var(--o);background:#fff7e6}.legende .lr::before{border-color:var(--r);background:#fdeeed}
+  .editor{border:2px solid var(--blue);border-radius:10px;padding:10px;margin-top:8px;background:#f8fafc}
+  .editor .zeile{display:grid;grid-template-columns:1fr 90px;gap:8px;margin-top:8px}
+  .editor .knoepfe{display:flex;gap:8px;margin-top:10px}
+  .klein{font-size:.8rem;color:var(--grau)}
+  .fehler{color:var(--r);font-weight:600}
+  details{margin-top:8px}summary{cursor:pointer;color:var(--grau);font-size:.85rem}
+  .ok{color:var(--g);font-size:.8rem}
+  .versteckt{display:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>meinMarkt · Backempfehlung (Test)</h1>
+  <div class="sub"><a href="index.html">← zur App</a> · Ablauf: <b>1</b> Foto je Modul → <b>2</b> Fächer prüfen (grün = sicher gelesen, gelb/rot = antippen und bestätigen) → <b>3</b> Auswertung. Jede Bestätigung wird als Belegung gelernt. <b>Markt zuerst richtig wählen.</b></div>
+</header>
+<main>
+  <div class="box">
+    <h2><span class="nr">1</span>Fotos</h2>
+    <label for="markt">Markt</label>
+    <select id="markt"><option>Steinfeld</option><option>Billigheim-Ingenheim</option></select>
+    <label for="von" style="margin-top:10px">Wer fotografiert (optional)</label>
+    <input type="text" id="von" placeholder="Name">
+    <div class="module" style="margin-top:12px">
+      <div class="modul" id="m1"><b>links</b><img alt=""><div class="hint">📷 Modul 1<br>antippen</div><input type="file" accept="image/*" capture="environment" data-modul="1"></div>
+      <div class="modul" id="m2"><b>Mitte</b><img alt=""><div class="hint">📷 Modul 2<br>antippen</div><input type="file" accept="image/*" capture="environment" data-modul="2"></div>
+      <div class="modul" id="m3"><b>rechts</b><img alt=""><div class="hint">📷 Modul 3<br>antippen</div><input type="file" accept="image/*" capture="environment" data-modul="3"></div>
+    </div>
+    <div style="margin-top:12px"><button id="los" disabled>Fächer lesen</button></div>
+    <div class="status" id="status"></div>
+  </div>
+
+  <div class="box versteckt" id="schritt2">
+    <h2><span class="nr">2</span>Fächer prüfen</h2>
+    <div class="legende"><span class="lg">sicher gelesen / bestätigt</span><span class="lo">unsicher – bitte bestätigen</span><span class="lr">kein Artikel erkannt</span></div>
+    <div class="klein">Fach antippen: Artikel und Stückzahl prüfen, „Übernehmen". Grüne Fächer gelten ohne Antippen.</div>
+    <div id="raster"></div>
+    <div id="editor" class="editor versteckt"></div>
+    <div style="margin-top:12px"><button id="auswerten">Auswertung</button></div>
+    <div class="status" id="status2"></div>
+  </div>
+
+  <datalist id="artikelliste"></datalist>
+  <div id="ergebnis"></div>
+</main>
+
+<script>
+// ---------------------------------------------------------------------------
+// Testseite Backempfehlung (22.09.2026). Kein Teil der App - liegt unter
+// /backshop-test.html und geht mit Skript 22 mit (Ordner veroeffentlichen\).
+// Ablauf (Vorgabe Benedikt 22.09.): 1 Foto je Modul -> Funktion "nur_lesen" (Uebersicht 1600 px +
+// 12 Ausschnitte je Modul) -> 2 Ampel je Fach, Antippen = Artikel/Stueckzahl bestaetigen ->
+// 3 Funktion "empfehlung_fuer": Empfehlung aus den bestaetigten Faechern, jede Bestaetigung wird
+// in backshop_fach gelernt (bestaetigt schlaegt kuenftig die Lesung).
+// ---------------------------------------------------------------------------
+const SB_URL = "https://iexcjfyxujdxnwfcfdim.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlleGNqZnl4dWpkeG53ZmNmZGltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMjc1NTIsImV4cCI6MjA5MjkwMzU1Mn0.EDMxLbiloqCAKRJA-gLUOiQiZmpagl1OeOpFjJtT5us";
+const H = { "Authorization": "Bearer " + SB_KEY, "apikey": SB_KEY };
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const kurz = s => esc(s).replace(/^G&amp;G /, "");
+const status = t => { $("status").textContent = t; };
+
+const bilder = {};              // modul -> { blob, teile }
+let ARTIKEL = [];               // Stamm des Markts aus der Sicht backshop_artikel
+let LESUNG = null;              // Antwort von Schritt 1 (id + zaehlung)
+let FAECHER = [];               // Arbeitsstand je Fach (wird in Schritt 2 bestaetigt)
+let AKTIV = null;               // gerade bearbeitetes Fach
+
+async function artikelLaden() {
+  const markt = $("markt").value;
+  const r = await fetch(`${SB_URL}/rest/v1/backshop_artikel?markt=eq.${encodeURIComponent(markt)}&select=sap_artnr,bezeichnung,gtin&order=bezeichnung`, { headers: H });
+  ARTIKEL = r.ok ? await r.json() : [];
+  $("artikelliste").innerHTML = ARTIKEL.map(a => `<option value="${esc(a.bezeichnung)}">${esc(a.sap_artnr)}${a.gtin ? " · " + esc(a.gtin) : ""}</option>`).join("");
+}
+$("markt").addEventListener("change", artikelLaden);
+
+// Eingabe = Name (aus der Liste), SAP-Nr./PLU oder EAN -> Artikel. Der Stamm schreibt AE/OE/UE
+// ("HAEHNCHENDOENER"), die Eingabe kommt mit Umlauten - beides wird vor dem Vergleich vereinheitlicht.
+const norm = s => String(s || "").toLowerCase().replace(/ä/g, "ae").replace(/ö/g, "oe").replace(/ü/g, "ue").replace(/ß/g, "ss").replace(/[^a-z0-9]/g, "");
+function artikelFinden(text) {
+  const t = String(text || "").trim(); if (!t) return null;
+  const nurZiffern = t.replace(/\D/g, "");
+  return ARTIKEL.find(a => a.bezeichnung === t)
+      || (nurZiffern.length >= 3 && ARTIKEL.find(a => a.sap_artnr === nurZiffern || String(a.gtin || "") === nurZiffern || String(a.gtin || "").endsWith(nurZiffern) && nurZiffern.length >= 8))
+      || ARTIKEL.find(a => norm(a.bezeichnung).includes(norm(t))) || null;
+}
+
+// ---- Bild aufbereiten: aufrecht (EXIF), Uebersicht 1600 px, 12 Ausschnitte ----
+async function bitmap(file) {
+  try { return await createImageBitmap(file, { imageOrientation: "from-image" }); }
+  catch (_) {
+    return await new Promise((ok, nein) => { const im = new Image(); im.onload = () => ok(im); im.onerror = nein; im.src = URL.createObjectURL(file); });
+  }
+}
+function ausschnitt(bmp, x, y, w, h, max) {
+  const f = Math.min(1, max / Math.max(w, h));
+  const c = document.createElement("canvas");
+  c.width = Math.round(w * f); c.height = Math.round(h * f);
+  c.getContext("2d").drawImage(bmp, x, y, w, h, 0, 0, c.width, c.height);
+  return new Promise(ok => c.toBlob(ok, "image/jpeg", 0.82));
+}
+async function verkleinern(bmp) { return ausschnitt(bmp, 0, 0, bmp.width, bmp.height, 1600); }
+// 12 Ausschnitte (4 Reihen x 3 Spalten). Senkrecht 35 % Ueberlappung: das Foto ist nie buendig (Kastenrand
+// oben), so liegt jedes Fach samt Schild in mindestens einem Ausschnitt ganz. Waagerecht reichen 15 %.
+async function kacheln(bmp) {
+  const W = bmp.width, H = bmp.height, R = 4, S = 3, ux = 0.15, uy = 0.35, aus = [];
+  for (let r = 0; r < R; r++) for (let s = 0; s < S; s++) {
+    const x0 = Math.max(0, (s - ux) * W / S), x1 = Math.min(W, (s + 1 + ux) * W / S);
+    const y0 = Math.max(0, (r - uy) * H / R), y1 = Math.min(H, (r + 1 + uy) * H / R);
+    aus.push({ reihe: r + 1, spalte: s + 1, blob: await ausschnitt(bmp, x0, y0, x1 - x0, y1 - y0, 1100) });
+  }
+  return aus;
+}
+
+document.querySelectorAll(".modul input").forEach(inp => {
+  inp.addEventListener("change", async () => {
+    const m = inp.dataset.modul, file = inp.files[0]; if (!file) return;
+    status("Bild wird verkleinert und in Fächer geschnitten …");
+    const bmp = await bitmap(file);
+    const blob = await verkleinern(bmp);
+    const teile = await kacheln(bmp);
+    bilder[m] = { blob, teile };
+    const box = $("m" + m); box.classList.add("hat"); box.querySelector("img").src = URL.createObjectURL(blob);
+    status(`Modul ${m}: ${bmp.width}×${bmp.height} px → Übersicht ${Math.round(blob.size / 1024)} KB + 12 Ausschnitte (${Math.round(teile.reduce((a, t) => a + t.blob.size, 0) / 1024)} KB).`);
+    $("los").disabled = !Object.keys(bilder).length;
+  });
+});
+
+function stempel() {
+  const d = new Date(), p = n => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
+}
+
+artikelLaden();
+
+// ---- Schritt 1: hochladen + lesen ----------------------------------------
+$("los").onclick = async () => {
+  $("los").disabled = true; $("ergebnis").innerHTML = ""; $("schritt2").classList.add("versteckt");
+  const markt = $("markt").value, t0 = Date.now();
+  try {
+    const liste = [], kachelListe = [], st = stempel();
+    const hoch = async (pfad, blob) => {
+      const r = await fetch(`${SB_URL}/storage/v1/object/backshop/${pfad}`, { method: "PUT", headers: { ...H, "Content-Type": "image/jpeg", "x-upsert": "true" }, body: blob });
+      if (!r.ok) throw new Error(`Upload ${pfad}: ${r.status} ${(await r.text()).slice(0, 120)}`);
+    };
+    for (const m of Object.keys(bilder).sort()) {
+      const basis = `${markt}/${st}_m${m}`;
+      status(`Lade Modul ${m} hoch (Übersicht + 12 Ausschnitte) …`);
+      await hoch(`${basis}.jpg`, bilder[m].blob);
+      liste.push({ modul: Number(m), pfad: `${basis}.jpg` });
+      await Promise.all(bilder[m].teile.map(t => hoch(`${basis}_r${t.reihe}s${t.spalte}.jpg`, t.blob).then(() => kachelListe.push({ modul: Number(m), reihe: t.reihe, spalte: t.spalte, pfad: `${basis}_r${t.reihe}s${t.spalte}.jpg` }))));
+    }
+    status(`Fächer werden gelesen (${liste.length} Modul${liste.length > 1 ? "e" : ""}, 15–50 s) …`);
+    const r = await fetch(`${SB_URL}/functions/v1/backempfehlung`, { method: "POST", headers: { ...H, "Content-Type": "application/json" },
+      body: JSON.stringify({ markt, bilder: liste, kacheln: kachelListe, von: $("von").value || null, nur_lesen: true }) });
+    const j = await r.json();
+    if (!r.ok || j.fehler) throw new Error(j.fehler || ("Funktion " + r.status));
+    LESUNG = j;
+    FAECHER = (j.zaehlung || []).map(f => ({ ...f, hand: false })).sort((a, b) => a.modul - b.modul || a.reihe - b.reihe || a.spalte - b.spalte);
+    rasterZeigen();
+    $("schritt2").classList.remove("versteckt");
+    $("schritt2").scrollIntoView({ behavior: "smooth" });
+    const n = FAECHER.filter(f => ampel(f) === "gruen").length;
+    status(`Gelesen in ${Math.round((Date.now() - t0) / 1000)} s · ${j.modell} · ${j.tokens_ein}+${j.tokens_aus} Token · ${n}/${FAECHER.length} Fächer sicher · Lesung #${j.id}`);
+  } catch (e) {
+    status(""); $("ergebnis").innerHTML = `<div class="box fehler">${esc(e.message)}</div>`;
+  }
+  $("los").disabled = false;
+};
+
+// ---- Schritt 2: Ampel und Bestaetigen --------------------------------------
+// gruen: von Hand bestaetigt, in backshop_fach bestaetigt, oder Uebersicht und Ausschnitt nennen denselben Artikel
+// gelb:  Artikel nur aus einer Quelle  ·  rot: kein Artikel
+function ampel(f) {
+  if (f.hand || f.lesung === "bestaetigt" || f.lesung === "sicher") return f.sap_artnr ? "gruen" : "rot";
+  return f.sap_artnr ? "gelb" : "rot";
+}
+function rasterZeigen() {
+  const nachModul = {};
+  for (const f of FAECHER) (nachModul[f.modul] ??= []).push(f);
+  let h = "";
+  for (const m of Object.keys(nachModul).sort()) {
+    h += `<div style="margin-top:8px"><b>Modul ${m}</b> <span class="klein">(Reihe 1 oben)</span><div class="grid">`;
+    for (const f of nachModul[m]) {
+      const a = ampel(f), i = FAECHER.indexOf(f);
+      const mark = a === "gruen" ? "✓" : a === "gelb" ? "?" : "!";
+      h += `<div class="fach ${a} ${AKTIV === i ? "aktiv" : ""}" onclick="bearbeiten(${i})"><span class="mark">${mark}</span><div class="n">${f.anzahl}</div>${kurz(f.bezeichnung || f.schild_text || "Artikel?")}<div class="klein">${f.preis != null ? f.preis.toFixed(2) + " €" : ""}</div></div>`;
+    }
+    h += `</div></div>`;
+  }
+  $("raster").innerHTML = h;
+  const offen = FAECHER.filter(f => ampel(f) !== "gruen").length;
+  $("auswerten").textContent = offen ? `Auswertung (${offen} ${offen === 1 ? "Fach" : "Fächer"} noch nicht bestätigt)` : "Auswertung";
+}
+function bearbeiten(i) {
+  AKTIV = i; const f = FAECHER[i];
+  const ed = $("editor");
+  ed.classList.remove("versteckt");
+  ed.innerHTML = `<b>Modul ${f.modul}, Reihe ${f.reihe}, Spalte ${f.spalte}</b> <span class="klein">gelesen: ${esc(f.schild_text) || "–"} · ${f.preis != null ? f.preis.toFixed(2) + " €" : "–"}</span>
+    <div class="zeile"><div><label>Artikel (Name, PLU oder EAN)</label><input type="text" id="ed_art" list="artikelliste" value="${esc(f.bezeichnung || f.schild_text || "")}"></div>
+    <div><label>Stück</label><input type="number" id="ed_n" min="0" step="1" value="${f.anzahl}"></div></div>
+    <div class="knoepfe"><button type="button" onclick="uebernehmen()">Übernehmen</button><button type="button" class="zweit" onclick="uebernehmen(0)">Fach leer</button><button type="button" class="zweit" onclick="editorZu()">Abbrechen</button></div>
+    <div class="klein" id="ed_hinweis" style="margin-top:6px"></div>`;
+  rasterZeigen();
+  ed.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  $("ed_art").focus();
+}
+window.bearbeiten = bearbeiten;
+function editorZu() { AKTIV = null; $("editor").classList.add("versteckt"); rasterZeigen(); }
+window.editorZu = editorZu;
+function uebernehmen(leer) {
+  const f = FAECHER[AKTIV];
+  const a = artikelFinden($("ed_art").value);
+  if (!a) { $("ed_art").style.borderColor = "#b3261e"; $("ed_hinweis").textContent = "Artikel nicht in der Liste dieses Markts – Name aus der Liste wählen oder PLU/EAN eingeben."; return; }
+  f.sap_artnr = a.sap_artnr; f.bezeichnung = a.bezeichnung;
+  f.anzahl = leer === 0 ? 0 : Math.max(0, Math.round(Number($("ed_n").value) || 0));
+  f.hand = true;
+  editorZu();
+}
+window.uebernehmen = uebernehmen;
+
+// ---- Backprogramm je Artikel (Vorgabe Benedikt 22.09.: "Backempfehlung auch mit Backprogramm") ----
+// Kopie aus markt-todo.html (ORDERSATZ_SECTIONS + ARTIKEL_PATTERN_RULES, Stand v2026.09.19-04). Aenderungen dort
+// bitte hier nachziehen - bis die Kachel in der App die Regeln der App direkt nutzt.
+// 7 EDEKA-Backprogramme laut Auflagenplan
+const ORDERSATZ_SECTIONS = [
+  {key: "broetchen",        title: "🟡 Brötchen (Gelb)",          cls: "bs-color-yellow"},
+  {key: "croissants",       title: "🔵 Croissant (Blau)",         cls: "bs-color-blue"},
+  {key: "brot",             title: "🟠 Brot (Orange)",            cls: "bs-color-orange"},
+  {key: "baguette",         title: "🩷 Baguette (Rosa)",          cls: "bs-color-pink"},
+  {key: "lauge_hellgruen",  title: "🟢 Lauge (Hellgrün)",         cls: "bs-color-green"},
+  {key: "lauge_dunkelgruen",title: "💚 Lauge (Dunkelgrün)",       cls: "bs-color-darkgreen"},
+  {key: "auftau",           title: "🧊 Auftauartikel (Weiß)",     cls: "bs-color-none"}
+];
+// Automatische Kategorisierung anhand des Artikelnamens (EDEKA-Auflagenplan)
+// Patterns werden in dieser Reihenfolge geprueft, erstes Match gewinnt
+const ARTIKEL_PATTERN_RULES = [
+  {pattern: /BUTTER.?APFEL/i, key: "auftau"},
+  {pattern: /PUDDING.?BREZ/i, key: "auftau"},
+  {pattern: /BERLINER.?BREZ/i, key: "auftau"},
+  {pattern: /BAGUETTE|BAGUET\b|BAGUE\.|CIABATTA|PEPERO|MINI.?KRUSTE/i, key: "baguette"},   // BAGUE\. ergaenzt 22.09. ("G&G WEIZENBAGUE.250G" fiel sonst auf Auftau) - in der App noch nicht
+  {pattern: /PIZ\.?DONU|PIZZA.?DONU|FLAMMK.?DONU|FLAMMKUCHEN.?DONU/i, key: "croissants"},
+  {pattern: /FLAMMKUCHEN/i, key: "croissants"},
+  {pattern: /BERLINER|BERLIN\.|DONUT|FRUCHT.?STR|NUSS.?SCHNECK|ROSIN.?SCHNECK|SPRITZRING|QUARKBAELL|MUFFIN|VANILLE.?KIPFERL/i, key: "auftau"},
+  {pattern: /LAU(GE|GEN)?\.?\s?CRO|LAU\.CRO/i, key: "croissants"},
+  {pattern: /LAUGEN.?BROETCH|LAUGEN.?BROET|LAUGENZOPF|LAUGEN.?ZOPF/i, key: "lauge_dunkelgruen"},
+  {pattern: /LAUGEN|LAUGE|BREZEL|BREZ\b/i, key: "lauge_hellgruen"},
+  {pattern: /CROISSANT|CROI(\.|\b)/i, key: "croissants"},
+  {pattern: /QUARKT|APFELTASCH|APFEL.?DREIE|VANILLE.?STANGE|KIRSCH.?KISSEN|FRANZ.?BROETCH|FRANZBROETCH|STICH\b/i, key: "croissants"},
+  {pattern: /SCHOKOBR|SCHOK.?BROET|P\.\s?CHOC|NOUG|MOHNHOERN|BRIOC|MARZIPAN|BUTTER.?PLUNDER/i, key: "croissants"},
+  {pattern: /KAESE.?SCH|SCH.?KAESE|SCHINK.?KAESE|KAESE.?MOZ|MOZZAR|KAESE.?FAECH|KAES.?CRO/i, key: "croissants"},
+  {pattern: /PIZZA|GEFLUEGEL|WUERST|HAEHN|DOENER|KEBAB|BOEREK|FOODPLY|FRUSTE/i, key: "croissants"},
+  {pattern: /SP[\.\-]?KAESE|SPINAT|SPI[\.\-]?FET|FET\.?\s?KAES|FRUEHSTUECK/i, key: "croissants"},
+  {pattern: /\bFAECH\b|\bTASCHE\b/i, key: "croissants"},
+  {pattern: /OFENBUERLI|OFEN.?BUERLI/i, key: "brot"},
+  {pattern: /WELTMEISTERBROT|WELTMEISTER.?BROT/i, key: "brot"},
+  {pattern: /KARTOFFELBROT|HAUSBROT|GOLDKRUSTE|WEIZEN.?KRUSTE|ROGGEN.?KRUSTE|DINKEL.?BROT|VITALBROT|ZWIEBELBROT|ROGGENZWILL|MEHRKORNBROT|CHIABROT|NETZBROT|PARTYKRAN|WEISSBROT|RUSTI.?BROT|BAUERN|LANDBROT|VOLLK|KUERBIS.?KERN.?BROT|WALNUSSBROT|WEIZ\.BROT|WEIZENBROT(?!ETCH)/i, key: "brot"},
+  {pattern: /DINKEL.?VOL|DINKELVOL|VK[\.\-]?BROT|VOLLKORN.?BROT|VK.?KRUSTE/i, key: "brot"},
+  {pattern: /BROT(?!ETCH|ETCHEN|CHEN|EN).{0,5}\d.*KG/i, key: "brot"},
+  {pattern: /\.ROG\.?BR\.|\.ME\.?BROE|\.ME\.?BR\./i, key: "broetchen"},
+  {pattern: /DINKELRUS|DINKEL.?RUS/i, key: "broetchen"},
+  {pattern: /MEHRKORNKRUEST|MEHRKORN.?KRUEST|MEHRKORN.?KRUSTI/i, key: "broetchen"},
+  {pattern: /BROETCHEN|BROETCH|BROET\.|BRÖTCHEN|SEMMEL|MUSCHEL|KAISER|DINKEL.?KRUSTI|KRUSTI(?!.*BROT)|WELTMEISTER(?!BROT)|SONN.?KERN|KUERBIS.?KERN(?!.?BROT)|WALNUSSBROET|HI\.PROT|SENNER|POTATO|STEINOFENBROE|FLADEN.?BR|TOSC|SIMITRING|SEELE|MINIBROET|BAGEL/i, key: "broetchen"}
+];
+function artikelToBackprogramm(name){
+  if(!name) return null;
+  const upper = String(name).toUpperCase();
+  for(const rule of ARTIKEL_PATTERN_RULES){ if(rule.pattern.test(upper)) return rule.key; }
+  return null; // unbekannt -> Auftau
+}
+
+// ---- Schritt 3: Empfehlung aus bestaetigten Faechern; alles Bestaetigte wird gelernt ----
+$("auswerten").onclick = async () => {
+  $("auswerten").disabled = true; $("status2").textContent = "Empfehlung wird berechnet …"; $("ergebnis").innerHTML = "";
+  try {
+    const zaehlung = FAECHER.map(f => ({ modul: f.modul, reihe: f.reihe, spalte: f.spalte, sap_artnr: f.sap_artnr, bezeichnung: f.bezeichnung,
+      schild_text: f.schild_text, preis: f.preis, anzahl: f.anzahl, bestaetigt: ampel(f) === "gruen" }));
+    const r = await fetch(`${SB_URL}/functions/v1/backempfehlung`, { method: "POST", headers: { ...H, "Content-Type": "application/json" },
+      body: JSON.stringify({ markt: $("markt").value, empfehlung_fuer: LESUNG.id, zaehlung, von: $("von").value || null }) });
+    const j = await r.json();
+    if (!r.ok || j.fehler) throw new Error(j.fehler || ("Funktion " + r.status));
+    zeigen(j);
+    const ohne = FAECHER.filter(f => !f.sap_artnr).length;
+    $("status2").textContent = `Belegung gelernt: ${j.gelernt} Fächer${j.lern_fehler ? " (Fehler: " + j.lern_fehler + ")" : ""}${ohne ? ` · ${ohne} Fach ohne Artikel nicht gezählt` : ""}`;
+    $("ergebnis").scrollIntoView({ behavior: "smooth" });
+  } catch (e) {
+    $("status2").textContent = ""; $("ergebnis").innerHTML = `<div class="box fehler">${esc(e.message)}</div>`;
+  }
+  $("auswerten").disabled = false;
+};
+
+function zeigen(j) {
+  const z = j.zeit || {};
+  let h = `<div class="box"><h2><span class="nr">3</span>Empfehlung</h2><span class="klein">${esc(z.wochentag)} ${z.stunde} Uhr · Restabsatz = Mittel der letzten ${j.wochen_basis} ${esc(z.wochentag)}e ab jetzt bis Ladenschluss</span>
+  <div class="klein">Gruppiert nach Backprogramm (Zuordnung nach Artikelname wie im Backshop-Reiter der App).</div>`;
+  // Nach Backprogramm gruppieren, Reihenfolge wie ORDERSATZ_SECTIONS; innerhalb: Nachbacken zuerst
+  const gruppen = new Map();
+  for (const e of j.empfehlung || []) { const k = artikelToBackprogramm(e.bezeichnung) || "auftau"; if (!gruppen.has(k)) gruppen.set(k, []); gruppen.get(k).push(e); }
+  for (const sec of ORDERSATZ_SECTIONS) {
+    const liste = gruppen.get(sec.key); if (!liste) continue;
+    const nb = liste.reduce((a, e) => a + (e.nachbacken || 0), 0);
+    h += `<div class="bs-color-header ${sec.cls}">${sec.title}${nb ? ` · ${nb} Stk. nachbacken` : ""}</div>
+    <table><tr><th>Artikel</th><th class="z">Im Fach</th><th class="z">Rest erwartet</th><th class="z">Nachbacken</th><th></th></tr>`;
+    for (const e of liste) {
+      h += `<tr><td>${kurz(e.bezeichnung)}</td><td class="z">${e.ist}</td><td class="z">${e.rest_erwartet}</td><td class="z">${e.nachbacken || ""}</td><td class="${e.hinweis === "nachbacken" ? "nachbacken" : e.hinweis === "zu viel" ? "zuviel" : "reicht"}">${esc(e.hinweis)}</td></tr>`;
+    }
+    h += `</table>`;
+  }
+  if ((LESUNG?.belegung_abweichung || []).length) {
+    h += `<div style="margin-top:8px"><b>Belegung weicht ab</b> <span class="klein">(gespeichert vs. gelesen – gespeichert gilt; beim Umbau das Fach antippen und neu bestätigen)</span><table>`;
+    for (const a of LESUNG.belegung_abweichung) h += `<tr><td>Modul ${a.modul}, ${a.reihe}/${a.spalte}</td><td>gespeichert: ${kurz(a.gespeichert)}<br>gelesen: ${kurz(a.gelesen)}</td></tr>`;
+    h += `</table></div>`;
+  }
+  h += `<details><summary>Rohdaten</summary><pre class="klein" style="white-space:pre-wrap">${esc(JSON.stringify({ lesung: LESUNG, empfehlung: j }, null, 1))}</pre></details></div>`;
+  $("ergebnis").innerHTML = h;
+}
+</script>
+</body>
+</html>
