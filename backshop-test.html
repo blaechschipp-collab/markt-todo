@@ -67,13 +67,19 @@
   .kamera.versteckt{display:none}
   .kamera-kopf{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;color:#fff;font-weight:bold;background:var(--blue-dark)}
   .kamera video{flex:1;width:100%;object-fit:contain;background:#000;min-height:0}
+  .kamera-buehne{flex:1;position:relative;min-height:0;display:flex}
+  /* Rahmenhilfe: Modul muss den Rahmen fuellen - sonst treffen die 12 Ausschnitte die Faecher nicht
+     (Beleg 22.09. 10:54 Billigheim: Modul nur 55 % des Bildes -> alle Schilder "Unleserlich", Zaehlung 0). */
+  .rahmen{position:absolute;border:3px solid #fff;box-shadow:0 0 0 2000px rgba(0,0,0,.45);pointer-events:none;box-sizing:border-box}
+  .rahmen i{position:absolute;left:0;right:0;border-top:2px dashed rgba(255,255,255,.8)}
+  .rahmen b{position:absolute;left:4px;right:4px;top:4px;text-align:center;color:#fff;font-size:.85rem;text-shadow:0 0 4px #000,0 0 4px #000}
   .kamera-fuss{padding:12px 14px 20px;background:var(--blue-dark)}
 </style>
 </head>
 <body>
 <header>
   <h1>meinMarkt · Backempfehlung (Test)</h1>
-  <div class="sub"><a href="index.html">← zur App</a> · Ablauf: <b>1</b> Foto je Modul → <b>2</b> Fächer prüfen (grün = sicher gelesen, gelb/rot = antippen und bestätigen) → <b>3</b> Auswertung. Jede Bestätigung wird als Belegung gelernt. <b>Markt zuerst richtig wählen.</b> Antippen eines Moduls öffnet die Kamera.</div>
+  <div class="sub"><a href="index.html">← zur App</a> · Ablauf: <b>1</b> Foto je Modul → <b>2</b> Fächer prüfen (grün = sicher gelesen, gelb/rot = antippen und bestätigen) → <b>3</b> Auswertung. Jede Bestätigung wird als Belegung gelernt. <b>Markt zuerst richtig wählen.</b> Antippen eines Moduls öffnet die Kamera – <b>so nah, dass das Modul den weißen Rahmen füllt</b> (sonst wird falsch gezählt).</div>
 </header>
 <main>
   <div class="box">
@@ -116,7 +122,10 @@
      fällt die Seite auf die Dateiauswahl zurück. -->
 <div id="kamera" class="kamera versteckt">
   <div class="kamera-kopf"><span id="kameraTitel">Modul 1</span><button type="button" class="zweit" style="width:auto" onclick="kameraSchliessen()">Abbrechen</button></div>
-  <video id="kameraVideo" autoplay playsinline muted></video>
+  <div class="kamera-buehne">
+    <video id="kameraVideo" autoplay playsinline muted></video>
+    <div class="rahmen" id="rahmen"><i style="top:25%"></i><i style="top:50%"></i><i style="top:75%"></i><b>Modul füllt den Rahmen: Seitenkanten auf die Linien, unterste Schildzeile an die Unterkante</b></div>
+  </div>
   <div class="kamera-fuss"><button type="button" id="kameraKnopf" onclick="kameraAufnehmen()">📷 Aufnehmen</button><div class="klein" id="kameraHinweis" style="color:#fff;margin-top:6px"></div></div>
 </div>
 
@@ -223,7 +232,8 @@ async function kameraOeffnen(m) {
     KAMERA_STROM = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: "environment" }, width: { ideal: 4000 }, height: { ideal: 3000 } } });
     const v = $("kameraVideo"); v.srcObject = KAMERA_STROM; await v.play();
     const t = KAMERA_STROM.getVideoTracks()[0].getSettings();
-    $("kameraHinweis").textContent = `${t.width}×${t.height} px · Modul frontal, alle vier Schildzeilen im Bild, ruhig halten`;
+    $("kameraHinweis").textContent = `${t.width}×${t.height} px · Modul frontal und so nah, dass es den weißen Rahmen füllt · ruhig halten`;
+    rahmenLegen(); window.addEventListener("resize", rahmenLegen);
     $("kameraKnopf").disabled = false;
   } catch (e) {
     kameraSchliessen();
@@ -231,14 +241,37 @@ async function kameraOeffnen(m) {
     $("in" + m).click();
   }
 }
+// Rahmenhilfe (22.09.): Der weisse Rahmen ist das Bild, das ausgewertet wird - die Aufnahme wird darauf
+// zugeschnitten. Die 12 Ausschnitte setzen voraus, dass das Modul das Bild fuellt. Beleg 22.09. 10:54 Billigheim
+// (Foto von weiter weg, Modul nur ~55 % der Breite): alle Schilder "Unleserlich", 14 von 36 Faechern mit 0 gezaehlt;
+// 11:06 (nah, Modul fuellt das Bild): Zaehlung bis auf +-1 richtig. Rahmen = 4 % Rand seitlich, 3 % oben/unten.
+const RAHMEN = { x: 0.04, y: 0.03 };
+function videoFlaeche() {
+  // sichtbare Bildflaeche des Videos (object-fit: contain -> Letterbox), in Seitenpixeln relativ zur Buehne
+  const v = $("kameraVideo"); const B = v.clientWidth, H = v.clientHeight;
+  if (!v.videoWidth || !B || !H) return null;
+  const f = Math.min(B / v.videoWidth, H / v.videoHeight);
+  const w = v.videoWidth * f, h = v.videoHeight * f;
+  return { x: v.offsetLeft + (B - w) / 2, y: v.offsetTop + (H - h) / 2, w, h };
+}
+function rahmenLegen() {
+  const a = videoFlaeche(); const r = $("rahmen"); if (!a) { r.style.display = "none"; return; }
+  r.style.display = "";
+  r.style.left = Math.round(a.x + a.w * RAHMEN.x) + "px"; r.style.top = Math.round(a.y + a.h * RAHMEN.y) + "px";
+  r.style.width = Math.round(a.w * (1 - 2 * RAHMEN.x)) + "px"; r.style.height = Math.round(a.h * (1 - 2 * RAHMEN.y)) + "px";
+}
 function kameraSchliessen() {
   if (KAMERA_STROM) { KAMERA_STROM.getTracks().forEach(t => t.stop()); KAMERA_STROM = null; }
+  window.removeEventListener("resize", rahmenLegen);
   $("kameraVideo").srcObject = null; $("kamera").classList.add("versteckt");
 }
 async function kameraAufnehmen() {
   const v = $("kameraVideo"); if (!v.videoWidth) return;
-  const c = document.createElement("canvas"); c.width = v.videoWidth; c.height = v.videoHeight;
-  c.getContext("2d").drawImage(v, 0, 0);
+  // nur den Rahmen uebernehmen (gleicher Ausschnitt wie die Hilfslinien)
+  const sx = Math.round(v.videoWidth * RAHMEN.x), sy = Math.round(v.videoHeight * RAHMEN.y);
+  const sw = v.videoWidth - 2 * sx, sh = v.videoHeight - 2 * sy;
+  const c = document.createElement("canvas"); c.width = sw; c.height = sh;
+  c.getContext("2d").drawImage(v, sx, sy, sw, sh, 0, 0, sw, sh);
   const m = KAMERA_MODUL; kameraSchliessen();
   await bildUebernehmen(m, c);
 }
