@@ -88,6 +88,11 @@
     <div class="klein">Fach antippen: Artikel und Stückzahl prüfen, „Übernehmen". Grüne Fächer gelten ohne Antippen.</div>
     <div id="raster"></div>
     <div id="editor" class="editor versteckt"></div>
+    <div style="margin-top:12px">
+      <label for="horizont">Empfehlung für</label>
+      <select id="horizont"><option value="4h">die nächsten 4 Stunden</option><option value="schluss">bis Ladenschluss</option></select>
+      <div class="klein" style="margin-top:4px">Sind es nur noch 5 Stunden oder weniger bis Ladenschluss, rechnet die Auswertung immer bis Ladenschluss.</div>
+    </div>
     <div style="margin-top:12px"><button id="auswerten">Auswertung</button></div>
     <div class="status" id="status2"></div>
   </div>
@@ -329,7 +334,7 @@ $("auswerten").onclick = async () => {
     const zaehlung = FAECHER.map(f => ({ modul: f.modul, reihe: f.reihe, spalte: f.spalte, sap_artnr: f.sap_artnr, bezeichnung: f.bezeichnung,
       schild_text: f.schild_text, preis: f.preis, anzahl: f.anzahl, bestaetigt: ampel(f) === "gruen" }));
     const r = await fetch(`${SB_URL}/functions/v1/backempfehlung`, { method: "POST", headers: { ...H, "Content-Type": "application/json" },
-      body: JSON.stringify({ markt: $("markt").value, empfehlung_fuer: LESUNG.id, zaehlung, von: $("von").value || null }) });
+      body: JSON.stringify({ markt: $("markt").value, empfehlung_fuer: LESUNG.id, zaehlung, von: $("von").value || null, horizont: $("horizont").value }) });
     const j = await r.json();
     if (!r.ok || j.fehler) throw new Error(j.fehler || ("Funktion " + r.status));
     zeigen(j);
@@ -343,8 +348,9 @@ $("auswerten").onclick = async () => {
 };
 
 function zeigen(j) {
-  const z = j.zeit || {};
-  let h = `<div class="box"><h2><span class="nr">3</span>Empfehlung</h2><span class="klein">${esc(z.wochentag)} ${z.stunde} Uhr · Restabsatz = Mittel der letzten ${j.wochen_basis} ${esc(z.wochentag)}e ab jetzt bis Ladenschluss</span>
+  const z = j.zeit || {}, hz = j.horizont || {};
+  const bisText = hz.art === "4h" ? `bis ${hz.bis} Uhr (nächste 4 Stunden)` : `bis Ladenschluss ${hz.schluss ?? ""} Uhr`;
+  let h = `<div class="box"><h2><span class="nr">3</span>Empfehlung <span class="klein">${esc(bisText)}</span></h2><span class="klein">${esc(z.wochentag)} ${z.stunde} Uhr · Restabsatz = Mittel der letzten ${j.wochen_basis} ${esc(z.wochentag)}e von jetzt ${esc(bisText)}${hz.art === "schluss" && $("horizont").value === "4h" ? " — 4-Stunden-Auswahl nicht möglich, weniger als 6 Stunden bis Ladenschluss" : ""}</span>
   <div class="klein">Gruppiert nach Backprogramm (Zuordnung nach Artikelname wie im Backshop-Reiter der App).</div>`;
   // Nach Backprogramm gruppieren, Reihenfolge wie ORDERSATZ_SECTIONS; innerhalb: Nachbacken zuerst
   const gruppen = new Map();
