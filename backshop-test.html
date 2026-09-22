@@ -63,12 +63,17 @@
   details{margin-top:8px}summary{cursor:pointer;color:var(--grau);font-size:.85rem}
   .ok{color:var(--g);font-size:.8rem}
   .versteckt{display:none}
+  .kamera{position:fixed;inset:0;background:#000;z-index:50;display:flex;flex-direction:column}
+  .kamera.versteckt{display:none}
+  .kamera-kopf{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;color:#fff;font-weight:bold;background:var(--blue-dark)}
+  .kamera video{flex:1;width:100%;object-fit:contain;background:#000;min-height:0}
+  .kamera-fuss{padding:12px 14px 20px;background:var(--blue-dark)}
 </style>
 </head>
 <body>
 <header>
   <h1>meinMarkt · Backempfehlung (Test)</h1>
-  <div class="sub"><a href="index.html">← zur App</a> · Ablauf: <b>1</b> Foto je Modul → <b>2</b> Fächer prüfen (grün = sicher gelesen, gelb/rot = antippen und bestätigen) → <b>3</b> Auswertung. Jede Bestätigung wird als Belegung gelernt. <b>Markt zuerst richtig wählen.</b> Beim Antippen eines Moduls fragt das Gerät nach Kamera oder Galerie.</div>
+  <div class="sub"><a href="index.html">← zur App</a> · Ablauf: <b>1</b> Foto je Modul → <b>2</b> Fächer prüfen (grün = sicher gelesen, gelb/rot = antippen und bestätigen) → <b>3</b> Auswertung. Jede Bestätigung wird als Belegung gelernt. <b>Markt zuerst richtig wählen.</b> Antippen eines Moduls öffnet die Kamera.</div>
 </header>
 <main>
   <div class="box">
@@ -80,9 +85,9 @@
     </div>
     <input type="hidden" id="markt" value="Steinfeld">
     <div class="module" style="margin-top:12px">
-      <label class="modul" id="m1" for="in1"><b>links</b><img alt=""><div class="hint">📷 Modul 1<br>antippen</div><input type="file" id="in1" accept="image/*" data-modul="1"></label>
-      <label class="modul" id="m2" for="in2"><b>Mitte</b><img alt=""><div class="hint">📷 Modul 2<br>antippen</div><input type="file" id="in2" accept="image/*" data-modul="2"></label>
-      <label class="modul" id="m3" for="in3"><b>rechts</b><img alt=""><div class="hint">📷 Modul 3<br>antippen</div><input type="file" id="in3" accept="image/*" data-modul="3"></label>
+      <div class="modul" id="m1" onclick="kameraOeffnen(1)"><b>links</b><img alt=""><div class="hint">📷 Modul 1<br>antippen</div><input type="file" id="in1" accept="image/*" data-modul="1" onclick="event.stopPropagation()"></div>
+      <div class="modul" id="m2" onclick="kameraOeffnen(2)"><b>Mitte</b><img alt=""><div class="hint">📷 Modul 2<br>antippen</div><input type="file" id="in2" accept="image/*" data-modul="2" onclick="event.stopPropagation()"></div>
+      <div class="modul" id="m3" onclick="kameraOeffnen(3)"><b>rechts</b><img alt=""><div class="hint">📷 Modul 3<br>antippen</div><input type="file" id="in3" accept="image/*" data-modul="3" onclick="event.stopPropagation()"></div>
     </div>
     <div style="margin-top:12px"><button id="los" disabled>Fächer lesen</button></div>
     <div class="status" id="status"></div>
@@ -106,6 +111,14 @@
   <datalist id="artikelliste"></datalist>
   <div id="ergebnis"></div>
 </main>
+<!-- Kamera direkt in der Seite (Vorgabe Benedikt 22.09.: „beim Anklicken direkt die Kamera öffnen"; die Dateiauswahl
+     tat auf dem Kiosk-Tablet nichts). Rückkamera, höchste Auflösung, Aufnahme über Canvas. Geht die Kamera nicht auf,
+     fällt die Seite auf die Dateiauswahl zurück. -->
+<div id="kamera" class="kamera versteckt">
+  <div class="kamera-kopf"><span id="kameraTitel">Modul 1</span><button type="button" class="zweit" style="width:auto" onclick="kameraSchliessen()">Abbrechen</button></div>
+  <video id="kameraVideo" autoplay playsinline muted></video>
+  <div class="kamera-fuss"><button type="button" id="kameraKnopf" onclick="kameraAufnehmen()">📷 Aufnehmen</button><div class="klein" id="kameraHinweis" style="color:#fff;margin-top:6px"></div></div>
+</div>
 
 <script>
 // ---------------------------------------------------------------------------
@@ -181,19 +194,55 @@ async function kacheln(bmp) {
   return aus;
 }
 
+// Gemeinsame Verarbeitung: Quelle ist ein ImageBitmap (Datei) oder ein Canvas (Kameraaufnahme)
+async function bildUebernehmen(m, quelle) {
+  status("Bild wird verkleinert und in Fächer geschnitten …");
+  const blob = await verkleinern(quelle);
+  const teile = await kacheln(quelle);
+  bilder[m] = { blob, teile };
+  const box = $("m" + m); box.classList.add("hat"); box.querySelector("img").src = URL.createObjectURL(blob);
+  status(`Modul ${m}: ${quelle.width}×${quelle.height} px → Übersicht ${Math.round(blob.size / 1024)} KB + 12 Ausschnitte (${Math.round(teile.reduce((a, t) => a + t.blob.size, 0) / 1024)} KB).`);
+  $("los").disabled = !Object.keys(bilder).length;
+}
 document.querySelectorAll(".modul input").forEach(inp => {
   inp.addEventListener("change", async () => {
     const m = inp.dataset.modul, file = inp.files[0]; if (!file) return;
-    status("Bild wird verkleinert und in Fächer geschnitten …");
-    const bmp = await bitmap(file);
-    const blob = await verkleinern(bmp);
-    const teile = await kacheln(bmp);
-    bilder[m] = { blob, teile };
-    const box = $("m" + m); box.classList.add("hat"); box.querySelector("img").src = URL.createObjectURL(blob);
-    status(`Modul ${m}: ${bmp.width}×${bmp.height} px → Übersicht ${Math.round(blob.size / 1024)} KB + 12 Ausschnitte (${Math.round(teile.reduce((a, t) => a + t.blob.size, 0) / 1024)} KB).`);
-    $("los").disabled = !Object.keys(bilder).length;
+    await bildUebernehmen(m, await bitmap(file));
   });
 });
+
+// ---- Kamera direkt in der Seite ----------------------------------------
+let KAMERA_STROM = null, KAMERA_MODUL = null;
+async function kameraOeffnen(m) {
+  KAMERA_MODUL = m; $("kameraTitel").textContent = "Modul " + m + " – " + ({1:"links",2:"Mitte",3:"rechts"})[m];
+  $("kameraHinweis").textContent = ""; $("kameraKnopf").disabled = true;
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { status("Dieser Browser bietet keine Kamera – Dateiauswahl."); $("in" + m).click(); return; }
+  $("kamera").classList.remove("versteckt");
+  try {
+    // Rueckkamera, so gross wie das Geraet hergibt (Ausschnitte kommen aus dem Original)
+    KAMERA_STROM = await navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { ideal: "environment" }, width: { ideal: 4000 }, height: { ideal: 3000 } } });
+    const v = $("kameraVideo"); v.srcObject = KAMERA_STROM; await v.play();
+    const t = KAMERA_STROM.getVideoTracks()[0].getSettings();
+    $("kameraHinweis").textContent = `${t.width}×${t.height} px · Modul frontal, alle vier Schildzeilen im Bild, ruhig halten`;
+    $("kameraKnopf").disabled = false;
+  } catch (e) {
+    kameraSchliessen();
+    status("Kamera nicht verfügbar (" + (e.name || e.message) + ") – Dateiauswahl wird geöffnet. Falls nichts passiert: Kamera-Freigabe in den Tablet-Einstellungen prüfen.");
+    $("in" + m).click();
+  }
+}
+function kameraSchliessen() {
+  if (KAMERA_STROM) { KAMERA_STROM.getTracks().forEach(t => t.stop()); KAMERA_STROM = null; }
+  $("kameraVideo").srcObject = null; $("kamera").classList.add("versteckt");
+}
+async function kameraAufnehmen() {
+  const v = $("kameraVideo"); if (!v.videoWidth) return;
+  const c = document.createElement("canvas"); c.width = v.videoWidth; c.height = v.videoHeight;
+  c.getContext("2d").drawImage(v, 0, 0);
+  const m = KAMERA_MODUL; kameraSchliessen();
+  await bildUebernehmen(m, c);
+}
+window.kameraOeffnen = kameraOeffnen; window.kameraSchliessen = kameraSchliessen; window.kameraAufnehmen = kameraAufnehmen;
 
 function stempel() {
   const d = new Date(), p = n => String(n).padStart(2, "0");
