@@ -208,7 +208,7 @@ async function bildUebernehmen(m, quelle) {
   status("Bild wird verkleinert und in Fächer geschnitten …");
   const blob = await verkleinern(quelle);
   const teile = await kacheln(quelle);
-  bilder[m] = { blob, teile };
+  bilder[m] = { blob, teile, quelle };   // quelle bleibt fuer die engen Fach-Ausschnitte (Schritt 1b)
   const box = $("m" + m); box.classList.add("hat"); box.querySelector("img").src = URL.createObjectURL(blob);
   status(`Modul ${m}: ${quelle.width}×${quelle.height} px → Übersicht ${Math.round(blob.size / 1024)} KB + 12 Ausschnitte (${Math.round(teile.reduce((a, t) => a + t.blob.size, 0) / 1024)} KB).`);
   $("los").disabled = !Object.keys(bilder).length;
@@ -307,12 +307,40 @@ $("los").onclick = async () => {
     const j = await r.json();
     if (!r.ok || j.fehler) throw new Error(j.fehler || ("Funktion " + r.status));
     LESUNG = j;
+    // Schritt 1b (22.09.): jedes Fach einzeln zaehlen. Die Funktion liefert je Fach eine Box (Bruchteile des
+    // Originals, aus den Schildpositionen); die Seite schneidet den engen Ausschnitt, laedt ihn hoch und laesst
+    // ihn mit einer einzigen Frage zaehlen. Beleg 22.09.: 36 Kacheln in einem Aufruf -> Baguettes 3 statt 6;
+    // ein Fach je Aufruf -> 8-9 von 10 auf +-1. Faellt 1b aus, bleibt die Zaehlung aus Schritt 1.
+    let hinweis1b = "";
+    try {
+      const boxen = Array.isArray(j.faecher_boxen) ? j.faecher_boxen : [];
+      if (boxen.length) {
+        status(`Fächer werden einzeln gezählt (${boxen.length} Ausschnitte, 15–30 s) …`);
+        const fachListe = [];
+        for (const b of boxen) {
+          const q = bilder[b.modul] && bilder[b.modul].quelle; if (!q) continue;
+          const W = q.width, H = q.height;
+          const x = Math.round(b.x0 * W), y = Math.round(b.y0 * H), w = Math.max(50, Math.round((b.x1 - b.x0) * W)), h = Math.max(50, Math.round((b.y1 - b.y0) * H));
+          const blob = await ausschnitt(q, x, y, w, h, 900);
+          const pfad = `${markt}/${st}_m${b.modul}_f${b.reihe}${b.spalte}.jpg`;
+          await hoch(pfad, blob);
+          fachListe.push({ modul: b.modul, reihe: b.reihe, spalte: b.spalte, pfad });
+        }
+        const r2 = await fetch(`${SB_URL}/functions/v1/backempfehlung`, { method: "POST", headers: { ...H, "Content-Type": "application/json" },
+          body: JSON.stringify({ markt, zaehlen_fuer: j.id, faecher: fachListe }) });
+        const j2 = await r2.json();
+        if (!r2.ok || j2.fehler) throw new Error(j2.fehler || ("Funktion " + r2.status));
+        if (Array.isArray(j2.zaehlung)) j.zaehlung = j2.zaehlung;
+        j.tokens_ein += j2.tokens_ein || 0; j.tokens_aus += j2.tokens_aus || 0;
+        hinweis1b = ` · ${j2.einzeln_gezaehlt}/${fachListe.length} Fächer einzeln gezählt (Boxen: ${boxen[0].quelle})` + (j2.zaehl_fehler ? `, ${j2.zaehl_fehler} ohne Ergebnis` : "");
+      }
+    } catch (e) { hinweis1b = ` · Einzelzählung ausgefallen (${e.message}) – Zählung aus Schritt 1`; }
     FAECHER = (j.zaehlung || []).map(f => ({ ...f, hand: false })).sort((a, b) => a.modul - b.modul || a.reihe - b.reihe || a.spalte - b.spalte);
     rasterZeigen();
     $("schritt2").classList.remove("versteckt");
     $("schritt2").scrollIntoView({ behavior: "smooth" });
     const n = FAECHER.filter(f => ampel(f) === "gruen").length;
-    status(`Gelesen in ${Math.round((Date.now() - t0) / 1000)} s · ${j.modell} · ${j.tokens_ein}+${j.tokens_aus} Token · ${n}/${FAECHER.length} Fächer sicher · Lesung #${j.id}`);
+    status(`Gelesen in ${Math.round((Date.now() - t0) / 1000)} s · ${j.modell} · ${j.tokens_ein}+${j.tokens_aus} Token · ${n}/${FAECHER.length} Fächer sicher · Lesung #${j.id}${hinweis1b}`);
   } catch (e) {
     status(""); $("ergebnis").innerHTML = `<div class="box fehler">${esc(e.message)}</div>`;
   }
