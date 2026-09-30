@@ -767,7 +767,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.09.30-01"; // Bevorratung: erster Bildschirm nach dem Oeffnen rechnete ueber alle geladenen Wochen (promo nicht auf die gewaehlte Woche eingegrenzt, Banner KW 36 bei Feld KW 41) - renderWerbung grenzt jetzt selbst ein; Reiter brach beim Oeffnen mit Statement-Timeout ab (schnitt_fuer_werbeartikel, 11 Seiten, 8 parallel, anon 3 s) - fetchAllPaged wiederholt Seiten bei Timeout (Standard 1x, RPC 3x) und holt die RPC nur noch 2 Seiten gleichzeitig; Backshop unveraendert (Vorgabe Benedikt 30.09.); sonst wie v2026.09.22-02: Baeckerei-Reiter: vierter Unterreiter-Knopf "Foto-Empfehlung (Test)" springt auf backshop-test.html (Vorgabe Benedikt 22.09.; Inhalte unveraendert); sonst wie -01: Admin-Kasten mit Link auf backshop-test.html; sonst wie v2026.09.19-04: // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
+const APP_VERSION = "v2026.09.30-02"; // Liquiditaetskachel je Konto: Umbuchungszeilen mit Quellkonto, veraltete Salden, heute offene Posten; Ampeltexte je Konto (Knoten Verwaltung Status Regelwerk 2026-09-30, Skript 07); sonst wie -01: Bevorratung: erster Bildschirm nach dem Oeffnen rechnete ueber alle geladenen Wochen (promo nicht auf die gewaehlte Woche eingegrenzt, Banner KW 36 bei Feld KW 41) - renderWerbung grenzt jetzt selbst ein; Reiter brach beim Oeffnen mit Statement-Timeout ab (schnitt_fuer_werbeartikel, 11 Seiten, 8 parallel, anon 3 s) - fetchAllPaged wiederholt Seiten bei Timeout (Standard 1x, RPC 3x) und holt die RPC nur noch 2 Seiten gleichzeitig; Backshop unveraendert (Vorgabe Benedikt 30.09.); sonst wie v2026.09.22-02: Baeckerei-Reiter: vierter Unterreiter-Knopf "Foto-Empfehlung (Test)" springt auf backshop-test.html (Vorgabe Benedikt 22.09.; Inhalte unveraendert); sonst wie -01: Admin-Kasten mit Link auf backshop-test.html; sonst wie v2026.09.19-04: // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -9806,12 +9806,26 @@ function mepKachelVerwaltung(){
   const tage=l.vorschau_tage||14;
   const umb=(l.umbuchung&&l.umbuchung.length)?l.umbuchung:[];
   const ampelText={
-    gruen:`Das Geld reicht die nächsten ${tage} Tage – die Puffergrenze bleibt gewahrt.`,
-    gelb:`Es wird knapp: in den nächsten ${tage} Tagen wird die Puffergrenze unterschritten.`,
-    rot:`Achtung: in den nächsten ${tage} Tagen rutscht der Saldo ins Minus.`
+    gruen:`Jedes Konto bleibt die nächsten ${tage} Tage über seiner Puffergrenze.`,
+    gelb:`Ein Konto unterschreitet in den nächsten ${tage} Tagen seine Puffergrenze.`,
+    rot:`Achtung: ein Konto rutscht in den nächsten ${tage} Tagen ins Minus.`
   }[l.ampel]||"Keine Aussage möglich.";
+  /* Je Konto, mit Quellkonto (30.09.2026). Am 28.09. lief Billigheim auf
+     -39.565 EUR, am 30.09. Sparkasse und BeMi ins Minus - die Kachel sagte
+     "reicht", weil sie zwoelf Konten addierte. Der Knoten rechnet jetzt je
+     Konto (Regelwerk "2026-09-30 je Konto"): jede Zeile nennt Konto, Tag,
+     Fehlbetrag und das Konto, von dem umgebucht werden kann; ein veralteter
+     Saldo wird genannt statt mitgerechnet. Analyse:
+     09_Liquiditaet\Analyse_2026-09-30_Kontenunterdeckung.md */
   const umbText=umb.map(u=>`<b>${mepEsc(u.konto)}</b> braucht bis ${formatDateDE(u.tag)}
-      rund ${mepZahl(u.fehlt)} €`).join("; ");
+      rund ${mepZahl(u.fehlt)} €`
+      + (u.quelle ? ` – aus <b>${mepEsc(u.quelle)}</b>` + (u.quelle_frei ? ` (dort frei rund ${mepZahl(u.quelle_frei)} €)` : "") : "")
+      + (u.hinweis ? ` – <i>${mepEsc(u.hinweis)}</i>` : "")
+      + (u.veraltet ? ` <span style="color:#b91c1c">(Saldo veraltet)</span>` : "")).map(z=>"• "+z).join("<br>");
+  const veraltet=(l.veraltet&&l.veraltet.length)?l.veraltet:[];
+  const veraltetText=veraltet.map(v=>`<b>${mepEsc(v.konto)}</b> (Stand ${formatDateDE(v.stand)}, ${mepZahl(v.tage)} Tage)`).join(", ");
+  const offen=(l.offene_posten&&l.offene_posten.length)?l.offene_posten:[];
+  const offenText=offen.map(o=>`${mepEsc(o.posten)} auf ${mepEsc(o.konto)}${o.ueberfaellig?" (überfällig)":""}`).join("; ");
   const feld=(titel,wert,farbe,zusatz,absprung)=>
     `<div style="flex:1 1 190px;border:1px solid #e6eef8;border-radius:10px;padding:12px 14px;background:#fff">
       <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b">${titel}</div>
@@ -9835,18 +9849,19 @@ function mepKachelVerwaltung(){
       ${feld(`Liquidität ${tage} Tage`,
         l.ampel==="gruen"
           ? (l.umbuchung_noetig ? "reicht, Umbuchung nötig" : "reicht")
-          : l.ampel==="gelb"?"knapp":l.ampel==="rot"?"reicht nicht":"–",
+          : l.ampel==="gelb"?"Umbuchung nötig":l.ampel==="rot"?"Minus droht":"–",
         l.umbuchung_noetig&&l.ampel==="gruen" ? "#b45309" : ampelFarbe,
-        umb.length
-          ? `${ampelText}<br><b style="color:#b45309">Aber ein Konto läuft ins Soll:</b> ${umbText}.
-             Bitte rechtzeitig umbuchen.`
-          : ampelText,
+        (umb.length
+          ? `${ampelText}<br><b style="color:#b45309">Umbuchen:</b><br>${umbText}`
+          : ampelText)
+        + (veraltet.length ? `<br><b style="color:#b91c1c">Saldo veraltet, zählt 0:</b> ${veraltetText} – WISO abgleichen oder Auszug einlesen.` : "")
+        + (offen.length ? `<br><span style="color:#64748b">Heute noch nicht gebucht:</span> ${offenText}.` : ""),
         link("liqui","Liquiditäts-Dashboard"))}
     </div>
     <div class="small" style="margin-top:10px">${l.tiefster_tag
-      ? `Tiefster Punkt am ${formatDateDE(l.tiefster_tag)}, gerechnet über ${mepZahl(l.konten_gezaehlt)} Konten.`
+      ? `Tiefster Punkt der Summe am ${formatDateDE(l.tiefster_tag)}, ${mepZahl(l.konten_gezaehlt)} Konten einzeln gerechnet${l.regelwerk?"":" (alte Rechnung: nur Summe)"}.`
       : ""}
-      ${l.saldo_stand?` Kontostände vom ${formatDateDE(l.saldo_stand)}.`:""}
+      ${l.saldo_stand?` Ältester gültiger Kontostand vom ${formatDateDE(l.saldo_stand)}.`:""}
       Beträge stehen bewusst nur im Liquiditäts-Dashboard selbst.</div>
     </div>`;
 }
