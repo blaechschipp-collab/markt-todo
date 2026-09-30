@@ -767,7 +767,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.09.22-02"; // Baeckerei-Reiter: vierter Unterreiter-Knopf "Foto-Empfehlung (Test)" springt auf backshop-test.html (Vorgabe Benedikt 22.09.; Inhalte unveraendert); sonst wie -01: Admin-Kasten mit Link auf backshop-test.html; sonst wie v2026.09.19-04: // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
+const APP_VERSION = "v2026.09.30-01"; // Bevorratung: erster Bildschirm nach dem Oeffnen rechnete ueber alle geladenen Wochen (promo nicht auf die gewaehlte Woche eingegrenzt, Banner KW 36 bei Feld KW 41) - renderWerbung grenzt jetzt selbst ein; Reiter brach beim Oeffnen mit Statement-Timeout ab (schnitt_fuer_werbeartikel, 11 Seiten, 8 parallel, anon 3 s) - fetchAllPaged wiederholt Seiten bei Timeout (Standard 1x, RPC 3x) und holt die RPC nur noch 2 Seiten gleichzeitig; Backshop unveraendert (Vorgabe Benedikt 30.09.); sonst wie v2026.09.22-02: Baeckerei-Reiter: vierter Unterreiter-Knopf "Foto-Empfehlung (Test)" springt auf backshop-test.html (Vorgabe Benedikt 22.09.; Inhalte unveraendert); sonst wie -01: Admin-Kasten mit Link auf backshop-test.html; sonst wie v2026.09.19-04: // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -1282,7 +1282,7 @@ async function fillAnalyticsBereichFilter(){
   });
   if([...select.options].some(o=>o.value===current)) select.value = current;
 }
-async function fetchAllPaged(buildQuery){
+async function fetchAllPaged(buildQuery, opt){
   // Supabase liefert standardmaessig nur 1000 Zeilen pro Anfrage. Wir holen alles in Seiten.
   //
   // WICHTIG (17.08.2026): Die uebergebene Abfrage MUSS eine feste Sortierung
@@ -1301,11 +1301,24 @@ async function fetchAllPaged(buildQuery){
   // gleichzeitig, bis eine Seite nicht mehr voll ist. Die Reihenfolge der
   // Zeilen bleibt dieselbe, weil jede Seite ihren festen Bereich hat und die
   // Abfrage sortiert ist (siehe oben).
-  const PAGE = 1000, PARALLEL = 8, MAX = 200000;
+  // WIEDERHOLUNG BEI STATEMENT-TIMEOUT (30.09.2026). Die anon-Rolle darf 3 s
+  // je Abfrage. Ein Timeout ist meist Last oder kalter Cache, nicht Fassung
+  // (Rauchtest 27.09. und 29.09.: zweiter Anlauf sauber). Deshalb je Seite bis
+  // zu opt.wiederholen weitere Versuche nach kurzer Pause. Und opt.parallel
+  // begrenzt die gleichzeitigen Seiten fuer teure Abfragen - eine
+  // Datenbankfunktion rechnet bei JEDER Seite ihr ganzes Ergebnis neu; acht
+  // parallele Seiten liefen sich am 30.09.2026 gegenseitig in den Timeout
+  // (Reiter Bevorratung, schnitt_fuer_werbeartikel, 2/2 reproduziert).
+  const PAGE = 1000, PARALLEL = Math.max(1, (opt && opt.parallel) || 8), MAX = 200000;
+  const WIEDERHOLEN = (opt && opt.wiederholen != null) ? opt.wiederholen : 1;
   const hole = async (offset)=>{
-    const {data, error} = await buildQuery().range(offset, offset + PAGE - 1);
-    if(error) throw error;
-    return data || [];
+    for(let versuch = 0; ; versuch++){
+      const {data, error} = await buildQuery().range(offset, offset + PAGE - 1);
+      if(!error) return data || [];
+      const timeout = /statement timeout/i.test(String(error.message || error));
+      if(!timeout || versuch >= WIEDERHOLEN) throw error;
+      await new Promise(r => setTimeout(r, 1500 * (versuch + 1)));
+    }
   };
   let all = await hole(0);
   if(all.length < PAGE) return all;
@@ -5817,7 +5830,12 @@ async function loadWerbungData(){
   try{
     [pAlle, sRes] = await Promise.all([
       fetchAllPaged(()=>db.from("promo_articles").select("*").order("year").order("kw").order("sap_artnr")),
-      fetchAllPaged(()=>db.rpc("schnitt_fuer_werbeartikel").select("sap_artnr,market,wochen_erfasst,menge_pro_woche,name,abteilung").order("sap_artnr").order("market"))
+      /* 30.09.2026: hoechstens zwei Seiten gleichzeitig und bis zu drei
+         Wiederholungen je Seite - die Funktion rechnet je Seite ueber alle
+         7.011 jemals beworbenen Artikel (0,2-3 s), acht parallele Seiten
+         brachen am 3-s-Limit ab. Dauerhafte Loesung: Zwischenspeicher in der
+         Datenbank (sql/02_schnitt_werbeartikel_cache.sql), sobald eingespielt. */
+      fetchAllPaged(()=>db.rpc("schnitt_fuer_werbeartikel").select("sap_artnr,market,wochen_erfasst,menge_pro_woche,name,abteilung").order("sap_artnr").order("market"), {parallel: 2, wiederholen: 3})
     ]);
   }catch(e){
     list.innerHTML = `<div style="color:#c62828">Fehler Werbeartikel: ${escapeHtml((e&&e.message)||String(e))}</div>`; return;
@@ -6005,6 +6023,16 @@ function renderWerbung(){
   const sortMode = document.getElementById("werbungSort").value || "saving";
   localStorage.setItem("selectedMarket", market);
   fuelleWerbungWochen();
+  /* 30.09.2026: promo auf die im Feld gewaehlte Woche eingrenzen. Vorher blieb
+     werbungState.promo nach dem Laden auf ALLEN Wochen stehen, bis jemand das
+     Feld anfasste - der erste Bildschirm nach dem Oeffnen rechnete ueber
+     KW 36-41 zusammen (Freckenfeld: 174 Artikel / 5.176 EUR statt 10 / 285 EUR)
+     und das Banner zeigte KW 36, waehrend das Feld KW 41 sagte. Belegt 30.09.
+     Gleiche Regel wie setzeWerbungWoche(), nur ohne den Rueckruf hierher. */
+  { const wsel = document.getElementById("werbungWeek");
+    const k = wsel ? wsel.value : "";
+    const alle = werbungState.promoAlle || werbungState.promo || [];
+    werbungState.promo = k ? alle.filter(x => (x.year + "-" + String(x.kw).padStart(2, "0")) === k) : alle; }
   renderWerbungWeekBanner();
   if(settingsInfo) settingsInfo.innerHTML = `Aktuelle Vorgaben: Schwelle <strong>${thr} €</strong> · Bevorratung <strong>${bw} Wochen</strong> (Frische: <strong>${bf} Woche${bf>1?"n":""}</strong>)`;
   renderWerbungDebug();
