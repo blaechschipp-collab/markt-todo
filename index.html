@@ -767,7 +767,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.09.30-02"; // Liquiditaetskachel je Konto: Umbuchungszeilen mit Quellkonto, veraltete Salden, heute offene Posten; Ampeltexte je Konto (Knoten Verwaltung Status Regelwerk 2026-09-30, Skript 07); sonst wie -01: Bevorratung: erster Bildschirm nach dem Oeffnen rechnete ueber alle geladenen Wochen (promo nicht auf die gewaehlte Woche eingegrenzt, Banner KW 36 bei Feld KW 41) - renderWerbung grenzt jetzt selbst ein; Reiter brach beim Oeffnen mit Statement-Timeout ab (schnitt_fuer_werbeartikel, 11 Seiten, 8 parallel, anon 3 s) - fetchAllPaged wiederholt Seiten bei Timeout (Standard 1x, RPC 3x) und holt die RPC nur noch 2 Seiten gleichzeitig; Backshop unveraendert (Vorgabe Benedikt 30.09.); sonst wie v2026.09.22-02: Baeckerei-Reiter: vierter Unterreiter-Knopf "Foto-Empfehlung (Test)" springt auf backshop-test.html (Vorgabe Benedikt 22.09.; Inhalte unveraendert); sonst wie -01: Admin-Kasten mit Link auf backshop-test.html; sonst wie v2026.09.19-04: // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
+const APP_VERSION = "v2026.10.01-01"; // Bevorratung: Artikel "nur E-Center" und fremde Werbegebiete (nicht Alle/23) ausgeschlossen (Vorgabe Benedikt 01.10.: DEIT in Steinfeld); Ordersatz-Parser liest die Hinweis-/Werbegebiet-Zeile oberhalb der Artikelzeile und wertet nur GROSS geschriebene Zeilen als Abschnitt; sonst wie v2026.09.30-02: Liquiditaetskachel je Konto: Umbuchungszeilen mit Quellkonto, veraltete Salden, heute offene Posten; Ampeltexte je Konto (Knoten Verwaltung Status Regelwerk 2026-09-30, Skript 07); sonst wie -01: Bevorratung: erster Bildschirm nach dem Oeffnen rechnete ueber alle geladenen Wochen (promo nicht auf die gewaehlte Woche eingegrenzt, Banner KW 36 bei Feld KW 41) - renderWerbung grenzt jetzt selbst ein; Reiter brach beim Oeffnen mit Statement-Timeout ab (schnitt_fuer_werbeartikel, 11 Seiten, 8 parallel, anon 3 s) - fetchAllPaged wiederholt Seiten bei Timeout (Standard 1x, RPC 3x) und holt die RPC nur noch 2 Seiten gleichzeitig; Backshop unveraendert (Vorgabe Benedikt 30.09.); sonst wie v2026.09.22-02: Baeckerei-Reiter: vierter Unterreiter-Knopf "Foto-Empfehlung (Test)" springt auf backshop-test.html (Vorgabe Benedikt 22.09.; Inhalte unveraendert); sonst wie -01: Admin-Kasten mit Link auf backshop-test.html; sonst wie v2026.09.19-04: // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -5884,7 +5884,14 @@ function evalWerbungArticle(p, market, thresholdEur, bevWochen, bevWochenFrische
   const stueckEmpf = kartons * einh;
   const ersparnisGes = stueckEmpf * ersp;
   let reason = null;
-  if(ersp <= 0) reason = "kein Preisvorteil (WP-Sortiment = WP-Aktion)";
+  /* 01.10.2026 (Vorgabe Benedikt): Artikel, die nur im E-Center beworben
+     werden, haben bei uns keinen verguenstigten EK - raus. Werbegebiet:
+     unser Gebiet ist 23; "Alle" gilt, eine andere Zahl (10, 20 ...) nicht. */
+  const hinweisText = String(p.hinweis || "");
+  const gebiet = (hinweisText.match(/(?:^|[\s,·])(Alle|\d{1,2})\s*$/) || [])[1] || "";
+  if(/nur E-Center/i.test(hinweisText)) reason = "nur E-Center (nicht unser Vertriebsweg)";
+  else if(gebiet && gebiet !== "Alle" && gebiet !== "23") reason = "Werbegebiet " + gebiet + " (unser Gebiet ist 23)";
+  else if(ersp <= 0) reason = "kein Preisvorteil (WP-Sortiment = WP-Aktion)";
   else if(normalMenge <= 0) reason = "kein Normalabsatz in " + market;
   else if(kartons <= 0) reason = "0 Kartons berechnet";
   else if(ersparnisGes < thresholdEur) reason = `Ersparnis ${ersparnisGes.toFixed(2)} € < Schwelle ${thresholdEur} €`;
@@ -5915,12 +5922,14 @@ function evalWerbungArticle(p, market, thresholdEur, bevWochen, bevWochenFrische
 
 function computeWerbungRecommendation(market, thresholdEur, bevWochen, bevWochenFrische){
   const out = [];
-  const dbg = {total: 0, noErsp: 0, noSales: 0, zeroKartons: 0, belowThr: 0};
+  const dbg = {total: 0, noErsp: 0, noSales: 0, zeroKartons: 0, belowThr: 0, ecenter: 0, gebiet: 0};
   for(const p of werbungState.promo){
     dbg.total++;
     const r = evalWerbungArticle(p, market, thresholdEur, bevWochen, bevWochenFrische);
     if(r.reason){
-      if(r.reason.startsWith("kein Preisvorteil")) dbg.noErsp++;
+      if(r.reason.startsWith("nur E-Center")) dbg.ecenter++;
+      else if(r.reason.startsWith("Werbegebiet")) dbg.gebiet++;
+      else if(r.reason.startsWith("kein Preisvorteil")) dbg.noErsp++;
       else if(r.reason.startsWith("kein Normalabsatz")) dbg.noSales++;
       else if(r.reason.startsWith("0 Kartons")) dbg.zeroKartons++;
       else dbg.belowThr++;
@@ -6053,7 +6062,7 @@ function renderWerbung(){
   for(const r of recs){ const a = r.abteilung || "— unbekannt"; byAbt[a] = (byAbt[a]||0) + 1; }
   const abtBreakdown = Object.entries(byAbt).sort((a,b)=>b[1]-a[1]).map(([a,n]) => `${escapeHtml(a)}: <strong>${n}</strong>`).join(" · ");
   const abtInfo = abtBreakdown ? `<div class="small" style="color:#475569;margin-top:4px">Nach Abteilung: ${abtBreakdown}</div>` : "";
-  const dbgInfo = d.total ? `<div class="small" style="color:#94a3b8;margin-top:4px">Von ${d.total} Werbeartikeln: ${d.noSales} ohne Absatz in ${market}, ${d.belowThr} unter ${thr} € Schwelle${d.noErsp?`, ${d.noErsp} ohne Preisvorteil`:""}.</div>` : "";
+  const dbgInfo = d.total ? `<div class="small" style="color:#94a3b8;margin-top:4px">Von ${d.total} Werbeartikeln: ${d.noSales} ohne Absatz in ${market}, ${d.belowThr} unter ${thr} € Schwelle${d.noErsp?`, ${d.noErsp} ohne Preisvorteil`:""}${d.ecenter?`, ${d.ecenter} nur E-Center`:""}${d.gebiet?`, ${d.gebiet} anderes Werbegebiet`:""}.</div>` : "";
   summary.innerHTML = `<strong>${recs.length}</strong> Artikel · <strong>${totalKartons}</strong> Kartons gesamt · Gesamt-Ersparnis <strong>${totalSaving.toFixed(2)} €</strong> · Basis: ${werbungState.weeksCovered} Wochen Normalverkauf${werbungState.weeksCovered < 4 ? " <span style='color:#b45309;font-weight:600'>(schmale Basis)</span>" : ""}${abtInfo}${dbgInfo}`;
   if(!recs.length){
     list.innerHTML = `<div class="small" style="color:#64748b">Keine Empfehlungen bei aktueller Schwelle. Schwelle senken oder Bev-Wochen erhöhen.</div>`;
@@ -6286,6 +6295,15 @@ function detectSection(headerCandidate){
   // Sektions-Keyword vorkommt und der Text nicht wie eine Datenzeile aussieht.
   // Datenzeilen enthalten typisch eine 10-stellige SAP-Nummer - die schliessen wir aus.
   if(/\b\d{6,}\b/.test(s)) return null;
+  /* 01.10.2026: Ein Abschnitt ist im Ordersatz komplett GROSS geschrieben
+     ("TROCKENSORTIMENT t nt", "DROGERIE t nt" - die Spaltenkuerzel hinten
+     sind klein). Die Hinweiszeilen zu den Artikeln sind gemischt geschrieben
+     ("Einleger - nur E-Center, CD Getränke, Alle") und enthielten mit
+     "Getränke" ein Abschnittswort - sie wurden deshalb als Abschnitt
+     gewertet, der Hinweis ging verloren und die Bevorratung empfahl
+     E-Center-Artikel (DEIT 12x1L, Steinfeld, KW 41). */
+  const kern = String(headerCandidate || "").trim().replace(/\s+(t|nt)\s+nt$/i, "");
+  if(kern !== kern.toUpperCase()) return null;
   for(const kw of ["TROCKENSORTIMENT","MOPRO","FRISCHE","TIEFKUHL","TIEFKÜHL","TIEFKUEHL","OBST","GEMUESE","GEMÜSE","FLEISCH","WURST","KÄSE","KAESE","BROT","BACKWAREN","GETRAENKE","GETRÄNKE","NON FOOD","NONFOOD","DROGERIE","BAZAR"]){
     if(s.includes(kw)) return s;
   }
@@ -6321,6 +6339,15 @@ async function uploadWerbungPdf(){
     const pdf = await pdfjsLib.getDocument({data: buf}).promise;
     const articles = [];
     let currentSection = "";
+    /* 01.10.2026: Die Spalten "Hinweis / Werbegebiete" stehen im Ordersatz
+       in einer eigenen Zeile OBERHALB der Artikelzeile ("Einleger - nur
+       E-Center, Alle", "Umleger, 20", "Payback, Alle"). Bisher ging nur der
+       Rest der Artikelzeile selbst in den Hinweis. Jetzt werden die
+       Zeilen seit der letzten Artikelzeile (hoechstens drei, ohne
+       Tabellenkopf) vorangestellt. Das letzte Wort ist das Werbegebiet:
+       "Alle" oder eine Zahl (unser Gebiet ist 23, Vorgabe Benedikt 01.10.). */
+    let pendingNotes = [];
+    const istKopfzeile = (l) => /^(Sortimen|Artikelbezeichnung|Barcode|Seite \d|WW \d|Sortiment|Aktion|hlag)/.test(l) || /\.xlsx$/.test(l) || /\b\d{6,}\b/.test(l) || /^(.*\s)?(t|nt)\s+nt$/i.test(l.trim());   // Warengruppen-Kopf wie "AFG t nt", "BIER t nt" oder nur "t nt"
     let totalLines = 0;
     let failedSapCount = 0;      // Anzahl 10-stelliger SAP-Nrn in Zeilen, die NICHT gematcht wurden
     const failedSaps = new Set(); // eindeutige Beispiel-SAPs die nicht gematcht wurden
@@ -6356,9 +6383,10 @@ async function uploadWerbungPdf(){
         if(!line) continue;
         totalLines++;
         const sec = detectSection(line);
-        if(sec){ currentSection = sec; continue; }
+        if(sec){ currentSection = sec; pendingNotes = []; continue; }
         const m = WERBUNG_LINE_RE.exec(line);
         if(!m){
+          if(!istKopfzeile(line)){ pendingNotes.push(line.trim().replace(/^(t|nt)\s+nt\s+/i, "")); if(pendingNotes.length > 3) pendingNotes.shift(); }
           // Zeilen mit 10-stelliger Zahl (SAP-Nr) sammeln, die aber nicht matchen
           const sapM = line.match(/\b(\d{10})\b/);
           if(sapM){
@@ -6370,6 +6398,7 @@ async function uploadWerbungPdf(){
         if(m){
           const wpS = parseFloat(m[6].replace(",", "."));
           const wpA = parseFloat(m[8].replace(",", "."));
+          pendingNotes = [];
           articles.push({
             sap_artnr: m[5],
             name: m[1].trim(),
@@ -6379,7 +6408,7 @@ async function uploadWerbungPdf(){
             wp_sortiment: wpS,
             wp_aktion: wpA,
             ersparnis_pro_stueck: Math.max(0, wpS - wpA),
-            hinweis: [( /^\d+$/.test(m[4]) ? "" : (WERBUNG_SKZ_TEXT[m[4].toUpperCase()] || ("SKZ " + m[4])) ), m[11].trim()].filter(Boolean).join(" · "),
+            hinweis: [( /^\d+$/.test(m[4]) ? "" : (WERBUNG_SKZ_TEXT[m[4].toUpperCase()] || ("SKZ " + m[4])) ), [...pendingNotes, m[11].trim()].filter(Boolean).join(" ").replace(/\s+/g, " ")].filter(Boolean).join(" · "),
             section: currentSection || null,
             category: categoryFromSectionAndName(currentSection, m[1].trim()),
             is_frische: categoryFromSectionAndName(currentSection, m[1].trim()) === "frische",
