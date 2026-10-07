@@ -767,7 +767,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.10.01-01"; // Bevorratung: Artikel "nur E-Center" und fremde Werbegebiete (nicht Alle/23) ausgeschlossen (Vorgabe Benedikt 01.10.: DEIT in Steinfeld); Ordersatz-Parser liest die Hinweis-/Werbegebiet-Zeile oberhalb der Artikelzeile und wertet nur GROSS geschriebene Zeilen als Abschnitt; sonst wie v2026.09.30-02: Liquiditaetskachel je Konto: Umbuchungszeilen mit Quellkonto, veraltete Salden, heute offene Posten; Ampeltexte je Konto (Knoten Verwaltung Status Regelwerk 2026-09-30, Skript 07); sonst wie -01: Bevorratung: erster Bildschirm nach dem Oeffnen rechnete ueber alle geladenen Wochen (promo nicht auf die gewaehlte Woche eingegrenzt, Banner KW 36 bei Feld KW 41) - renderWerbung grenzt jetzt selbst ein; Reiter brach beim Oeffnen mit Statement-Timeout ab (schnitt_fuer_werbeartikel, 11 Seiten, 8 parallel, anon 3 s) - fetchAllPaged wiederholt Seiten bei Timeout (Standard 1x, RPC 3x) und holt die RPC nur noch 2 Seiten gleichzeitig; Backshop unveraendert (Vorgabe Benedikt 30.09.); sonst wie v2026.09.22-02: Baeckerei-Reiter: vierter Unterreiter-Knopf "Foto-Empfehlung (Test)" springt auf backshop-test.html (Vorgabe Benedikt 22.09.; Inhalte unveraendert); sonst wie -01: Admin-Kasten mit Link auf backshop-test.html; sonst wie v2026.09.19-04: // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
+const APP_VERSION = "v2026.10.07-01"; // Ordersatz-Parser: Hinweiszeile wurde seit 01.10. nie uebernommen (pendingNotes vor dem push geleert) - behoben; neue Spalte FAG-W-Gruppe (KW 42) abgeschnitten, Legendenzeilen ignoriert; sonst wie v2026.10.01-01: Bevorratung: Artikel "nur E-Center" und fremde Werbegebiete (nicht Alle/23) ausgeschlossen (Vorgabe Benedikt 01.10.: DEIT in Steinfeld); Ordersatz-Parser liest die Hinweis-/Werbegebiet-Zeile oberhalb der Artikelzeile und wertet nur GROSS geschriebene Zeilen als Abschnitt; sonst wie v2026.09.30-02: Liquiditaetskachel je Konto: Umbuchungszeilen mit Quellkonto, veraltete Salden, heute offene Posten; Ampeltexte je Konto (Knoten Verwaltung Status Regelwerk 2026-09-30, Skript 07); sonst wie -01: Bevorratung: erster Bildschirm nach dem Oeffnen rechnete ueber alle geladenen Wochen (promo nicht auf die gewaehlte Woche eingegrenzt, Banner KW 36 bei Feld KW 41) - renderWerbung grenzt jetzt selbst ein; Reiter brach beim Oeffnen mit Statement-Timeout ab (schnitt_fuer_werbeartikel, 11 Seiten, 8 parallel, anon 3 s) - fetchAllPaged wiederholt Seiten bei Timeout (Standard 1x, RPC 3x) und holt die RPC nur noch 2 Seiten gleichzeitig; Backshop unveraendert (Vorgabe Benedikt 30.09.); sonst wie v2026.09.22-02: Baeckerei-Reiter: vierter Unterreiter-Knopf "Foto-Empfehlung (Test)" springt auf backshop-test.html (Vorgabe Benedikt 22.09.; Inhalte unveraendert); sonst wie -01: Admin-Kasten mit Link auf backshop-test.html; sonst wie v2026.09.19-04: // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -6347,7 +6347,8 @@ async function uploadWerbungPdf(){
        Tabellenkopf) vorangestellt. Das letzte Wort ist das Werbegebiet:
        "Alle" oder eine Zahl (unser Gebiet ist 23, Vorgabe Benedikt 01.10.). */
     let pendingNotes = [];
-    const istKopfzeile = (l) => /^(Sortimen|Artikelbezeichnung|Barcode|Seite \d|WW \d|Sortiment|Aktion|hlag)/.test(l) || /\.xlsx$/.test(l) || /\b\d{6,}\b/.test(l) || /^(.*\s)?(t|nt)\s+nt$/i.test(l.trim());   // Warengruppen-Kopf wie "AFG t nt", "BIER t nt" oder nur "t nt"
+    const istKopfzeile = (l) => /^(Sortimen|Artikelbezeichnung|Barcode|Seite \d|WW \d|Sortiment|Aktion|hlag)/.test(l) || /\.xlsx$/.test(l) || /\b\d{6,}\b/.test(l) || /^(.*\s)?(t|nt)\s+nt$/i.test(l.trim()) || / = /.test(l);   // 07.10.2026: Legendenzeilen "nur ueber VVK = ..." sind kein Hinweis
+    let hatFagSpalte = false;   // 07.10.2026: Tabellenkopf mit "FAG-W-Gruppe" (ab KW 42)   // Warengruppen-Kopf wie "AFG t nt", "BIER t nt" oder nur "t nt"
     let totalLines = 0;
     let failedSapCount = 0;      // Anzahl 10-stelliger SAP-Nrn in Zeilen, die NICHT gematcht wurden
     const failedSaps = new Set(); // eindeutige Beispiel-SAPs die nicht gematcht wurden
@@ -6382,6 +6383,7 @@ async function uploadWerbungPdf(){
         const line = parts.join("").replace(/\s+/g, " ").trim();
         if(!line) continue;
         totalLines++;
+        if(/FAG-W-/.test(line)) hatFagSpalte = true;
         const sec = detectSection(line);
         if(sec){ currentSection = sec; pendingNotes = []; continue; }
         const m = WERBUNG_LINE_RE.exec(line);
@@ -6398,7 +6400,14 @@ async function uploadWerbungPdf(){
         if(m){
           const wpS = parseFloat(m[6].replace(",", "."));
           const wpA = parseFloat(m[8].replace(",", "."));
-          pendingNotes = [];
+          /* 07.10.2026: pendingNotes wurde hier VOR dem push geleert - die
+             Hinweiszeile ging seit 01.10. immer verloren (KW 42: 0 von 54
+             "nur E-Center" erkannt). Jetzt erst nach dem push leeren.
+             Neue Spalte "FAG-W-Gruppe" (seit KW 42, 1-3-stellige Zahl am
+             Zeilenende) wird abgeschnitten, sonst gilt sie als Werbegebiet
+             und jeder Artikel faellt aus der Bevorratung. */
+          let rest = m[11].trim();
+          if(hatFagSpalte) rest = rest.replace(/\s*\d{1,3}$/, "").trim();
           articles.push({
             sap_artnr: m[5],
             name: m[1].trim(),
@@ -6408,13 +6417,14 @@ async function uploadWerbungPdf(){
             wp_sortiment: wpS,
             wp_aktion: wpA,
             ersparnis_pro_stueck: Math.max(0, wpS - wpA),
-            hinweis: [( /^\d+$/.test(m[4]) ? "" : (WERBUNG_SKZ_TEXT[m[4].toUpperCase()] || ("SKZ " + m[4])) ), [...pendingNotes, m[11].trim()].filter(Boolean).join(" ").replace(/\s+/g, " ")].filter(Boolean).join(" · "),
+            hinweis: [( /^\d+$/.test(m[4]) ? "" : (WERBUNG_SKZ_TEXT[m[4].toUpperCase()] || ("SKZ " + m[4])) ), [...pendingNotes, rest].filter(Boolean).join(" ").replace(/\s+/g, " ")].filter(Boolean).join(" · "),
             section: currentSection || null,
             category: categoryFromSectionAndName(currentSection, m[1].trim()),
             is_frische: categoryFromSectionAndName(currentSection, m[1].trim()) === "frische",
             kw, year,
             uploaded_at: berlinNowForDB()
           });
+          pendingNotes = [];
         }
       }
     }
