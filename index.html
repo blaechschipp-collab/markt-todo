@@ -331,9 +331,8 @@
       <button id="backshopSubTabBackempfehlung" class="sub-tab active" onclick="showBackshopSubTab('backempfehlung')">🥐 Heute</button>
       <button id="backshopSubTabMorgen" class="sub-tab" onclick="showBackshopSubTab('morgen')">🌅 Für morgen</button>
       <button id="backshopSubTabBestellung" class="sub-tab" onclick="showBackshopSubTab('bestellung')">📦 Bestellung</button>
-      <!-- 22.09.2026: Testseite Backempfehlung aus Regalfoto auch aus dem Baeckerei-Reiter erreichbar (Vorgabe Benedikt).
-           Nur ein Absprung - die bestehenden Unterreiter bleiben unveraendert. -->
-      <button class="sub-tab" onclick="location.href='backshop-test.html'" style="background:#fff7ed;border-color:#f59e0b;color:#b45309">📷 Foto-Empfehlung (Test)</button>
+      <!-- 22.09.2026: Absprung-Knopf "Foto-Empfehlung (Test)" - 08.10.2026 ersetzt durch die Auswahl "Verfahren"
+           unten (Vorgabe Benedikt: Bild (BETA) in die Backempfehlung holen; nur Billigheim-Ingenheim, Steinfeld noch nicht). -->
     </div>
     <div id="backshopSubBackempfehlung">
     <div class="box">
@@ -350,12 +349,22 @@
           <option value="amount">Nach Menge (höchste zuerst)</option>
           <option value="backprogramm">Nach Backprogramm</option>
         </select></div>
+        <!-- 08.10.2026: Verfahren - nur in Billigheim-Ingenheim sichtbar (Vorgabe Benedikt: Steinfeld noch kein Beta mit Bild) -->
+        <div id="backshopVerfahrenWahl" style="display:none"><label>Verfahren</label><select id="backshopVerfahren" onchange="localStorage.setItem('backshopVerfahren', this.value); backshopVerfahrenAnwenden()">
+          <option value="bisher">Wie bisher (Verkaufsdaten)</option>
+          <option value="bild">📷 Bild (BETA)</option>
+        </select></div>
         <div style="grid-column:1/-1"><label>Artikel suchen</label><input id="backshopSearch" placeholder="z.B. Brötchen, Croissant, 4311501..." oninput="renderBackshop()"></div>
       </div>
       <div id="backshopHeaderLine" class="small" style="margin-top:6px"></div>
     </div>
     <div id="backshopSummary" class="box"></div>
     <div id="backshopContent"></div>
+    <!-- 08.10.2026: Bild (BETA) = Testseite backshop-test.html im Rahmen, Markt fest aus der Auswahl oben -->
+    <div id="backshopBildBeta" style="display:none">
+      <div class="small" style="margin:6px 0 8px">BETA: Foto je Modul des Backshop-Automaten → Fächer prüfen → Empfehlung. Läuft neben dem bisherigen Verfahren. <a id="backshopBildLink" href="backshop-test.html" target="_blank" rel="noopener">In eigenem Fenster öffnen</a></div>
+      <iframe id="backshopBildRahmen" title="Backempfehlung aus Regalfoto" allow="camera" style="width:100%;height:1500px;border:1px solid #f59e0b;border-radius:10px;background:#fff"></iframe>
+    </div>
     </div><!-- /backshopSubBackempfehlung -->
     <div id="backshopSubBestellung" style="display:none">
       <div class="box">
@@ -767,7 +776,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.10.07-01"; // Ordersatz-Parser: Hinweiszeile wurde seit 01.10. nie uebernommen (pendingNotes vor dem push geleert) - behoben; neue Spalte FAG-W-Gruppe (KW 42) abgeschnitten, Legendenzeilen ignoriert; sonst wie v2026.10.01-01: Bevorratung: Artikel "nur E-Center" und fremde Werbegebiete (nicht Alle/23) ausgeschlossen (Vorgabe Benedikt 01.10.: DEIT in Steinfeld); Ordersatz-Parser liest die Hinweis-/Werbegebiet-Zeile oberhalb der Artikelzeile und wertet nur GROSS geschriebene Zeilen als Abschnitt; sonst wie v2026.09.30-02: Liquiditaetskachel je Konto: Umbuchungszeilen mit Quellkonto, veraltete Salden, heute offene Posten; Ampeltexte je Konto (Knoten Verwaltung Status Regelwerk 2026-09-30, Skript 07); sonst wie -01: Bevorratung: erster Bildschirm nach dem Oeffnen rechnete ueber alle geladenen Wochen (promo nicht auf die gewaehlte Woche eingegrenzt, Banner KW 36 bei Feld KW 41) - renderWerbung grenzt jetzt selbst ein; Reiter brach beim Oeffnen mit Statement-Timeout ab (schnitt_fuer_werbeartikel, 11 Seiten, 8 parallel, anon 3 s) - fetchAllPaged wiederholt Seiten bei Timeout (Standard 1x, RPC 3x) und holt die RPC nur noch 2 Seiten gleichzeitig; Backshop unveraendert (Vorgabe Benedikt 30.09.); sonst wie v2026.09.22-02: Baeckerei-Reiter: vierter Unterreiter-Knopf "Foto-Empfehlung (Test)" springt auf backshop-test.html (Vorgabe Benedikt 22.09.; Inhalte unveraendert); sonst wie -01: Admin-Kasten mit Link auf backshop-test.html; sonst wie v2026.09.19-04: // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
+const APP_VERSION = "v2026.10.08-01"; // Meine Baeckerei: Auswahl "Verfahren" (Wie bisher | Bild (BETA)) nur in Billigheim-Ingenheim, Steinfeld ohne (Vorgabe Benedikt 08.10.); Bild = backshop-test.html im Rahmen mit festem Markt, Absprung-Knopf "Foto-Empfehlung (Test)" entfernt; sonst wie v2026.10.07-01: Ordersatz-Parser: Hinweiszeile wurde seit 01.10. nie uebernommen (pendingNotes vor dem push geleert) - behoben; neue Spalte FAG-W-Gruppe (KW 42) abgeschnitten, Legendenzeilen ignoriert; sonst wie v2026.10.01-01: Bevorratung: Artikel "nur E-Center" und fremde Werbegebiete (nicht Alle/23) ausgeschlossen (Vorgabe Benedikt 01.10.: DEIT in Steinfeld); Ordersatz-Parser liest die Hinweis-/Werbegebiet-Zeile oberhalb der Artikelzeile und wertet nur GROSS geschriebene Zeilen als Abschnitt; sonst wie v2026.09.30-02: Liquiditaetskachel je Konto: Umbuchungszeilen mit Quellkonto, veraltete Salden, heute offene Posten; Ampeltexte je Konto (Knoten Verwaltung Status Regelwerk 2026-09-30, Skript 07); sonst wie -01: Bevorratung: erster Bildschirm nach dem Oeffnen rechnete ueber alle geladenen Wochen (promo nicht auf die gewaehlte Woche eingegrenzt, Banner KW 36 bei Feld KW 41) - renderWerbung grenzt jetzt selbst ein; Reiter brach beim Oeffnen mit Statement-Timeout ab (schnitt_fuer_werbeartikel, 11 Seiten, 8 parallel, anon 3 s) - fetchAllPaged wiederholt Seiten bei Timeout (Standard 1x, RPC 3x) und holt die RPC nur noch 2 Seiten gleichzeitig; Backshop unveraendert (Vorgabe Benedikt 30.09.); sonst wie v2026.09.22-02: Baeckerei-Reiter: vierter Unterreiter-Knopf "Foto-Empfehlung (Test)" springt auf backshop-test.html (Vorgabe Benedikt 22.09.; Inhalte unveraendert); sonst wie -01: Admin-Kasten mit Link auf backshop-test.html; sonst wie v2026.09.19-04: // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -4124,7 +4133,36 @@ function jumpToTomorrowMorning(){
 function handleBackshopMarketChange(){
   const m = document.getElementById("backshopMarket").value;
   localStorage.setItem("backshopMarket", m);
+  backshopVerfahrenAnwenden();
   loadBackshop();
+}
+// 08.10.2026 (Vorgabe Benedikt): Verfahren "Wie bisher" oder "Bild (BETA)" - Auswahl nur in Billigheim-Ingenheim,
+// Steinfeld laeuft immer wie bisher. "Bild" blendet die Verkaufsdaten-Empfehlung aus und zeigt backshop-test.html
+// im Rahmen (Markt fest, ?einbettung=1). Die Wahl bleibt im Browser (localStorage backshopVerfahren).
+function backshopVerfahrenAnwenden(){
+  const m = document.getElementById("backshopMarket").value;
+  const wahl = document.getElementById("backshopVerfahrenWahl"), sel = document.getElementById("backshopVerfahren");
+  const box = document.getElementById("backshopBildBeta"), fr = document.getElementById("backshopBildRahmen");
+  if(!wahl || !sel || !box || !fr) return;
+  const beta = (m === "Billigheim-Ingenheim");
+  wahl.style.display = beta ? "" : "none";
+  sel.value = beta ? (localStorage.getItem("backshopVerfahren") === "bild" ? "bild" : "bisher") : "bisher";
+  const bild = beta && sel.value === "bild";
+  document.getElementById("backshopSummary").style.display = bild ? "none" : "";
+  document.getElementById("backshopContent").style.display = bild ? "none" : "";
+  box.style.display = bild ? "" : "none";
+  if(bild){
+    const url = "backshop-test.html?markt=" + encodeURIComponent(m);
+    document.getElementById("backshopBildLink").href = url;
+    if(fr.dataset.markt !== m){ fr.src = url + "&einbettung=1"; fr.dataset.markt = m; }
+    if(!fr.dataset.hoehe){
+      fr.dataset.hoehe = "1";
+      // gleiche Herkunft: Hoehe an den Inhalt anpassen, solange der Rahmen sichtbar ist
+      setInterval(() => { try { if(box.style.display === "none") return; const h = fr.contentDocument && fr.contentDocument.body ? fr.contentDocument.body.scrollHeight : 0; if(h > 300) fr.style.height = (h + 40) + "px"; } catch(e){} }, 1000);
+    }
+  } else if(fr.dataset.markt){
+    fr.removeAttribute("src"); delete fr.dataset.markt;   // Kamera/Bilder nicht im Hintergrund halten
+  }
 }
 async function loadBackshop(){
   const mSel = document.getElementById("backshopMarket");
@@ -4137,6 +4175,7 @@ async function loadBackshop(){
     }
     mSel.dataset.initDone = "1";
   }
+  backshopVerfahrenAnwenden();
   const wdSel = document.getElementById("backshopWeekday");
   const tInp = document.getElementById("backshopTime");
   if(!wdSel.dataset.initDone){

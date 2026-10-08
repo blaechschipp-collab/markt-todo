@@ -332,6 +332,21 @@ function stempel() {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
 }
 
+// 08.10.2026: Aufruf aus der App (Reiter Meine Baeckerei, Verfahren "Bild (BETA)"): ?markt=<Markt>&einbettung=1
+// setzt den Markt fest und blendet Marktwahl, Kopfzeile und "zur App" aus - die Seite laeuft dann im Rahmen der App.
+(() => {
+  const q = new URLSearchParams(location.search), m = q.get("markt");
+  const knopf = m && [...document.querySelectorAll(".marktknopf")].find(b => b.dataset.markt === m);
+  if (knopf) { document.querySelectorAll(".marktknopf").forEach(b => b.classList.toggle("aktiv", b === knopf)); $("markt").value = m; }
+  if (q.get("einbettung") === "1") {
+    document.body.classList.add("eingebettet");
+    const st = document.createElement("style");
+    st.textContent = ".eingebettet header{display:none}.eingebettet .marktwahl{display:none}.eingebettet main{padding-top:4px}";
+    document.head.appendChild(st);
+    const l = document.querySelector("label");
+    if (l && knopf) l.textContent = "Markt: " + m + " (aus der App)";
+  }
+})();
 artikelLaden();
 
 // ---- Schritt 1: hochladen + lesen ----------------------------------------
@@ -395,7 +410,7 @@ $("los").onclick = async () => {
         if (!r2.ok || j2.fehler) throw new Error(j2.fehler || ("Funktion " + r2.status));
         if (Array.isArray(j2.zaehlung)) j.zaehlung = j2.zaehlung;
         j.tokens_ein += j2.tokens_ein || 0; j.tokens_aus += j2.tokens_aus || 0;
-        hinweis1b = ` · ${j2.einzeln_gezaehlt}/${fachListe.length} Fächer einzeln gezählt (Boxen: ${boxen[0].quelle})` + (j2.zaehl_fehler ? `, ${j2.zaehl_fehler} ohne Ergebnis` : "");
+        hinweis1b = ` · ${j2.einzeln_gezaehlt}/${fachListe.length} Fächer einzeln gezählt (Boxen: ${boxen[0].quelle})` + (j2.zaehl_fehler ? `, ${j2.zaehl_fehler} ohne Ergebnis` : "") + (j2.mit_referenz ? `, ${j2.mit_referenz} mit Referenzbild aus Lesung #${j2.referenz_lauf}` : ", ohne Referenzbild");
       }
     } catch (e) { hinweis1b = ` · Einzelzählung ausgefallen (${e.message}) – Zählung aus Schritt 1`; }
     fortschrittAus(`Fertig in ${Math.round((Date.now() - t0) / 1000)} s`);
