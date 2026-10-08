@@ -34,6 +34,14 @@
   button:disabled{background:#e9e2a4;color:#7a7452}
   button.zweit{background:var(--blue-dark);color:#fff}
   .status{margin-top:10px;font-size:.9rem;color:var(--grau);white-space:pre-line}
+  /* Fortschritt (Benedikt 08.10.: Schritttext + Gesamtbalken, sonst wirkt es, als haenge es) */
+  .fort{display:none;margin-top:10px}
+  .fort.an{display:block}
+  .fort .balken{height:14px;background:#e6edf5;border-radius:7px;overflow:hidden;border:1px solid var(--rand)}
+  .fort .balken i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--blue),#2b7fd6);transition:width .4s}
+  .fort .text{display:flex;justify-content:space-between;font-size:.9rem;margin-top:5px;color:var(--text)}
+  .fort .text b{color:var(--blue-dark)}
+  .fach .alt{font-size:.68rem;color:var(--o);margin-top:2px}
   table{border-collapse:collapse;width:100%;font-size:.92rem}
   td,th{padding:6px 6px;border-bottom:1px solid #eee;text-align:left;vertical-align:top}
   th{font-size:.78rem;color:var(--grau);font-weight:600}
@@ -96,12 +104,14 @@
       <div class="modul" id="m3" onclick="kameraOeffnen(3)"><b>rechts</b><img alt=""><div class="hint">📷 Modul 3<br>antippen</div><input type="file" id="in3" accept="image/*" data-modul="3" onclick="event.stopPropagation()"></div>
     </div>
     <div style="margin-top:12px"><button id="los" disabled>Fächer lesen</button></div>
+    <div class="fort" id="fort"><div class="balken"><i id="fortBalken"></i></div><div class="text"><span id="fortText"></span><b id="fortProzent"></b></div></div>
     <div class="status" id="status"></div>
   </div>
 
   <div class="box versteckt" id="schritt2">
     <h2><span class="nr">2</span>Fächer prüfen</h2>
     <div class="legende"><span class="lg">sicher gelesen / bestätigt</span><span class="lo">unsicher – bitte bestätigen</span><span class="lr">kein Artikel erkannt</span></div>
+    <div class="klein">Gelesen gilt: Was auf dem Schild steht, gewinnt. Weicht es von der gespeicherten Belegung ab, steht die alte Belegung orange darunter („war: …"). Steht „aus Belegung", war das Schild nicht lesbar – bitte prüfen.</div>
     <div class="klein">Fach antippen: Artikel und Stückzahl prüfen, „Übernehmen". Grüne Fächer gelten ohne Antippen.</div>
     <div id="raster"></div>
     <div id="editor" class="editor versteckt"></div>
@@ -131,7 +141,7 @@
 
 <script>
 // ---------------------------------------------------------------------------
-// Testseite Backempfehlung (22.09.2026). Kein Teil der App - liegt unter
+// Testseite Backempfehlung (22.09.2026, Fortschritt/Sperre/parallel 08.10.2026). Kein Teil der App - liegt unter
 // /backshop-test.html und geht mit Skript 22 mit (Ordner veroeffentlichen\).
 // Ablauf (Vorgabe Benedikt 22.09.): 1 Foto je Modul -> Funktion "nur_lesen" (Uebersicht 1600 px +
 // 12 Ausschnitte je Modul) -> 2 Ampel je Fach, Antippen = Artikel/Stueckzahl bestaetigen ->
@@ -145,6 +155,38 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const kurz = s => esc(s).replace(/^G&amp;G /, "");
 const status = t => { $("status").textContent = t; };
+// Fortschritt (08.10.): Gesamtbalken 0-100 + Schritttext. Waehrend eines Funktionsaufrufs kriecht der Balken
+// zeitgesteuert bis zur Obergrenze des Schritts, damit sichtbar bleibt, dass etwas laeuft.
+let FORT_TIMER = null, FORT_WERT = 0;
+function fortschritt(prozent, text, bisProzent, sekunden) {
+  clearInterval(FORT_TIMER); FORT_TIMER = null;
+  $("fort").classList.add("an"); FORT_WERT = prozent;
+  $("fortBalken").style.width = prozent + "%"; $("fortText").textContent = text; $("fortProzent").textContent = Math.round(prozent) + " %";
+  if (bisProzent != null && sekunden) {
+    const t0 = Date.now();
+    FORT_TIMER = setInterval(() => {
+      const anteil = Math.min(1, (Date.now() - t0) / (sekunden * 1000));
+      FORT_WERT = prozent + (bisProzent - prozent) * (1 - Math.pow(1 - anteil, 2));
+      $("fortBalken").style.width = FORT_WERT + "%"; $("fortProzent").textContent = Math.round(FORT_WERT) + " %";
+      $("fortText").textContent = `${text} (${Math.round((Date.now() - t0) / 1000)} s)`;
+    }, 500);
+  }
+}
+function fortschrittAus(text) { clearInterval(FORT_TIMER); FORT_TIMER = null; if (text) { $("fortBalken").style.width = "100%"; $("fortText").textContent = text; $("fortProzent").textContent = "100 %"; } else $("fort").classList.remove("an"); }
+// hoechstens n Aufgaben gleichzeitig (Uploads, Ausschnitte)
+async function parallel(liste, n, fn) {
+  const aus = new Array(liste.length); let i = 0;
+  await Promise.all(new Array(Math.min(n, liste.length)).fill(0).map(async () => { while (i < liste.length) { const k = i++; aus[k] = await fn(liste[k], k); } }));
+  return aus;
+}
+// Bilder in Arbeit (08.10., Benedikt: "Faecher lesen" erst freigeben, wenn ALLE Bilder drin und verkleinert sind -
+// beim ersten Versuch zu frueh gedrueckt, nur Modul 2+3 ausgewertet)
+let IN_ARBEIT = 0, BILDER_GESAMT = 0;
+function losPruefen() {
+  const fertig = Object.keys(bilder).length;
+  $("los").disabled = IN_ARBEIT > 0 || !fertig;
+  $("los").textContent = IN_ARBEIT > 0 ? `Bild ${fertig + 1} von ${fertig + IN_ARBEIT} wird verkleinert …` : fertig ? `Fächer lesen (${fertig} Modul${fertig > 1 ? "e" : ""})` : "Fächer lesen";
+}
 
 const bilder = {};              // modul -> { blob, teile }
 let ARTIKEL = [];               // Stamm des Markts aus der Sicht backshop_artikel
@@ -205,13 +247,16 @@ async function kacheln(bmp) {
 
 // Gemeinsame Verarbeitung: Quelle ist ein ImageBitmap (Datei) oder ein Canvas (Kameraaufnahme)
 async function bildUebernehmen(m, quelle) {
-  status("Bild wird verkleinert und in Fächer geschnitten …");
-  const blob = await verkleinern(quelle);
-  const teile = await kacheln(quelle);
-  bilder[m] = { blob, teile, quelle };   // quelle bleibt fuer die engen Fach-Ausschnitte (Schritt 1b)
-  const box = $("m" + m); box.classList.add("hat"); box.querySelector("img").src = URL.createObjectURL(blob);
-  status(`Modul ${m}: ${quelle.width}×${quelle.height} px → Übersicht ${Math.round(blob.size / 1024)} KB + 12 Ausschnitte (${Math.round(teile.reduce((a, t) => a + t.blob.size, 0) / 1024)} KB).`);
-  $("los").disabled = !Object.keys(bilder).length;
+  IN_ARBEIT++; delete bilder[m]; losPruefen();
+  status(`Modul ${m}: Bild wird verkleinert und in Fächer geschnitten … (Fächer lesen ist so lange gesperrt)`);
+  try {
+    const blob = await verkleinern(quelle);
+    const teile = await kacheln(quelle);
+    bilder[m] = { blob, teile, quelle };   // quelle bleibt fuer die engen Fach-Ausschnitte (Schritt 1b)
+    const box = $("m" + m); box.classList.add("hat"); box.querySelector("img").src = URL.createObjectURL(blob);
+    status(`Modul ${m}: ${quelle.width}×${quelle.height} px → Übersicht ${Math.round(blob.size / 1024)} KB + 12 Ausschnitte (${Math.round(teile.reduce((a, t) => a + t.blob.size, 0) / 1024)} KB).`);
+  } catch (e) { status(`Modul ${m}: Bild konnte nicht verarbeitet werden (${e.message})`); }
+  IN_ARBEIT--; losPruefen();
 }
 document.querySelectorAll(".modul input").forEach(inp => {
   inp.addEventListener("change", async () => {
@@ -286,22 +331,32 @@ artikelLaden();
 
 // ---- Schritt 1: hochladen + lesen ----------------------------------------
 $("los").onclick = async () => {
+  if (IN_ARBEIT > 0) { status("Bitte warten – ein Bild wird noch verkleinert."); return; }   // 08.10.: nie mit halbem Satz starten
   $("los").disabled = true; $("ergebnis").innerHTML = ""; $("schritt2").classList.add("versteckt");
   const markt = $("markt").value, t0 = Date.now();
+  const module = Object.keys(bilder).sort();
   try {
     const liste = [], kachelListe = [], st = stempel();
     const hoch = async (pfad, blob) => {
       const r = await fetch(`${SB_URL}/storage/v1/object/backshop/${pfad}`, { method: "PUT", headers: { ...H, "Content-Type": "image/jpeg", "x-upsert": "true" }, body: blob });
       if (!r.ok) throw new Error(`Upload ${pfad}: ${r.status} ${(await r.text()).slice(0, 120)}`);
     };
-    for (const m of Object.keys(bilder).sort()) {
+    // Alle Uploads parallel (08.10.; vorher Modul fuer Modul nacheinander): je Modul Uebersicht + 12 Ausschnitte
+    const uploads = [];
+    for (const m of module) {
       const basis = `${markt}/${st}_m${m}`;
-      status(`Lade Modul ${m} hoch (Übersicht + 12 Ausschnitte) …`);
-      await hoch(`${basis}.jpg`, bilder[m].blob);
+      uploads.push({ pfad: `${basis}.jpg`, blob: bilder[m].blob });
       liste.push({ modul: Number(m), pfad: `${basis}.jpg` });
-      await Promise.all(bilder[m].teile.map(t => hoch(`${basis}_r${t.reihe}s${t.spalte}.jpg`, t.blob).then(() => kachelListe.push({ modul: Number(m), reihe: t.reihe, spalte: t.spalte, pfad: `${basis}_r${t.reihe}s${t.spalte}.jpg` }))));
+      for (const t of bilder[m].teile) {
+        uploads.push({ pfad: `${basis}_r${t.reihe}s${t.spalte}.jpg`, blob: t.blob });
+        kachelListe.push({ modul: Number(m), reihe: t.reihe, spalte: t.spalte, pfad: `${basis}_r${t.reihe}s${t.spalte}.jpg` });
+      }
     }
-    status(`Fächer werden gelesen (${liste.length} Modul${liste.length > 1 ? "e" : ""}, 15–50 s) …`);
+    let hochFertig = 0;
+    fortschritt(0, `Bilder werden hochgeladen (0 von ${uploads.length})`);
+    await parallel(uploads, 6, async (u) => { await hoch(u.pfad, u.blob); hochFertig++; fortschritt(20 * hochFertig / uploads.length, `Bilder werden hochgeladen (${hochFertig} von ${uploads.length})`); });
+    status(`${uploads.length} Bilder hochgeladen in ${Math.round((Date.now() - t0) / 1000)} s.`);
+    fortschritt(20, `Schilder werden gelesen (${module.length} Modul${module.length > 1 ? "e" : ""} parallel)`, 55, 35);
     const r = await fetch(`${SB_URL}/functions/v1/backempfehlung`, { method: "POST", headers: { ...H, "Content-Type": "application/json" },
       body: JSON.stringify({ markt, bilder: liste, kacheln: kachelListe, von: "Testseite", nur_lesen: true }) });
     const j = await r.json();
@@ -311,21 +366,24 @@ $("los").onclick = async () => {
     // Originals, aus den Schildpositionen); die Seite schneidet den engen Ausschnitt, laedt ihn hoch und laesst
     // ihn mit einer einzigen Frage zaehlen. Beleg 22.09.: 36 Kacheln in einem Aufruf -> Baguettes 3 statt 6;
     // ein Fach je Aufruf -> 8-9 von 10 auf +-1. Faellt 1b aus, bleibt die Zaehlung aus Schritt 1.
+    // 08.10.: Schneiden + Hochladen der Ausschnitte parallel (vorher Schleife nacheinander).
     let hinweis1b = "";
     try {
-      const boxen = Array.isArray(j.faecher_boxen) ? j.faecher_boxen : [];
+      const boxen = (Array.isArray(j.faecher_boxen) ? j.faecher_boxen : []).filter(b => bilder[b.modul] && bilder[b.modul].quelle);
       if (boxen.length) {
-        status(`Fächer werden einzeln gezählt (${boxen.length} Ausschnitte, 15–30 s) …`);
-        const fachListe = [];
-        for (const b of boxen) {
-          const q = bilder[b.modul] && bilder[b.modul].quelle; if (!q) continue;
-          const W = q.width, H = q.height;
-          const x = Math.round(b.x0 * W), y = Math.round(b.y0 * H), w = Math.max(50, Math.round((b.x1 - b.x0) * W)), h = Math.max(50, Math.round((b.y1 - b.y0) * H));
+        let ausFertig = 0;
+        fortschritt(55, `Fächer werden ausgeschnitten (0 von ${boxen.length})`);
+        const fachListe = await parallel(boxen, 6, async (b) => {
+          const q = bilder[b.modul].quelle;
+          const W = q.width, Hq = q.height;
+          const x = Math.round(b.x0 * W), y = Math.round(b.y0 * Hq), w = Math.max(50, Math.round((b.x1 - b.x0) * W)), h = Math.max(50, Math.round((b.y1 - b.y0) * Hq));
           const blob = await ausschnitt(q, x, y, w, h, 900);
           const pfad = `${markt}/${st}_m${b.modul}_f${b.reihe}${b.spalte}.jpg`;
           await hoch(pfad, blob);
-          fachListe.push({ modul: b.modul, reihe: b.reihe, spalte: b.spalte, pfad });
-        }
+          ausFertig++; fortschritt(55 + 10 * ausFertig / boxen.length, `Fächer werden ausgeschnitten und hochgeladen (${ausFertig} von ${boxen.length})`);
+          return { modul: b.modul, reihe: b.reihe, spalte: b.spalte, pfad };
+        });
+        fortschritt(65, `Stückzahlen werden gezählt (${fachListe.length} Fächer, 12 parallel)`, 97, 30);
         const r2 = await fetch(`${SB_URL}/functions/v1/backempfehlung`, { method: "POST", headers: { ...H, "Content-Type": "application/json" },
           body: JSON.stringify({ markt, zaehlen_fuer: j.id, faecher: fachListe }) });
         const j2 = await r2.json();
@@ -335,16 +393,18 @@ $("los").onclick = async () => {
         hinweis1b = ` · ${j2.einzeln_gezaehlt}/${fachListe.length} Fächer einzeln gezählt (Boxen: ${boxen[0].quelle})` + (j2.zaehl_fehler ? `, ${j2.zaehl_fehler} ohne Ergebnis` : "");
       }
     } catch (e) { hinweis1b = ` · Einzelzählung ausgefallen (${e.message}) – Zählung aus Schritt 1`; }
+    fortschrittAus(`Fertig in ${Math.round((Date.now() - t0) / 1000)} s`);
     FAECHER = (j.zaehlung || []).map(f => ({ ...f, hand: false })).sort((a, b) => a.modul - b.modul || a.reihe - b.reihe || a.spalte - b.spalte);
     rasterZeigen();
     $("schritt2").classList.remove("versteckt");
     $("schritt2").scrollIntoView({ behavior: "smooth" });
     const n = FAECHER.filter(f => ampel(f) === "gruen").length;
-    status(`Gelesen in ${Math.round((Date.now() - t0) / 1000)} s · ${j.modell} · ${j.tokens_ein}+${j.tokens_aus} Token · ${n}/${FAECHER.length} Fächer sicher · Lesung #${j.id}${hinweis1b}`);
+    const abw = (j.belegung_abweichung || []).length, ausBel = FAECHER.filter(f => f.aus_belegung).length;
+    status(`Gelesen in ${Math.round((Date.now() - t0) / 1000)} s · ${j.modell} · ${j.tokens_ein}+${j.tokens_aus} Token · ${n}/${FAECHER.length} Fächer sicher · Lesung #${j.id}${hinweis1b}${abw ? ` · ${abw} Fächer anders als gespeichert (Schild gilt)` : ""}${ausBel ? ` · ${ausBel} Fächer aus Belegung (Schild nicht lesbar, bitte prüfen)` : ""}`);
   } catch (e) {
-    status(""); $("ergebnis").innerHTML = `<div class="box fehler">${esc(e.message)}</div>`;
+    fortschrittAus(); status(""); $("ergebnis").innerHTML = `<div class="box fehler">${esc(e.message)}</div>`;
   }
-  $("los").disabled = false;
+  losPruefen();
 };
 
 // ---- Schritt 2: Ampel und Bestaetigen --------------------------------------
@@ -363,7 +423,8 @@ function rasterZeigen() {
     for (const f of nachModul[m]) {
       const a = ampel(f), i = FAECHER.indexOf(f);
       const mark = a === "gruen" ? "✓" : a === "gelb" ? "?" : "!";
-      h += `<div class="fach ${a} ${AKTIV === i ? "aktiv" : ""}" onclick="bearbeiten(${i})"><span class="mark">${mark}</span><div class="n">${f.anzahl}</div>${kurz(f.bezeichnung || f.schild_text || "Artikel?")}<div class="klein">${f.preis != null ? f.preis.toFixed(2) + " €" : ""}</div></div>`;
+      const alt = f.hand ? "" : (f.belegung_alt ? `<div class="alt">war: ${kurz(f.belegung_alt)}</div>` : f.aus_belegung ? `<div class="alt">aus Belegung – prüfen</div>` : "") + (f.hinweis && ampel(f) !== "gruen" ? `<div class="alt">${esc(f.hinweis)}</div>` : "");
+      h += `<div class="fach ${a} ${AKTIV === i ? "aktiv" : ""}" onclick="bearbeiten(${i})"><span class="mark">${mark}</span><div class="n">${f.anzahl}</div>${kurz(f.bezeichnung || f.schild_text || "Artikel?")}<div class="klein">${f.preis != null ? f.preis.toFixed(2) + " €" : ""}</div>${alt}</div>`;
     }
     h += `</div></div>`;
   }
@@ -375,7 +436,7 @@ function bearbeiten(i) {
   AKTIV = i; const f = FAECHER[i];
   const ed = $("editor");
   ed.classList.remove("versteckt");
-  ed.innerHTML = `<b>Modul ${f.modul}, Reihe ${f.reihe}, Spalte ${f.spalte}</b> <span class="klein">gelesen: ${esc(f.schild_text) || "–"} · ${f.preis != null ? f.preis.toFixed(2) + " €" : "–"}</span>
+  ed.innerHTML = `<b>Modul ${f.modul}, Reihe ${f.reihe}, Spalte ${f.spalte}</b> <span class="klein">gelesen: ${esc(f.schild_text) || "–"} · ${f.preis != null ? f.preis.toFixed(2) + " €" : "–"}${f.schild_c ? ` · Ausschnitt: ${esc(f.schild_c)}${f.preis_c != null ? " " + Number(f.preis_c).toFixed(2) + " €" : ""}` : ""}${f.hinweis ? ` · ${esc(f.hinweis)}` : ""}</span>
     <div class="zeile"><div><label>Artikel (Name, PLU oder EAN)</label><input type="text" id="ed_art" list="artikelliste" value="${esc(f.bezeichnung || f.schild_text || "")}"></div>
     <div><label>Stück</label><input type="number" id="ed_n" min="0" step="1" value="${f.anzahl}"></div></div>
     <div class="knoepfe"><button type="button" onclick="uebernehmen()">Übernehmen</button><button type="button" class="zweit" onclick="uebernehmen(0)">Fach leer</button><button type="button" class="zweit" onclick="editorZu()">Abbrechen</button></div>
@@ -487,7 +548,7 @@ function zeigen(j) {
     h += `</table>`;
   }
   if ((LESUNG?.belegung_abweichung || []).length) {
-    h += `<div style="margin-top:8px"><b>Belegung weicht ab</b> <span class="klein">(gespeichert vs. gelesen – gespeichert gilt; beim Umbau das Fach antippen und neu bestätigen)</span><table>`;
+    h += `<div style="margin-top:8px"><b>Belegung weicht ab</b> <span class="klein">(gespeichert vs. gelesen – seit 08.10. gilt das Schild; mit dieser Auswertung ist die neue Belegung gelernt)</span><table>`;
     for (const a of LESUNG.belegung_abweichung) h += `<tr><td>Modul ${a.modul}, ${a.reihe}/${a.spalte}</td><td>gespeichert: ${kurz(a.gespeichert)}<br>gelesen: ${kurz(a.gelesen)}</td></tr>`;
     h += `</table></div>`;
   }
