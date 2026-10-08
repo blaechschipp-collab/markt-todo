@@ -42,6 +42,11 @@
   .fort .text{display:flex;justify-content:space-between;font-size:.9rem;margin-top:5px;color:var(--text)}
   .fort .text b{color:var(--blue-dark)}
   .fach .alt{font-size:.68rem;color:var(--o);margin-top:2px}
+  /* Fach mit zwei Artikeln (08.10., Benedikt: "halb/halb anzeigen") */
+  .fach.doppelt{padding:0;display:grid;grid-template-columns:1fr 1fr}
+  .fach.doppelt .haelfte{padding:6px 4px;min-height:62px}
+  .fach.doppelt .haelfte+.haelfte{border-left:2px dashed var(--rand)}
+  .fach.doppelt .n{font-size:1.05rem}
   table{border-collapse:collapse;width:100%;font-size:.92rem}
   td,th{padding:6px 6px;border-bottom:1px solid #eee;text-align:left;vertical-align:top}
   th{font-size:.78rem;color:var(--grau);font-weight:600}
@@ -410,9 +415,17 @@ $("los").onclick = async () => {
 // ---- Schritt 2: Ampel und Bestaetigen --------------------------------------
 // gruen: von Hand bestaetigt, in backshop_fach bestaetigt, oder Uebersicht und Ausschnitt nennen denselben Artikel
 // gelb:  Artikel nur aus einer Quelle  ·  rot: kein Artikel
-function ampel(f) {
+function ampelEinzel(f) {
   if (f.hand || f.lesung === "bestaetigt" || f.lesung === "sicher") return f.sap_artnr ? "gruen" : "rot";
   return f.sap_artnr ? "gelb" : "rot";
+}
+// Fach mit zwei Artikeln (zweit): die schlechtere Haelfte bestimmt die Farbe
+function ampel(f) {
+  const a = ampelEinzel(f);
+  if (!f.zweit) return a;
+  const b = ampelEinzel(f.zweit);
+  const rang = { rot: 0, gelb: 1, gruen: 2 };
+  return rang[a] <= rang[b] ? a : b;
 }
 function rasterZeigen() {
   const nachModul = {};
@@ -424,7 +437,15 @@ function rasterZeigen() {
       const a = ampel(f), i = FAECHER.indexOf(f);
       const mark = a === "gruen" ? "✓" : a === "gelb" ? "?" : "!";
       const alt = f.hand ? "" : (f.belegung_alt ? `<div class="alt">war: ${kurz(f.belegung_alt)}</div>` : f.aus_belegung ? `<div class="alt">aus Belegung – prüfen</div>` : "") + (f.hinweis && ampel(f) !== "gruen" ? `<div class="alt">${esc(f.hinweis)}</div>` : "");
-      h += `<div class="fach ${a} ${AKTIV === i ? "aktiv" : ""}" onclick="bearbeiten(${i})"><span class="mark">${mark}</span><div class="n">${f.anzahl}</div>${kurz(f.bezeichnung || f.schild_text || "Artikel?")}<div class="klein">${f.preis != null ? f.preis.toFixed(2) + " €" : ""}</div>${alt}</div>`;
+      if (f.zweit) {
+        // halb/halb: links der erste, rechts der zweite Artikel desselben Fachs
+        const z = f.zweit;
+        h += `<div class="fach doppelt ${a} ${AKTIV === i ? "aktiv" : ""}" onclick="bearbeiten(${i})"><span class="mark">${mark}</span>
+          <div class="haelfte"><div class="n">${f.anzahl}</div>${kurz(f.bezeichnung || f.schild_text || "Artikel?")}<div class="klein">${f.preis != null ? f.preis.toFixed(2) + " €" : ""}</div></div>
+          <div class="haelfte"><div class="n">${z.anzahl}</div>${kurz(z.bezeichnung || z.schild_text || "Artikel?")}<div class="klein">${z.preis != null ? Number(z.preis).toFixed(2) + " €" : ""}</div></div></div>`;
+      } else {
+        h += `<div class="fach ${a} ${AKTIV === i ? "aktiv" : ""}" onclick="bearbeiten(${i})"><span class="mark">${mark}</span><div class="n">${f.anzahl}</div>${kurz(f.bezeichnung || f.schild_text || "Artikel?")}<div class="klein">${f.preis != null ? f.preis.toFixed(2) + " €" : ""}</div>${alt}</div>`;
+      }
     }
     h += `</div></div>`;
   }
@@ -439,6 +460,9 @@ function bearbeiten(i) {
   ed.innerHTML = `<b>Modul ${f.modul}, Reihe ${f.reihe}, Spalte ${f.spalte}</b> <span class="klein">gelesen: ${esc(f.schild_text) || "–"} · ${f.preis != null ? f.preis.toFixed(2) + " €" : "–"}${f.schild_c ? ` · Ausschnitt: ${esc(f.schild_c)}${f.preis_c != null ? " " + Number(f.preis_c).toFixed(2) + " €" : ""}` : ""}${f.hinweis ? ` · ${esc(f.hinweis)}` : ""}</span>
     <div class="zeile"><div><label>Artikel (Name, PLU oder EAN)</label><input type="text" id="ed_art" list="artikelliste" value="${esc(f.bezeichnung || f.schild_text || "")}"></div>
     <div><label>Stück</label><input type="number" id="ed_n" min="0" step="1" value="${f.anzahl}"></div></div>
+    ${f.zweit ? `<div class="zeile"><div><label>2. Artikel im selben Fach</label><input type="text" id="ed_art2" list="artikelliste" value="${esc(f.zweit.bezeichnung || f.zweit.schild_text || "")}"></div>
+    <div><label>Stück</label><input type="number" id="ed_n2" min="0" step="1" value="${f.zweit.anzahl}"></div></div>
+    <div class="klein">Gelesen: ${esc(f.zweit.schild_text) || "–"} · ${f.zweit.preis != null ? Number(f.zweit.preis).toFixed(2) + " €" : "–"} · <a href="#" onclick="zweitEntfernen();return false">zweiten Artikel entfernen</a></div>` : `<div class="klein"><a href="#" onclick="zweitAnlegen();return false">+ zweiter Artikel im selben Fach</a></div>`}
     <div class="knoepfe"><button type="button" onclick="uebernehmen()">Übernehmen</button><button type="button" class="zweit" onclick="uebernehmen(0)">Fach leer</button><button type="button" class="zweit" onclick="editorZu()">Abbrechen</button></div>
     <div class="klein" id="ed_hinweis" style="margin-top:6px"></div>`;
   rasterZeigen();
@@ -452,12 +476,21 @@ function uebernehmen(leer) {
   const f = FAECHER[AKTIV];
   const a = artikelFinden($("ed_art").value);
   if (!a) { $("ed_art").style.borderColor = "#b3261e"; $("ed_hinweis").textContent = "Artikel nicht in der Liste dieses Markts – Name aus der Liste wählen oder PLU/EAN eingeben."; return; }
+  let a2 = null;
+  if (f.zweit) {
+    a2 = artikelFinden($("ed_art2").value);
+    if (!a2) { $("ed_art2").style.borderColor = "#b3261e"; $("ed_hinweis").textContent = "2. Artikel nicht in der Liste dieses Markts – Name aus der Liste wählen oder PLU/EAN eingeben."; return; }
+  }
   f.sap_artnr = a.sap_artnr; f.bezeichnung = a.bezeichnung;
   f.anzahl = leer === 0 ? 0 : Math.max(0, Math.round(Number($("ed_n").value) || 0));
   f.hand = true;
+  if (f.zweit) { f.zweit.sap_artnr = a2.sap_artnr; f.zweit.bezeichnung = a2.bezeichnung; f.zweit.anzahl = leer === 0 ? 0 : Math.max(0, Math.round(Number($("ed_n2").value) || 0)); f.zweit.hand = true; }
   editorZu();
 }
 window.uebernehmen = uebernehmen;
+function zweitAnlegen() { const f = FAECHER[AKTIV]; f.zweit = { sap_artnr: null, bezeichnung: null, schild_text: null, preis: null, anzahl: 0 }; bearbeiten(AKTIV); }
+function zweitEntfernen() { const f = FAECHER[AKTIV]; f.zweit = null; bearbeiten(AKTIV); }
+window.zweitAnlegen = zweitAnlegen; window.zweitEntfernen = zweitEntfernen;
 
 // ---- Backprogramm je Artikel (Vorgabe Benedikt 22.09.: "Backempfehlung auch mit Backprogramm") ----
 // Kopie aus markt-todo.html (ORDERSATZ_SECTIONS + ARTIKEL_PATTERN_RULES, Stand v2026.09.19-04). Aenderungen dort
@@ -513,8 +546,14 @@ function artikelToBackprogramm(name){
 $("auswerten").onclick = async () => {
   $("auswerten").disabled = true; $("status2").textContent = "Empfehlung wird berechnet …"; $("ergebnis").innerHTML = "";
   try {
-    const zaehlung = FAECHER.map(f => ({ modul: f.modul, reihe: f.reihe, spalte: f.spalte, sap_artnr: f.sap_artnr, bezeichnung: f.bezeichnung,
-      schild_text: f.schild_text, preis: f.preis, anzahl: f.anzahl, bestaetigt: ampel(f) === "gruen" }));
+    const zaehlung = [];
+    for (const f of FAECHER) {
+      zaehlung.push({ modul: f.modul, reihe: f.reihe, spalte: f.spalte, sap_artnr: f.sap_artnr, bezeichnung: f.bezeichnung,
+        schild_text: f.schild_text, preis: f.preis, anzahl: f.anzahl, bestaetigt: ampelEinzel(f) === "gruen" });
+      // zweiter Artikel im selben Fach: zaehlt im Bestand mit (teil 2), wird nicht als Belegung gelernt
+      if (f.zweit && f.zweit.sap_artnr) zaehlung.push({ teil: 2, modul: f.modul, reihe: f.reihe, spalte: f.spalte, sap_artnr: f.zweit.sap_artnr, bezeichnung: f.zweit.bezeichnung,
+        schild_text: f.zweit.schild_text, preis: f.zweit.preis, anzahl: f.zweit.anzahl, bestaetigt: ampelEinzel(f.zweit) === "gruen" });
+    }
     const r = await fetch(`${SB_URL}/functions/v1/backempfehlung`, { method: "POST", headers: { ...H, "Content-Type": "application/json" },
       body: JSON.stringify({ markt: $("markt").value, empfehlung_fuer: LESUNG.id, zaehlung, von: "Testseite", horizont: $("horizont").value }) });
     const j = await r.json();
