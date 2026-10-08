@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tankbeleg erfassen</title>
 <!-- Tankbeleg-Erfassung (08.10.2026, Vorgabe Benedikt): Mitarbeitende fotografieren den Tankzettel, Vorname/Nachname Pflicht,
+     v3 (08.10. abends): KILOMETERSTAND Pflicht, Vergleich mit dem letzten Beleg des Kennzeichens (km, Verbrauch je 100 km),
+     Rueckfrage bei Unplausiblem (Funktion liefert `rueckfrage`, zweiter Klick bestaetigt), E-Autos: Menge in kWh.
      Kennzeichen, die Funktion "tankbeleg" liest Datum/Uhrzeit/Betrag, nach Pruefung wird gespeichert und die Datei
      im Eimer tankbelege unter <Kennzeichen>/<Jahr>/<Monat>/ abgelegt. Farben wie markt-todo.html. -->
 <style>
@@ -40,6 +42,11 @@
   .status.fehler{color:var(--r);font-weight:bold}
   .hinweis{background:#fff7e6;border:1px solid var(--o);color:var(--o);border-radius:8px;padding:8px 10px;font-size:.9rem;margin-top:8px}
   .ok{background:#eef8f0;border:1px solid var(--g);color:var(--g);border-radius:8px;padding:10px;font-weight:bold}
+  .ok small{display:block;font-weight:normal;color:var(--text);margin-top:4px}
+  .rueckfrage{background:#fdeeed;border:2px solid var(--r);color:var(--r);border-radius:8px;padding:10px;font-size:.95rem;margin-top:10px}
+  .rueckfrage b{display:block;margin-bottom:4px}
+  .vorher{font-size:.85rem;color:var(--grau);margin-top:4px}
+  .zwei .einheit{display:grid;grid-template-columns:1fr 84px;gap:6px}
   table{border-collapse:collapse;width:100%;font-size:.9rem;margin-top:8px}
   td,th{padding:6px 4px;border-bottom:1px solid #eee;text-align:left}
   th{font-size:.75rem;color:var(--grau);font-weight:600}
@@ -82,18 +89,22 @@
 <div class="box versteckt" id="pruefen">
   <h2><span class="nr">3</span>Prüfen und speichern</h2>
   <div id="hinweise"></div>
+  <label>Kilometerstand jetzt <small>(Pflicht – vom Tacho ablesen)</small></label>
+  <input id="km" type="number" step="1" min="0" inputmode="numeric" placeholder="z. B. 45210">
+  <div class="vorher" id="vorher"></div>
   <div class="zwei">
     <div><label>Datum</label><input id="datum" type="date"></div>
     <div><label>Uhrzeit</label><input id="uhrzeit" type="time"></div>
   </div>
   <div class="zwei">
     <div><label>Betrag brutto (€)</label><input id="betrag" type="number" step="0.01" min="0" inputmode="decimal" placeholder="0,00"></div>
-    <div><label>Liter <small>(optional)</small></label><input id="liter" type="number" step="0.01" min="0" inputmode="decimal"></div>
+    <div><label>Menge <small>(Liter, bei E-Auto kWh)</small></label><div class="einheit"><input id="liter" type="number" step="0.01" min="0" inputmode="decimal"><select id="einheit"><option value="l">l</option><option value="kWh">kWh</option></select></div></div>
   </div>
   <div class="zwei">
     <div><label>Kraftstoff <small>(optional)</small></label><input id="kraftstoff" type="text"></div>
     <div><label>Tankstelle <small>(optional)</small></label><input id="tankstelle" type="text"></div>
   </div>
+  <div id="rueckfrage"></div>
   <button id="speichern">Beleg speichern</button>
   <div class="status" id="status2"></div>
 </div>
@@ -117,7 +128,8 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const eur = n => n == null ? "" : Number(n).toFixed(2).replace(".", ",") + " €";
 const deDatum = d => d ? d.slice(8, 10) + "." + d.slice(5, 7) + "." + d.slice(0, 4) : "";
-let PFAD = null, GELESEN = null, LAEUFT = false;
+let PFAD = null, GELESEN = null, LAEUFT = false, VORHER = null, RUECKFRAGE_OFFEN = false;
+const km = n => n == null ? "" : Number(n).toLocaleString("de-DE") + " km";
 
 async function funktion(body) {
   const r = await fetch(`${SB_URL}/functions/v1/tankbeleg`, { method: "POST", headers: { ...H, "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -177,11 +189,15 @@ $("datei").onchange = async () => {
     const r = await fetch(`${SB_URL}/storage/v1/object/tankbelege/${PFAD}`, { method: "PUT", headers: { ...H, "Content-Type": istPdf ? "application/pdf" : "image/jpeg" }, body: blob });
     if (!r.ok) throw new Error("Hochladen fehlgeschlagen (" + r.status + ")");
     $("status1").textContent = "Beleg wird gelesen …";
-    const j = await funktion({ lesen: true, pfad: PFAD });
-    GELESEN = j.gelesen;
+    const j = await funktion({ lesen: true, pfad: PFAD, kennzeichen: $("kennzeichen").value.trim() });
+    GELESEN = j.gelesen; VORHER = j.vorher || null; RUECKFRAGE_OFFEN = false; $("rueckfrage").innerHTML = ""; $("speichern").textContent = "Beleg speichern";
     $("datum").value = j.gelesen.datum || ""; $("uhrzeit").value = j.gelesen.uhrzeit || "";
     $("betrag").value = j.gelesen.betrag_brutto != null ? j.gelesen.betrag_brutto.toFixed(2) : "";
-    $("liter").value = j.gelesen.liter != null ? j.gelesen.liter : ""; $("kraftstoff").value = j.gelesen.kraftstoff || ""; $("tankstelle").value = j.gelesen.tankstelle || "";
+    $("liter").value = j.gelesen.liter != null ? j.gelesen.liter : ""; $("einheit").value = j.gelesen.einheit === "kWh" ? "kWh" : "l";
+    $("kraftstoff").value = j.gelesen.kraftstoff || ""; $("tankstelle").value = j.gelesen.tankstelle || "";
+    // Kilometerstand: Pflicht; vorbelegt nur, wenn er auf dem Bon gedruckt ist. Darunter der letzte Beleg des Fahrzeugs.
+    $("km").value = j.gelesen.km_stand != null ? j.gelesen.km_stand : ""; $("km").classList.remove("fehlt");
+    $("vorher").textContent = VORHER ? `Letzter Beleg für ${$("kennzeichen").value.trim()}: ${km(VORHER.km_stand)} am ${deDatum(VORHER.datum)}${VORHER.kraftstoff ? " (" + VORHER.kraftstoff + ")" : ""}` : "Erster Beleg für dieses Kennzeichen – ab dem nächsten wird der Verbrauch berechnet.";
     const hin = [...(j.hinweise || [])];
     if (j.gelesen.kennzeichen && j.gelesen.kennzeichen !== $("kennzeichen").value.trim().toUpperCase()) hin.push(`Auf dem Bon steht das Kennzeichen ${j.gelesen.kennzeichen} - oben steht ${$("kennzeichen").value.trim()}. Bitte prüfen.`);
     $("hinweise").innerHTML = hin.length ? `<div class="hinweis">${hin.map(esc).join("<br>")}</div>` : "";
@@ -197,20 +213,32 @@ $("datei").onchange = async () => {
 $("speichern").onclick = async () => {
   if (!PFAD || !pflichtOk()) return;
   const betrag = Number(String($("betrag").value).replace(",", "."));
+  const kmWert = Math.round(Number(String($("km").value).replace(/[.\s]/g, "")));
+  if (!isFinite(kmWert) || kmWert <= 0) { $("km").classList.add("fehlt"); $("status2").textContent = "Bitte den Kilometerstand eintragen (Pflicht)."; $("status2").classList.add("fehler"); $("km").focus(); return; }
   if (!$("datum").value || !$("uhrzeit").value || !isFinite(betrag) || betrag <= 0) { $("status2").textContent = "Datum, Uhrzeit und Betrag müssen gefüllt sein."; $("status2").classList.add("fehler"); return; }
   $("speichern").disabled = true; $("status2").classList.remove("fehler"); $("status2").textContent = "Wird gespeichert …";
   const g = GELESEN || {};
   const korrigiert = g.datum !== $("datum").value || (g.uhrzeit || "") !== $("uhrzeit").value || (g.betrag_brutto == null ? -1 : Math.round(g.betrag_brutto * 100)) !== Math.round(betrag * 100);
   try {
     const j = await funktion({ speichern: true, pfad: PFAD, vorname: $("vorname").value.trim(), nachname: $("nachname").value.trim(), kennzeichen: $("kennzeichen").value.trim(),
-      datum: $("datum").value, uhrzeit: $("uhrzeit").value, betrag_brutto: betrag, liter: $("liter").value || null, kraftstoff: $("kraftstoff").value.trim() || null,
-      tankstelle: $("tankstelle").value.trim() || null, ki_roh: GELESEN, korrigiert, geraet: navigator.userAgent.slice(0, 200) });
-    $("fertigText").textContent = `Gespeichert: ${j.kennzeichen} · ${deDatum(j.datum)} ${j.uhrzeit} · ${eur(j.betrag_brutto)} · ${j.tanker_vorname} ${j.tanker_nachname} (Beleg Nr. ${j.id})`;
+      km_stand: kmWert, datum: $("datum").value, uhrzeit: $("uhrzeit").value, betrag_brutto: betrag, liter: $("liter").value || null, einheit: $("einheit").value,
+      kraftstoff: $("kraftstoff").value.trim() || null, tankstelle: $("tankstelle").value.trim() || null, ki_roh: GELESEN, korrigiert,
+      rueckfrage_bestaetigt: RUECKFRAGE_OFFEN, geraet: navigator.userAgent.slice(0, 200) });
+    if (j.rueckfrage && j.rueckfrage.length) {
+      // Unplausibel: nichts gespeichert. Mitarbeiter korrigiert - oder bestaetigt mit dem zweiten Klick.
+      RUECKFRAGE_OFFEN = true;
+      $("rueckfrage").innerHTML = `<div class="rueckfrage"><b>Bitte prüfen:</b>${j.rueckfrage.map(esc).join("<br>")}<br><small>Zahl oben korrigieren – oder, wenn alles stimmt, noch einmal auf den Knopf tippen.</small></div>`;
+      $("speichern").textContent = "Angaben stimmen – trotzdem speichern"; $("status2").textContent = "";
+      $("rueckfrage").scrollIntoView({ behavior: "smooth", block: "center" }); return;
+    }
+    const seit = j.km_diff != null && j.km_diff > 0 ? `Seit dem letzten Beleg (${deDatum(j.vorher.datum)}): ${km(j.km_diff)}` + (j.verbrauch_100 != null ? ` · ${Number(j.verbrauch_100).toLocaleString("de-DE")} ${j.einheit}/100 km` : "") + (j.kosten_100 != null ? ` · ${Number(j.kosten_100).toLocaleString("de-DE", { minimumFractionDigits: 2 })} €/100 km` : "") : "Erster Beleg mit Kilometerstand für dieses Fahrzeug.";
+    $("fertigText").innerHTML = `Gespeichert: ${esc(j.kennzeichen)} · ${deDatum(j.datum)} ${esc(j.uhrzeit)} · ${eur(j.betrag_brutto)} · ${km(j.km_stand)} · ${esc(j.tanker_vorname)} ${esc(j.tanker_nachname)} (Beleg Nr. ${j.id})<small>${esc(seit)}</small>`;
     $("pruefen").classList.add("versteckt"); $("fertig").classList.remove("versteckt"); $("fertig").scrollIntoView({ behavior: "smooth" });
-    PFAD = null; GELESEN = null; meineBelege();
+    PFAD = null; GELESEN = null; RUECKFRAGE_OFFEN = false; $("rueckfrage").innerHTML = ""; $("speichern").textContent = "Beleg speichern"; meineBelege();
   } catch (e) { $("status2").textContent = "Fehler: " + e.message; $("status2").classList.add("fehler"); }
   finally { $("speichern").disabled = false; }
 };
+for (const id of ["km", "liter", "einheit", "datum", "uhrzeit"]) $(id).addEventListener("input", () => { if (RUECKFRAGE_OFFEN) { RUECKFRAGE_OFFEN = false; $("rueckfrage").innerHTML = ""; $("speichern").textContent = "Beleg speichern"; } });
 $("naechster").onclick = () => {
   $("fertig").classList.add("versteckt"); $("fotoFeld").classList.remove("hat"); $("vorschau").removeAttribute("src"); $("status1").textContent = "";
   $("fotoBox").scrollIntoView({ behavior: "smooth" });
@@ -223,8 +251,8 @@ async function meineBelege() {
   try {
     const j = await funktion({ liste: true, vorname: vn, nachname: nn });
     if (!j.belege.length) { $("liste").textContent = "Noch keine Belege erfasst."; return; }
-    $("liste").innerHTML = `<table><tr><th>Datum</th><th>Uhrzeit</th><th>Kennzeichen</th><th>Tankstelle</th><th style="text-align:right">Betrag</th></tr>` +
-      j.belege.map(b => `<tr><td>${deDatum(b.datum)}</td><td>${esc((b.uhrzeit || "").slice(0, 5))}</td><td>${esc(b.kennzeichen)}</td><td>${esc(b.tankstelle || "")}</td><td class="z">${eur(b.betrag_brutto)}</td></tr>`).join("") + `</table>`;
+    $("liste").innerHTML = `<table><tr><th>Datum</th><th>Kennzeichen</th><th style="text-align:right">km-Stand</th><th style="text-align:right">seit letztem</th><th style="text-align:right">Betrag</th></tr>` +
+      j.belege.map(b => `<tr><td>${deDatum(b.datum)} ${esc((b.uhrzeit || "").slice(0, 5))}</td><td>${esc(b.kennzeichen)}</td><td class="z">${b.km_stand != null ? km(b.km_stand) : "–"}</td><td class="z">${b.km_diff != null && b.km_diff > 0 ? km(b.km_diff) + (b.verbrauch_100 != null ? `<br><small>${Number(b.verbrauch_100).toLocaleString("de-DE")} ${esc(b.einheit || "l")}/100 km</small>` : "") : "–"}</td><td class="z">${eur(b.betrag_brutto)}</td></tr>`).join("") + `</table>`;
   } catch (e) { $("liste").textContent = "Belege konnten nicht geladen werden: " + e.message; }
 }
 meineBelege();
