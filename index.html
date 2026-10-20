@@ -776,7 +776,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.10.08-01"; // Meine Baeckerei: Auswahl "Verfahren" (Wie bisher | Bild (BETA)) nur in Billigheim-Ingenheim, Steinfeld ohne (Vorgabe Benedikt 08.10.); Bild = backshop-test.html im Rahmen mit festem Markt, Absprung-Knopf "Foto-Empfehlung (Test)" entfernt; sonst wie v2026.10.07-01: Ordersatz-Parser: Hinweiszeile wurde seit 01.10. nie uebernommen (pendingNotes vor dem push geleert) - behoben; neue Spalte FAG-W-Gruppe (KW 42) abgeschnitten, Legendenzeilen ignoriert; sonst wie v2026.10.01-01: Bevorratung: Artikel "nur E-Center" und fremde Werbegebiete (nicht Alle/23) ausgeschlossen (Vorgabe Benedikt 01.10.: DEIT in Steinfeld); Ordersatz-Parser liest die Hinweis-/Werbegebiet-Zeile oberhalb der Artikelzeile und wertet nur GROSS geschriebene Zeilen als Abschnitt; sonst wie v2026.09.30-02: Liquiditaetskachel je Konto: Umbuchungszeilen mit Quellkonto, veraltete Salden, heute offene Posten; Ampeltexte je Konto (Knoten Verwaltung Status Regelwerk 2026-09-30, Skript 07); sonst wie -01: Bevorratung: erster Bildschirm nach dem Oeffnen rechnete ueber alle geladenen Wochen (promo nicht auf die gewaehlte Woche eingegrenzt, Banner KW 36 bei Feld KW 41) - renderWerbung grenzt jetzt selbst ein; Reiter brach beim Oeffnen mit Statement-Timeout ab (schnitt_fuer_werbeartikel, 11 Seiten, 8 parallel, anon 3 s) - fetchAllPaged wiederholt Seiten bei Timeout (Standard 1x, RPC 3x) und holt die RPC nur noch 2 Seiten gleichzeitig; Backshop unveraendert (Vorgabe Benedikt 30.09.); sonst wie v2026.09.22-02: Baeckerei-Reiter: vierter Unterreiter-Knopf "Foto-Empfehlung (Test)" springt auf backshop-test.html (Vorgabe Benedikt 22.09.; Inhalte unveraendert); sonst wie -01: Admin-Kasten mit Link auf backshop-test.html; sonst wie v2026.09.19-04: // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
+const APP_VERSION = "v2026.10.20-01"; // Kennzahlen-Importer: Index metrics(market, area, metric_date) in der Datenbank (Seq Scan je Gruppe weg), Bereinigen wiederholt bei statement timeout bis 2x, Kontrollsumme wird bei Abweichung/Fehler nach 3 s einmal neu gezaehlt (Zaehlfehler 19.10.: 2748 statt 2798 bei vollstaendiger Tabelle); sonst wie v2026.10.08-01: Meine Baeckerei: Auswahl "Verfahren" (Wie bisher | Bild (BETA)) nur in Billigheim-Ingenheim, Steinfeld ohne (Vorgabe Benedikt 08.10.); Bild = backshop-test.html im Rahmen mit festem Markt, Absprung-Knopf "Foto-Empfehlung (Test)" entfernt; sonst wie v2026.10.07-01: Ordersatz-Parser: Hinweiszeile wurde seit 01.10. nie uebernommen (pendingNotes vor dem push geleert) - behoben; neue Spalte FAG-W-Gruppe (KW 42) abgeschnitten, Legendenzeilen ignoriert; sonst wie v2026.10.01-01: Bevorratung: Artikel "nur E-Center" und fremde Werbegebiete (nicht Alle/23) ausgeschlossen (Vorgabe Benedikt 01.10.: DEIT in Steinfeld); Ordersatz-Parser liest die Hinweis-/Werbegebiet-Zeile oberhalb der Artikelzeile und wertet nur GROSS geschriebene Zeilen als Abschnitt; sonst wie v2026.09.30-02: Liquiditaetskachel je Konto: Umbuchungszeilen mit Quellkonto, veraltete Salden, heute offene Posten; Ampeltexte je Konto (Knoten Verwaltung Status Regelwerk 2026-09-30, Skript 07); sonst wie -01: Bevorratung: erster Bildschirm nach dem Oeffnen rechnete ueber alle geladenen Wochen (promo nicht auf die gewaehlte Woche eingegrenzt, Banner KW 36 bei Feld KW 41) - renderWerbung grenzt jetzt selbst ein; Reiter brach beim Oeffnen mit Statement-Timeout ab (schnitt_fuer_werbeartikel, 11 Seiten, 8 parallel, anon 3 s) - fetchAllPaged wiederholt Seiten bei Timeout (Standard 1x, RPC 3x) und holt die RPC nur noch 2 Seiten gleichzeitig; Backshop unveraendert (Vorgabe Benedikt 30.09.); sonst wie v2026.09.22-02: Baeckerei-Reiter: vierter Unterreiter-Knopf "Foto-Empfehlung (Test)" springt auf backshop-test.html (Vorgabe Benedikt 22.09.; Inhalte unveraendert); sonst wie -01: Admin-Kasten mit Link auf backshop-test.html; sonst wie v2026.09.19-04: // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -3201,9 +3201,18 @@ async function uploadMetricsExcel(){
     const kpiArr = [...group.kpis];
     for(let i = 0; i < kpiArr.length; i += 200){
       const slice = kpiArr.slice(i, i + 200);
-      const dr = await db.from("metrics").delete({count: "exact"})
-        .eq("market", market).eq("area", area).eq("metric_date", date)
-        .in("metric_name", slice);
+      /* 20.10.2026: bei "statement timeout" bis zu zweimal wiederholen (Pause 2 s) - am 18.10.
+         brach die Abschriften-Datei genau hier ab (BI/SB Fleisch/2026-10-08). Ursache war der
+         fehlende Index (market, area, metric_date), seit 20.10. angelegt; die Wiederholung bleibt
+         als zweite Sicherung gegen Lastspitzen. */
+      let dr = null;
+      for(let versuch = 0; versuch < 3; versuch++){
+        dr = await db.from("metrics").delete({count: "exact"})
+          .eq("market", market).eq("area", area).eq("metric_date", date)
+          .in("metric_name", slice);
+        if(!dr.error || !/statement timeout/i.test(String(dr.error.message||""))) break;
+        await new Promise(w => setTimeout(w, 2000));
+      }
       if(dr.error){
         msg.innerHTML = `Fehler beim Bereinigen (${market}/${area}/${date}): ${dr.error.message}<br>` + debug.join("<br>");
         return;
@@ -3212,9 +3221,14 @@ async function uploadMetricsExcel(){
     }
     // 2. Artikel-Details: alle Zeilen mit __art__|| Praefix loeschen (nur wenn im Upload)
     if(group.hasArticles){
-      const dr = await db.from("metrics").delete({count: "exact"})
-        .eq("market", market).eq("area", area).eq("metric_date", date)
-        .like("metric_name", ART_PREFIX + "%");
+      let dr = null;
+      for(let versuch = 0; versuch < 3; versuch++){
+        dr = await db.from("metrics").delete({count: "exact"})
+          .eq("market", market).eq("area", area).eq("metric_date", date)
+          .like("metric_name", ART_PREFIX + "%");
+        if(!dr.error || !/statement timeout/i.test(String(dr.error.message||""))) break;
+        await new Promise(w => setTimeout(w, 2000));
+      }
       if(dr.error){
         msg.innerHTML = `Fehler beim Bereinigen (Artikel, ${market}/${area}/${date}): ${dr.error.message}<br>` + debug.join("<br>");
         return;
@@ -3256,26 +3270,44 @@ async function uploadMetricsExcel(){
      geloescht hat: je Markt, Bereich und Tag nur die Kennzahlen dieser
      Datei. Dieselbe Filterung wie beim Loeschen oben, also dieselbe Anzahl
      Abfragen - kein zusaetzlicher Aufwand. */
-  let kontrollIst = 0, kontrollFehler = null;
-  for(const [key, group] of Object.entries(dedupGroups)){
-    if(kontrollFehler) break;
-    const [market, area, date] = key.split("||");
-    const kpiArr = [...group.kpis];
-    for(let i = 0; i < kpiArr.length; i += 200){
-      const slice = kpiArr.slice(i, i + 200);
-      const r = await db.from("metrics").select("*", {count:"exact", head:true})
-        .eq("market", market).eq("area", area).eq("metric_date", date)
-        .in("metric_name", slice);
-      if(r.error){ kontrollFehler = r.error.message; break; }
-      kontrollIst += r.count || 0;
+  /* 20.10.2026: Die Zaehlung laeuft als Funktion und wird bei Abweichung oder Fehler
+     nach 3 s EINMAL wiederholt. Am 19.10. meldete der Lauf 2748 von 2798, obwohl alle
+     2798 Zeilen in der Tabelle standen (am 20.10. nachgezaehlt) - die Zaehlung lief
+     waehrend einer Lastspitze (im selben Lauf: statement timeout beim Wochenabsatz).
+     Eine zweite Zaehlung mit Abstand trennt Zaehlfehler von echtem Datenverlust.
+     Fehlt danach immer noch etwas, bleibt die Datei wie bisher im Eingang. */
+  async function kennzahlenZaehlen(){
+    let ist = 0, fehler = null;
+    for(const [key, group] of Object.entries(dedupGroups)){
+      if(fehler) break;
+      const [market, area, date] = key.split("||");
+      const kpiArr = [...group.kpis];
+      for(let i = 0; i < kpiArr.length; i += 200){
+        const slice = kpiArr.slice(i, i + 200);
+        const r = await db.from("metrics").select("*", {count:"exact", head:true})
+          .eq("market", market).eq("area", area).eq("metric_date", date)
+          .in("metric_name", slice);
+        if(r.error){ fehler = r.error.message; break; }
+        ist += r.count || 0;
+      }
+      if(!fehler && group.hasArticles){
+        const r = await db.from("metrics").select("*", {count:"exact", head:true})
+          .eq("market", market).eq("area", area).eq("metric_date", date)
+          .like("metric_name", ART_PREFIX + "%");
+        if(r.error) fehler = r.error.message;
+        else ist += r.count || 0;
+      }
     }
-    if(!kontrollFehler && group.hasArticles){
-      const r = await db.from("metrics").select("*", {count:"exact", head:true})
-        .eq("market", market).eq("area", area).eq("metric_date", date)
-        .like("metric_name", ART_PREFIX + "%");
-      if(r.error) kontrollFehler = r.error.message;
-      else kontrollIst += r.count || 0;
-    }
+    return {ist, fehler};
+  }
+  let {ist: kontrollIst, fehler: kontrollFehler} = await kennzahlenZaehlen();
+  let kontrollWiederholt = false;
+  if(kontrollFehler || kontrollIst !== inserted){
+    await new Promise(w => setTimeout(w, 3000));
+    const zweite = await kennzahlenZaehlen();
+    kontrollWiederholt = true;
+    debug.push(`Kontrollsumme wiederholt: erste Zählung ${kontrollFehler ? "Fehler " + kontrollFehler : kontrollIst}, zweite ${zweite.fehler ? "Fehler " + zweite.fehler : zweite.ist} (gelesen ${inserted})`);
+    kontrollIst = zweite.ist; kontrollFehler = zweite.fehler;
   }
   const kMet = kontrollFehler
     ? {tabelle:"metrics", soll:inserted, ist:null, ok:false, fehler:kontrollFehler}
