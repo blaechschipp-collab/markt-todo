@@ -221,6 +221,47 @@
     .article-card .a-detail-row:last-child{border-bottom:none}
     @media(max-width:900px){body{background:var(--blue-dark)}.header{padding:14px 12px 12px}.main{padding:12px}.logo{max-width:280px}.tabs{position:sticky;top:0;z-index:10;background:var(--blue-dark);padding-top:8px}.todo-tab{flex:3}.dispo-tab{flex:3}.backshop-tab{flex:3}.analytics-tab{flex:3}.admin-tab{flex:1;min-width:70px}.tab{padding:10px 4px;font-size:12px}.metric-grid{grid-template-columns:1fr}.box{padding:12px;border-radius:12px;margin-bottom:12px}.control-grid{grid-template-columns:1fr;gap:10px}input,select,textarea,button{font-size:16px;padding:13px}.task{padding:12px;gap:10px}.task input[type="checkbox"]{width:24px;height:24px;flex:0 0 24px}.admin-actions{display:grid;grid-template-columns:1fr 1fr}.admin-actions button{width:100%}.footer{font-size:13px;padding:12px}}
     @media(max-width:700px){.kpi-block .kpi-table{display:none}.kpi-block .kpi-cards{display:block}.article-block .article-table{display:none}.article-block .article-cards{display:block}.article-block .article-sort-mobile{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}.article-block .article-sort-mobile label{margin:0}}
+
+    /* Verwaltungskacheln (20.10.2026): Kopfband mit Verlauf, Felder mit Akzentkante, Balken statt nackter Zahl */
+    .vk{padding:0;overflow:hidden;border:1px solid #d8e2ef}
+    .vk-kopf{display:flex;align-items:center;gap:12px;padding:14px 18px;color:#fff;flex-wrap:wrap}
+    .vk-kopf.blau{background:linear-gradient(100deg,#00315f 0%,#004f9e 70%,#1565c0 100%)}
+    .vk-kopf.gruen{background:linear-gradient(100deg,#064e3b 0%,#0f766e 70%,#0d9488 100%)}
+    .vk-ikon{width:36px;height:36px;border-radius:11px;background:rgba(255,255,255,.18);display:grid;place-items:center;font-size:19px;flex:0 0 36px}
+    .vk-kopf h2{margin:0;font-size:19px;color:#fff;line-height:1.2}
+    .vk-kopf .vk-sub{font-size:12.5px;opacity:.85;margin-top:1px}
+    .vk-pill{margin-left:auto;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.35);border-radius:999px;padding:4px 11px;font-size:12px;white-space:nowrap}
+    .vk-body{padding:14px 18px 16px;background:#fff}
+    .vk-intro{font-size:12.5px;color:#64748b;margin:0 0 12px}
+    .vk-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}
+    .vk-feld{--vk:#004f9e;position:relative;border:1px solid #e2eaf4;border-radius:14px;padding:14px 16px 14px 18px;background:linear-gradient(180deg,#fff,#f6f9fd);box-shadow:0 1px 2px rgba(8,33,63,.05);display:flex;flex-direction:column}
+    .vk-feld::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:4px;border-radius:0 4px 4px 0;background:var(--vk)}
+    .vk-feld.gruen{--vk:#15803d}.vk-feld.gelb{--vk:#b45309}.vk-feld.rot{--vk:#b91c1c}.vk-feld.blau{--vk:#004f9e}.vk-feld.grau{--vk:#64748b}.vk-feld.teal{--vk:#0f766e}.vk-feld.lila{--vk:#6d28d9}
+    .vk-titel{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#64748b;display:flex;align-items:center;gap:6px}
+    .vk-titel span{font-size:14px}
+    .vk-wert{font-size:30px;font-weight:900;line-height:1.1;margin-top:6px;color:var(--vk);letter-spacing:-.01em}
+    .vk-wert small{font-size:14px;font-weight:700;color:#64748b;letter-spacing:0}
+    .vk-text{font-size:12.5px;color:#475569;margin-top:6px;line-height:1.45}
+    .vk-balken{height:8px;border-radius:999px;background:#e6edf6;overflow:visible;margin:10px 0 4px;position:relative}
+    .vk-balken span{display:block;height:100%;border-radius:999px;background:var(--vk)}
+    .vk-balken i{position:absolute;top:-4px;width:2px;height:16px;background:#08213f;border-radius:1px}
+    .vk-balken b{position:absolute;top:-20px;transform:translateX(-50%);font-size:10.5px;color:#334155;white-space:nowrap}
+    .vk-zeile{display:flex;align-items:flex-start;gap:8px;font-size:12.5px;margin-top:7px;color:#334155;line-height:1.35}
+    .vk-chip{display:inline-block;min-width:46px;text-align:center;border-radius:8px;padding:2px 7px;font-size:11.5px;font-weight:700;background:#eef2f7;color:#334155;flex:0 0 auto}
+    .vk-chip.rot{background:#fee2e2;color:#b91c1c}.vk-chip.gelb{background:#fef3c7;color:#b45309}.vk-chip.gruen{background:#dcfce7;color:#15803d}.vk-chip.blau{background:#dbeafe;color:#1d4ed8}
+    .vk-mini{display:grid;grid-template-columns:minmax(80px,auto) 1fr auto;gap:7px 9px;align-items:center;font-size:12.5px;margin-top:10px;color:#334155}
+    .vk-mini .b{height:7px;border-radius:999px;background:#e6edf6;overflow:hidden}.vk-mini .b span{display:block;height:100%;border-radius:999px;background:var(--vk)}
+    .vk-mini .z{font-variant-numeric:tabular-nums;font-weight:700;color:#08213f;white-space:nowrap}
+    .vk-stat{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .vk-stat div{background:#eef2f7;border-radius:10px;padding:6px 10px;font-size:11.5px;color:#475569;min-width:72px}
+    .vk-stat b{display:block;font-size:17px;color:#08213f;line-height:1.1}
+    .vk-hinweis{background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:8px 10px;font-size:12.5px;color:#7c2d12;margin-top:8px;line-height:1.4}
+    .vk-hinweis.rot{background:#fef2f2;border-color:#fecaca;color:#7f1d1d}
+    .vk-ampel{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--vk);box-shadow:0 0 0 4px color-mix(in srgb,var(--vk) 18%,transparent);margin-right:8px;vertical-align:middle}
+    .vk-link{display:inline-flex;align-items:center;gap:4px;margin-top:auto;padding-top:10px;font-size:12.5px;font-weight:700;color:#004f9e;text-decoration:none}
+    .vk-link:hover{text-decoration:underline}
+    .vk-fuss{font-size:12px;color:#64748b;margin-top:12px}
+    @media(max-width:700px){.vk-body{padding:12px}.vk-kopf{padding:12px 14px}.vk-wert{font-size:26px}}
   </style>
 </head>
 <body>
@@ -776,7 +817,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.10.20-02"; // Verwaltung: Kachel "Personal" (Personalkostenquote Ist/Vorschau/Plan, naechste Fristen ohne Namen, Quote je Markt, Belegschaft) aus dem Statusabruf Teil 3 (dashboard\personal_daten.json, Skript 07), Absprung Personal-Dashboard /personal (Vorgabe Benedikt 20.10.); sonst wie -01: Kennzahlen-Importer: Index metrics(market, area, metric_date) in der Datenbank (Seq Scan je Gruppe weg), Bereinigen wiederholt bei statement timeout bis 2x, Kontrollsumme wird bei Abweichung/Fehler nach 3 s einmal neu gezaehlt (Zaehlfehler 19.10.: 2748 statt 2798 bei vollstaendiger Tabelle); sonst wie v2026.10.08-01: Meine Baeckerei: Auswahl "Verfahren" (Wie bisher | Bild (BETA)) nur in Billigheim-Ingenheim, Steinfeld ohne (Vorgabe Benedikt 08.10.); Bild = backshop-test.html im Rahmen mit festem Markt, Absprung-Knopf "Foto-Empfehlung (Test)" entfernt; sonst wie v2026.10.07-01: Ordersatz-Parser: Hinweiszeile wurde seit 01.10. nie uebernommen (pendingNotes vor dem push geleert) - behoben; neue Spalte FAG-W-Gruppe (KW 42) abgeschnitten, Legendenzeilen ignoriert; sonst wie v2026.10.01-01: Bevorratung: Artikel "nur E-Center" und fremde Werbegebiete (nicht Alle/23) ausgeschlossen (Vorgabe Benedikt 01.10.: DEIT in Steinfeld); Ordersatz-Parser liest die Hinweis-/Werbegebiet-Zeile oberhalb der Artikelzeile und wertet nur GROSS geschriebene Zeilen als Abschnitt; sonst wie v2026.09.30-02: Liquiditaetskachel je Konto: Umbuchungszeilen mit Quellkonto, veraltete Salden, heute offene Posten; Ampeltexte je Konto (Knoten Verwaltung Status Regelwerk 2026-09-30, Skript 07); sonst wie -01: Bevorratung: erster Bildschirm nach dem Oeffnen rechnete ueber alle geladenen Wochen (promo nicht auf die gewaehlte Woche eingegrenzt, Banner KW 36 bei Feld KW 41) - renderWerbung grenzt jetzt selbst ein; Reiter brach beim Oeffnen mit Statement-Timeout ab (schnitt_fuer_werbeartikel, 11 Seiten, 8 parallel, anon 3 s) - fetchAllPaged wiederholt Seiten bei Timeout (Standard 1x, RPC 3x) und holt die RPC nur noch 2 Seiten gleichzeitig; Backshop unveraendert (Vorgabe Benedikt 30.09.); sonst wie v2026.09.22-02: Baeckerei-Reiter: vierter Unterreiter-Knopf "Foto-Empfehlung (Test)" springt auf backshop-test.html (Vorgabe Benedikt 22.09.; Inhalte unveraendert); sonst wie -01: Admin-Kasten mit Link auf backshop-test.html; sonst wie v2026.09.19-04: // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
+const APP_VERSION = "v2026.10.20-03"; // Kacheln Verwaltung und Personal neu gestaltet (Kopfband mit Verlauf blau/gruen, Felder mit Akzentkante und Symbol, Quote mit Planbalken, Fristen mit Tage-Chips, Quote je Markt als Balken, Belegschaft als Kennzahlkacheln; Vorgabe Benedikt 20.10. "moderner, Verwaltung farblich absetzen"); sonst wie -02: Verwaltung: Kachel "Personal" (Personalkostenquote Ist/Vorschau/Plan, naechste Fristen ohne Namen, Quote je Markt, Belegschaft) aus dem Statusabruf Teil 3 (dashboard\personal_daten.json, Skript 07), Absprung Personal-Dashboard /personal (Vorgabe Benedikt 20.10.); sonst wie -01: Kennzahlen-Importer: Index metrics(market, area, metric_date) in der Datenbank (Seq Scan je Gruppe weg), Bereinigen wiederholt bei statement timeout bis 2x, Kontrollsumme wird bei Abweichung/Fehler nach 3 s einmal neu gezaehlt (Zaehlfehler 19.10.: 2748 statt 2798 bei vollstaendiger Tabelle); sonst wie v2026.10.08-01: Meine Baeckerei: Auswahl "Verfahren" (Wie bisher | Bild (BETA)) nur in Billigheim-Ingenheim, Steinfeld ohne (Vorgabe Benedikt 08.10.); Bild = backshop-test.html im Rahmen mit festem Markt, Absprung-Knopf "Foto-Empfehlung (Test)" entfernt; sonst wie v2026.10.07-01: Ordersatz-Parser: Hinweiszeile wurde seit 01.10. nie uebernommen (pendingNotes vor dem push geleert) - behoben; neue Spalte FAG-W-Gruppe (KW 42) abgeschnitten, Legendenzeilen ignoriert; sonst wie v2026.10.01-01: Bevorratung: Artikel "nur E-Center" und fremde Werbegebiete (nicht Alle/23) ausgeschlossen (Vorgabe Benedikt 01.10.: DEIT in Steinfeld); Ordersatz-Parser liest die Hinweis-/Werbegebiet-Zeile oberhalb der Artikelzeile und wertet nur GROSS geschriebene Zeilen als Abschnitt; sonst wie v2026.09.30-02: Liquiditaetskachel je Konto: Umbuchungszeilen mit Quellkonto, veraltete Salden, heute offene Posten; Ampeltexte je Konto (Knoten Verwaltung Status Regelwerk 2026-09-30, Skript 07); sonst wie -01: Bevorratung: erster Bildschirm nach dem Oeffnen rechnete ueber alle geladenen Wochen (promo nicht auf die gewaehlte Woche eingegrenzt, Banner KW 36 bei Feld KW 41) - renderWerbung grenzt jetzt selbst ein; Reiter brach beim Oeffnen mit Statement-Timeout ab (schnitt_fuer_werbeartikel, 11 Seiten, 8 parallel, anon 3 s) - fetchAllPaged wiederholt Seiten bei Timeout (Standard 1x, RPC 3x) und holt die RPC nur noch 2 Seiten gleichzeitig; Backshop unveraendert (Vorgabe Benedikt 30.09.); sonst wie v2026.09.22-02: Baeckerei-Reiter: vierter Unterreiter-Knopf "Foto-Empfehlung (Test)" springt auf backshop-test.html (Vorgabe Benedikt 22.09.; Inhalte unveraendert); sonst wie -01: Admin-Kasten mit Link auf backshop-test.html; sonst wie v2026.09.19-04: // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -9936,44 +9977,41 @@ function mepKachelVerwaltung(){
   const veraltetText=veraltet.map(v=>`<b>${mepEsc(v.konto)}</b> (Stand ${formatDateDE(v.stand)}, ${mepZahl(v.tage)} Tage)`).join(", ");
   const offen=(l.offene_posten&&l.offene_posten.length)?l.offene_posten:[];
   const offenText=offen.map(o=>`${mepEsc(o.posten)} auf ${mepEsc(o.konto)}${o.ueberfaellig?" (überfällig)":""}`).join("; ");
-  const feld=(titel,wert,farbe,zusatz,absprung)=>
-    `<div style="flex:1 1 190px;border:1px solid #e6eef8;border-radius:10px;padding:12px 14px;background:#fff">
-      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b">${titel}</div>
-      <div style="font-size:27px;font-weight:900;color:${farbe||"#08213f"};line-height:1.15;margin-top:3px">${wert}</div>
-      <div class="small" style="margin-top:2px">${zusatz||""}</div>
-      ${absprung||""}</div>`;
-  const link=(ziel,text)=>`<div style="margin-top:7px"><a href="${MEP_HAUSNETZ}/${ziel}" target="_blank"
-      style="font-size:12.5px;color:#004f9e;text-decoration:none">${text} ›</a></div>`;
+  const link=(ziel,text)=>`<a class="vk-link" href="${MEP_HAUSNETZ}/${ziel}" target="_blank">${text} ›</a>`;
   const t=Number(b.termine_heute||0);
-  return `<div class="box" style="border-left:4px solid #004f9e">
-    <h2>Verwaltung <span style="font-weight:normal;font-size:14px;color:#64748b">nur im Hausnetz</span></h2>
-    <div class="small">Zahlen aus dem Bewerber- und dem Liquiditäts-Dashboard. Sie liegen nicht in der
-      Datenbank dieser App und sind von außerhalb des Hausnetzes nicht abrufbar.</div>
-    <div style="display:flex;gap:11px;flex-wrap:wrap;margin-top:12px">
-      ${feld("Bewerbungen warten",mepZahl(b.wartend),Number(b.wartend)>0?"#b45309":"#15803d",
-        "noch nicht abgeschlossen",link("bewerber","Bewerber-Dashboard"))}
-      ${feld("Ungelesen",mepZahl(b.ungelesen),Number(b.ungelesen)>0?"#b91c1c":"#15803d",
-        "neu eingegangen, noch nicht geöffnet","")}
-      ${feld("Termine heute",t?mepZahl(t):"keine",t?"#004f9e":"#64748b",
-        t?"Gespräch, Probetag oder Eintritt":"nichts eingetragen","")}
-      ${feld(`Liquidität ${tage} Tage`,
-        l.ampel==="gruen"
-          ? (l.umbuchung_noetig ? "reicht, Umbuchung nötig" : "reicht")
-          : l.ampel==="gelb"?"Umbuchung nötig":l.ampel==="rot"?"Minus droht":"–",
-        l.umbuchung_noetig&&l.ampel==="gruen" ? "#b45309" : ampelFarbe,
-        (umb.length
-          ? `${ampelText}<br><b style="color:#b45309">Umbuchen:</b><br>${umbText}`
-          : ampelText)
-        + (veraltet.length ? `<br><b style="color:#b91c1c">Saldo veraltet, zählt 0:</b> ${veraltetText} – WISO abgleichen oder Auszug einlesen.` : "")
-        + (offen.length ? `<br><span style="color:#64748b">Heute noch nicht gebucht:</span> ${offenText}.` : ""),
-        link("liqui","Liquiditäts-Dashboard"))}
+  const liqKlasse=l.umbuchung_noetig&&l.ampel==="gruen" ? "gelb" : ({gruen:"gruen",gelb:"gelb",rot:"rot"}[l.ampel]||"grau");
+  const liqWert=l.ampel==="gruen" ? (l.umbuchung_noetig ? "reicht, Umbuchung nötig" : "reicht")
+    : l.ampel==="gelb"?"Umbuchung nötig":l.ampel==="rot"?"Minus droht":"–";
+  return `<div class="box vk">
+    <div class="vk-kopf blau"><div class="vk-ikon">🏢</div>
+      <div><h2>Verwaltung</h2><div class="vk-sub">Bewerbungen und Liquidität · Stand ${mepVerwaltung.stand?formatDateTimeDE(mepVerwaltung.stand).replace(/:\d\d$/,""):"–"}</div></div>
+      <span class="vk-pill">nur im Hausnetz</span></div>
+    <div class="vk-body">
+    <p class="vk-intro">Zahlen aus dem Bewerber- und dem Liquiditäts-Dashboard. Sie liegen nicht in der Datenbank dieser App und sind von außerhalb des Hausnetzes nicht abrufbar.</p>
+    <div class="vk-grid">
+      <div class="vk-feld ${Number(b.wartend)>0?"gelb":"gruen"}"><div class="vk-titel"><span>📨</span>Bewerbungen warten</div>
+        <div class="vk-wert">${mepZahl(b.wartend)}</div>
+        <div class="vk-text">noch nicht abgeschlossen</div>${link("bewerber","Bewerber-Dashboard")}</div>
+      <div class="vk-feld ${Number(b.ungelesen)>0?"rot":"gruen"}"><div class="vk-titel"><span>✉️</span>Ungelesen</div>
+        <div class="vk-wert">${mepZahl(b.ungelesen)}</div>
+        <div class="vk-text">neu eingegangen, noch nicht geöffnet</div></div>
+      <div class="vk-feld ${t?"blau":"grau"}"><div class="vk-titel"><span>📅</span>Termine heute</div>
+        <div class="vk-wert">${t?mepZahl(t):"keine"}</div>
+        <div class="vk-text">${t?"Gespräch, Probetag oder Eintritt":"nichts eingetragen"}</div></div>
+      <div class="vk-feld ${liqKlasse}"><div class="vk-titel"><span>💶</span>Liquidität ${tage} Tage</div>
+        <div class="vk-wert"><span class="vk-ampel"></span>${liqWert}</div>
+        <div class="vk-text">${ampelText}</div>
+        ${umb.length?`<div class="vk-hinweis"><b>Umbuchen:</b><br>${umbText}</div>`:""}
+        ${veraltet.length?`<div class="vk-hinweis rot"><b>Saldo veraltet, zählt 0:</b> ${veraltetText} – WISO abgleichen oder Auszug einlesen.</div>`:""}
+        ${offen.length?`<div class="vk-text"><span style="color:#64748b">Heute noch nicht gebucht:</span> ${offenText}.</div>`:""}
+        ${link("liqui","Liquiditäts-Dashboard")}</div>
     </div>
-    <div class="small" style="margin-top:10px">${l.tiefster_tag
+    <div class="vk-fuss">${l.tiefster_tag
       ? `Tiefster Punkt der Summe am ${formatDateDE(l.tiefster_tag)}, ${mepZahl(l.konten_gezaehlt)} Konten einzeln gerechnet${l.regelwerk?"":" (alte Rechnung: nur Summe)"}.`
       : ""}
       ${l.saldo_stand?` Ältester gültiger Kontostand vom ${formatDateDE(l.saldo_stand)}.`:""}
       Beträge stehen bewusst nur im Liquiditäts-Dashboard selbst.</div>
-    </div>`;
+    </div></div>`;
 }
 
 /* ---------- Verwaltung: Personal (20.10.2026) ----------
@@ -9986,44 +10024,51 @@ function mepKachelPersonal(){
   if(mepZugang.markt!=="Verwaltung"||!mepVerwaltung) return "";
   const p=mepVerwaltung.personal;
   const pz=v=>(v==null?"–":String(Number(v).toFixed(1)).replace(".",",")+" %");
-  const feld=(titel,wert,farbe,zusatz,absprung)=>
-    `<div style="flex:1 1 190px;border:1px solid #e6eef8;border-radius:10px;padding:12px 14px;background:#fff">
-      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b">${titel}</div>
-      <div style="font-size:27px;font-weight:900;color:${farbe||"#08213f"};line-height:1.15;margin-top:3px">${wert}</div>
-      <div class="small" style="margin-top:2px">${zusatz||""}</div>
-      ${absprung||""}</div>`;
-  const link=`<div style="margin-top:7px"><a href="${MEP_HAUSNETZ}/personal" target="_blank"
-      style="font-size:12.5px;color:#004f9e;text-decoration:none">Personal-Dashboard ›</a></div>`;
+  const link=`<a class="vk-link" href="${MEP_HAUSNETZ}/personal" target="_blank">Personal-Dashboard ›</a>`;
   if(!p){
-    return `<div class="box" style="border-left:4px solid #b45309">
-      <h2>Personal <span style="font-weight:normal;font-size:14px;color:#64748b">noch nicht eingespielt</span></h2>
-      <div class="small">Der Statusabruf kennt den Teil „Personal" noch nicht. Dazu einmal <b>07</b> starten
-        (Knoten „Status zusammenstellen" vom 20.10.2026) und prüfen, ob <code>dashboard\personal_daten.json</code> liegt.</div>
-      ${link}</div>`;
+    return `<div class="box vk"><div class="vk-kopf gruen"><div class="vk-ikon">👥</div>
+      <div><h2>Personal</h2><div class="vk-sub">noch nicht eingespielt</div></div><span class="vk-pill">nur im Hausnetz</span></div>
+      <div class="vk-body"><p class="vk-intro">Der Statusabruf kennt den Teil „Personal" noch nicht. Dazu einmal <b>07</b> starten
+        (Knoten „Status zusammenstellen" vom 20.10.2026) und prüfen, ob <code>dashboard\personal_daten.json</code> liegt.</p>${link}</div></div>`;
   }
   const monat=p.ist_monat?new Date(p.ist_monat+"-01T00:00:00").toLocaleDateString("de-DE",{month:"long",year:"numeric"}):"";
-  const qF=p.quote_ist>p.plan_quote?"#b91c1c":p.quote_ist>p.plan_quote-0.5?"#b45309":"#15803d";
-  const fristen=(p.fristen||[]).map(f=>`• ${formatDateDE(f.datum)} ${mepEsc(f.typ)}${f.name?" – <b>"+mepEsc(f.name)+"</b>":""} · ${mepEsc(f.einheit||"")}`).join("<br>");
+  const qK=p.quote_ist>p.plan_quote?"rot":p.quote_ist>p.plan_quote-0.5?"gelb":"gruen";
+  const skala=Math.max(p.plan_quote||15,p.quote_ist||0)*1.15;
+  const balken=(wert,plan)=>`<div class="vk-balken"><span style="width:${Math.min(100,wert/skala*100).toFixed(1)}%"></span>
+      ${plan?`<i style="left:${(plan/skala*100).toFixed(1)}%"></i><b style="left:${(plan/skala*100).toFixed(1)}%">Plan ${pz(plan)}</b>`:""}</div>`;
+  const heute0=new Date(); heute0.setHours(0,0,0,0);
+  const fristen=(p.fristen||[]).map(f=>{const tg=Math.round((new Date(f.datum+"T00:00:00")-heute0)/86400000); const c=tg<=14?"rot":tg<=30?"gelb":"";
+    return `<div class="vk-zeile"><span class="vk-chip ${c}">${tg} T</span><div><b>${formatDateDE(f.datum)}</b> ${mepEsc(f.typ)}${f.name?" – <b>"+mepEsc(f.name)+"</b>":""}<br><span style="color:#64748b">${mepEsc(f.einheit||"")}</span></div></div>`;}).join("");
   const jm=(p.je_markt||[]).slice().sort((a,b)=>b.ist-a.ist);
+  const maxM=Math.max(p.plan_quote||15,...jm.map(m=>m.ist||0));
+  const mini=jm.map(m=>`<div>${mepEsc(m.markt.replace("-Ingenheim","").replace("-Stein",""))}</div><div class="b"><span style="width:${(m.ist/maxM*100).toFixed(1)}%"></span></div><div class="z">${pz(m.ist)} <small style="font-weight:normal;color:#64748b">· Vorschau ${pz(m.vorschau)}</small></div>`).join("");
   const dl=p.datenluecken||{};
-  return `<div class="box" style="border-left:4px solid #004f9e">
-    <h2>Personal <span style="font-weight:normal;font-size:14px;color:#64748b">nur im Hausnetz · Lohn-Ist ${mepEsc(monat)}</span></h2>
-    <div class="small">Personalkosten aus der DATEV-Lohnauswertung, Stammdaten und Fristen aus Peply, Umsatz aus der
-      Hochrechnung. Namen und Beträge stehen bewusst nur im Personal-Dashboard.</div>
-    <div style="display:flex;gap:11px;flex-wrap:wrap;margin-top:12px">
-      ${feld("Personalkostenquote",pz(p.quote_ist),qF,
-        `Ist ${mepEsc(monat)} × 12 ÷ Jahresumsatz · Plan max. ${pz(p.plan_quote)}<br>Vorschau aus den Gehältern ${pz(p.quote_vorschau)} · ohne Verwaltung ${pz(p.quote_ist_ohne_verwaltung)} (Plan ${pz(p.plan_quote_ohne_verwaltung)})`
-        +(p.aufschlag_prozent!=null?`<br>Arbeitgeberabgaben ${pz(p.aufschlag_prozent)} auf das Brutto`:""),link)}
-      ${feld("Nächste Fristen",p.fristen_30_tage?mepZahl(p.fristen_30_tage)+" in 30 Tagen":"keine in 30 Tagen",p.fristen_30_tage?"#b45309":"#15803d",
-        fristen||"keine Befristungen oder Probezeiten offen","")}
-      ${feld("Quote je Markt",jm.length?mepEsc(jm[0].markt.replace("-Ingenheim","").replace("-Stein",""))+" "+pz(jm[0].ist):"–",jm.length&&jm[0].ist>p.plan_quote_ohne_verwaltung?"#b45309":"#08213f",
-        jm.map(m=>`• ${mepEsc(m.markt.replace("-Ingenheim","").replace("-Stein",""))}: Ist ${pz(m.ist)} · Vorschau ${pz(m.vorschau)}`).join("<br>"),"")}
-      ${feld("Belegschaft",`${mepZahl(p.koepfe)} <span style="font-size:15px;color:#64748b">/ ${String(p.vzae).replace(".",",")} VZÄ</span>`,"#08213f",
-        `${mepZahl(p.azubis)} Azubis · ${mepZahl(p.befristet)} befristet · ${mepZahl(p.probezeit)} in Probezeit`
-        +(dl.ohne_beschaeftigungsart?`<br><span style="color:#b45309">Peply: ${mepZahl(dl.ohne_beschaeftigungsart)} ohne Beschäftigungsart, ${mepZahl(dl.ohne_einheit||0)} ohne Einheit</span>`:""),"")}
+  return `<div class="box vk">
+    <div class="vk-kopf gruen"><div class="vk-ikon">👥</div>
+      <div><h2>Personal</h2><div class="vk-sub">Lohn-Ist ${mepEsc(monat)} · Stammdaten Peply · Stand ${p.stand?formatDateTimeDE(p.stand).replace(/:\d\d$/,""):"–"}</div></div>
+      <span class="vk-pill">nur im Hausnetz</span></div>
+    <div class="vk-body">
+    <p class="vk-intro">Personalkosten aus der DATEV-Lohnauswertung, Stammdaten und Fristen aus Peply, Umsatz aus der Hochrechnung. Namen und Beträge stehen bewusst nur im Personal-Dashboard.</p>
+    <div class="vk-grid">
+      <div class="vk-feld ${qK}"><div class="vk-titel"><span>📊</span>Personalkostenquote</div>
+        <div class="vk-wert">${pz(p.quote_ist)} <small>Ist</small></div>
+        ${balken(p.quote_ist,p.plan_quote)}
+        <div class="vk-text">${mepEsc(monat)} × 12 ÷ Jahresumsatz · Vorschau aus den Gehältern <b>${pz(p.quote_vorschau)}</b><br>
+          ohne Verwaltung <b>${pz(p.quote_ist_ohne_verwaltung)}</b> (Plan ${pz(p.plan_quote_ohne_verwaltung)})${p.aufschlag_prozent!=null?` · Arbeitgeberabgaben ${pz(p.aufschlag_prozent)}`:""}</div>
+        ${link}</div>
+      <div class="vk-feld ${p.fristen_30_tage?"gelb":"gruen"}"><div class="vk-titel"><span>⏳</span>Nächste Fristen</div>
+        <div class="vk-wert">${p.fristen_30_tage?mepZahl(p.fristen_30_tage):"0"} <small>in 30 Tagen</small></div>
+        ${fristen||'<div class="vk-text">keine Befristungen oder Probezeiten offen</div>'}</div>
+      <div class="vk-feld ${jm.length&&jm[0].ist>p.plan_quote_ohne_verwaltung?"gelb":"teal"}"><div class="vk-titel"><span>🏬</span>Quote je Markt</div>
+        <div class="vk-wert" style="font-size:16px;margin-top:4px;color:#475569;font-weight:700">Ist · Plan je Markt ${pz(p.plan_quote_ohne_verwaltung)}</div>
+        <div class="vk-mini">${mini}</div></div>
+      <div class="vk-feld blau"><div class="vk-titel"><span>🧑‍🤝‍🧑</span>Belegschaft</div>
+        <div class="vk-wert">${mepZahl(p.koepfe)} <small>/ ${String(p.vzae).replace(".",",")} VZÄ</small></div>
+        <div class="vk-stat"><div><b>${mepZahl(p.azubis)}</b>Azubis</div><div><b>${mepZahl(p.befristet)}</b>befristet</div><div><b>${mepZahl(p.probezeit)}</b>Probezeit</div></div>
+        ${dl.ohne_beschaeftigungsart?`<div class="vk-hinweis">Peply: ${mepZahl(dl.ohne_beschaeftigungsart)} ohne Beschäftigungsart, ${mepZahl(dl.ohne_einheit||0)} ohne Einheit (Elternzeit/Dauerkrank)</div>`:""}</div>
     </div>
-    <div class="small" style="margin-top:10px">Stand der Personaldaten ${p.stand?formatDateTimeDE(p.stand):"unbekannt"}. Neue Lohn-Ist-Zahlen kommen mit jeder ANS-Datei aus dem LohnViewer.</div>
-    </div>`;
+    <div class="vk-fuss">Neue Lohn-Ist-Zahlen kommen mit jeder ANS-Datei aus dem LohnViewer. Namen zu den Fristen stehen im Personal-Dashboard.</div>
+    </div></div>`;
 }
 
 /* ---------- Bestandsverlauf über die Woche ----------
