@@ -262,6 +262,15 @@
     .vk-link:hover{text-decoration:underline}
     .vk-fuss{font-size:12px;color:#64748b;margin-top:12px}
     @media(max-width:700px){.vk-body{padding:12px}.vk-kopf{padding:12px 14px}.vk-wert{font-size:26px}}
+
+    .vk-kopf.gelb{background:linear-gradient(100deg,#78350f 0%,#b45309 70%,#d97706 100%)}
+    .vk-tab{width:100%;border-collapse:collapse;margin-top:10px;font-size:12.5px;min-width:0}
+    .vk-tab th{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#64748b;font-weight:700;text-align:right;padding:3px 4px;border-bottom:1px solid #e2eaf4;white-space:nowrap}
+    .vk-tab th:first-child,.vk-tab td:first-child{text-align:left;padding-left:0}
+    .vk-tab td{padding:4px 4px;text-align:right;border-bottom:1px solid #eef2f7;white-space:nowrap;font-variant-numeric:tabular-nums;color:#334155}
+    .vk-tab tr:last-child td{border-bottom:0}
+    .vk-tab tr.summe td{font-weight:700;color:#08213f;border-top:2px solid #e2eaf4}
+    .vk-tab .d{font-size:11px;font-weight:700}.vk-tab .d.plus{color:#15803d}.vk-tab .d.minus{color:#b91c1c}.vk-tab .d.null{color:#94a3b8}
   </style>
 </head>
 <body>
@@ -817,7 +826,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.10.20-03"; // Kacheln Verwaltung und Personal neu gestaltet (Kopfband mit Verlauf blau/gruen, Felder mit Akzentkante und Symbol, Quote mit Planbalken, Fristen mit Tage-Chips, Quote je Markt als Balken, Belegschaft als Kennzahlkacheln; Vorgabe Benedikt 20.10. "moderner, Verwaltung farblich absetzen"); sonst wie -02: Verwaltung: Kachel "Personal" (Personalkostenquote Ist/Vorschau/Plan, naechste Fristen ohne Namen, Quote je Markt, Belegschaft) aus dem Statusabruf Teil 3 (dashboard\personal_daten.json, Skript 07), Absprung Personal-Dashboard /personal (Vorgabe Benedikt 20.10.); sonst wie -01: Kennzahlen-Importer: Index metrics(market, area, metric_date) in der Datenbank (Seq Scan je Gruppe weg), Bereinigen wiederholt bei statement timeout bis 2x, Kontrollsumme wird bei Abweichung/Fehler nach 3 s einmal neu gezaehlt (Zaehlfehler 19.10.: 2748 statt 2798 bei vollstaendiger Tabelle); sonst wie v2026.10.08-01: Meine Baeckerei: Auswahl "Verfahren" (Wie bisher | Bild (BETA)) nur in Billigheim-Ingenheim, Steinfeld ohne (Vorgabe Benedikt 08.10.); Bild = backshop-test.html im Rahmen mit festem Markt, Absprung-Knopf "Foto-Empfehlung (Test)" entfernt; sonst wie v2026.10.07-01: Ordersatz-Parser: Hinweiszeile wurde seit 01.10. nie uebernommen (pendingNotes vor dem push geleert) - behoben; neue Spalte FAG-W-Gruppe (KW 42) abgeschnitten, Legendenzeilen ignoriert; sonst wie v2026.10.01-01: Bevorratung: Artikel "nur E-Center" und fremde Werbegebiete (nicht Alle/23) ausgeschlossen (Vorgabe Benedikt 01.10.: DEIT in Steinfeld); Ordersatz-Parser liest die Hinweis-/Werbegebiet-Zeile oberhalb der Artikelzeile und wertet nur GROSS geschriebene Zeilen als Abschnitt; sonst wie v2026.09.30-02: Liquiditaetskachel je Konto: Umbuchungszeilen mit Quellkonto, veraltete Salden, heute offene Posten; Ampeltexte je Konto (Knoten Verwaltung Status Regelwerk 2026-09-30, Skript 07); sonst wie -01: Bevorratung: erster Bildschirm nach dem Oeffnen rechnete ueber alle geladenen Wochen (promo nicht auf die gewaehlte Woche eingegrenzt, Banner KW 36 bei Feld KW 41) - renderWerbung grenzt jetzt selbst ein; Reiter brach beim Oeffnen mit Statement-Timeout ab (schnitt_fuer_werbeartikel, 11 Seiten, 8 parallel, anon 3 s) - fetchAllPaged wiederholt Seiten bei Timeout (Standard 1x, RPC 3x) und holt die RPC nur noch 2 Seiten gleichzeitig; Backshop unveraendert (Vorgabe Benedikt 30.09.); sonst wie v2026.09.22-02: Baeckerei-Reiter: vierter Unterreiter-Knopf "Foto-Empfehlung (Test)" springt auf backshop-test.html (Vorgabe Benedikt 22.09.; Inhalte unveraendert); sonst wie -01: Admin-Kasten mit Link auf backshop-test.html; sonst wie v2026.09.19-04: // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
+const APP_VERSION = "v2026.10.20-04"; // Verwaltung: dritte Kachel "Ergebnis" (Umsatz, Nettoertragsspanne, Abschriften - letzte Woche und aufgelaufen, je Markt und Summe, Vorjahr; Datenbankfunktion ergebnis_uebersicht + umsatz_uebersicht; Vorgabe Benedikt 20.10.); sonst wie -03: Kacheln Verwaltung und Personal neu gestaltet (Kopfband mit Verlauf blau/gruen, Felder mit Akzentkante und Symbol, Quote mit Planbalken, Fristen mit Tage-Chips, Quote je Markt als Balken, Belegschaft als Kennzahlkacheln; Vorgabe Benedikt 20.10. "moderner, Verwaltung farblich absetzen"); sonst wie -02: Verwaltung: Kachel "Personal" (Personalkostenquote Ist/Vorschau/Plan, naechste Fristen ohne Namen, Quote je Markt, Belegschaft) aus dem Statusabruf Teil 3 (dashboard\personal_daten.json, Skript 07), Absprung Personal-Dashboard /personal (Vorgabe Benedikt 20.10.); sonst wie -01: Kennzahlen-Importer: Index metrics(market, area, metric_date) in der Datenbank (Seq Scan je Gruppe weg), Bereinigen wiederholt bei statement timeout bis 2x, Kontrollsumme wird bei Abweichung/Fehler nach 3 s einmal neu gezaehlt (Zaehlfehler 19.10.: 2748 statt 2798 bei vollstaendiger Tabelle); sonst wie v2026.10.08-01: Meine Baeckerei: Auswahl "Verfahren" (Wie bisher | Bild (BETA)) nur in Billigheim-Ingenheim, Steinfeld ohne (Vorgabe Benedikt 08.10.); Bild = backshop-test.html im Rahmen mit festem Markt, Absprung-Knopf "Foto-Empfehlung (Test)" entfernt; sonst wie v2026.10.07-01: Ordersatz-Parser: Hinweiszeile wurde seit 01.10. nie uebernommen (pendingNotes vor dem push geleert) - behoben; neue Spalte FAG-W-Gruppe (KW 42) abgeschnitten, Legendenzeilen ignoriert; sonst wie v2026.10.01-01: Bevorratung: Artikel "nur E-Center" und fremde Werbegebiete (nicht Alle/23) ausgeschlossen (Vorgabe Benedikt 01.10.: DEIT in Steinfeld); Ordersatz-Parser liest die Hinweis-/Werbegebiet-Zeile oberhalb der Artikelzeile und wertet nur GROSS geschriebene Zeilen als Abschnitt; sonst wie v2026.09.30-02: Liquiditaetskachel je Konto: Umbuchungszeilen mit Quellkonto, veraltete Salden, heute offene Posten; Ampeltexte je Konto (Knoten Verwaltung Status Regelwerk 2026-09-30, Skript 07); sonst wie -01: Bevorratung: erster Bildschirm nach dem Oeffnen rechnete ueber alle geladenen Wochen (promo nicht auf die gewaehlte Woche eingegrenzt, Banner KW 36 bei Feld KW 41) - renderWerbung grenzt jetzt selbst ein; Reiter brach beim Oeffnen mit Statement-Timeout ab (schnitt_fuer_werbeartikel, 11 Seiten, 8 parallel, anon 3 s) - fetchAllPaged wiederholt Seiten bei Timeout (Standard 1x, RPC 3x) und holt die RPC nur noch 2 Seiten gleichzeitig; Backshop unveraendert (Vorgabe Benedikt 30.09.); sonst wie v2026.09.22-02: Baeckerei-Reiter: vierter Unterreiter-Knopf "Foto-Empfehlung (Test)" springt auf backshop-test.html (Vorgabe Benedikt 22.09.; Inhalte unveraendert); sonst wie -01: Admin-Kasten mit Link auf backshop-test.html; sonst wie v2026.09.19-04: // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -9600,7 +9609,7 @@ async function mepNeuLaden(){
      Zeichnen - die Kacheln waeren dauerhaft auf "Zahlen werden geladen"
      stehengeblieben. Welche Periode zu welchem Zeitraum passt, entscheidet
      jetzt mepPassendePeriode beim Lesen, nicht eine gemerkte Auswahl. */
-  await Promise.all([mepWerbungLaden(), mepLogsLaden(), mepVerwaltungLaden(),
+  await Promise.all([mepWerbungLaden(), mepLogsLaden(), mepVerwaltungLaden(), mepErgebnisLaden(),
                      mepScanLaden(), mepBestandLaden(), mepBestandNegativLaden(), mepBevorratungLaden(),
                      mepNutzungLaden(), ladeFrischeZuordnung()]);
   const jahr=mepKz.filter(x=>x.periode_von==="2026-01-01");
@@ -9908,6 +9917,17 @@ function mepZeigeWerbung(){
    aufrufen. Deshalb steht dort auch nur, was unbedenklich ist. */
 const MEP_HAUSNETZ="https://192.168.176.120:5678/webhook";
 let mepVerwaltung=null, mepVerwaltungGeprueft=false;
+/* ---------- Verwaltung: Ergebnis (20.10.2026) ----------
+   Umsatz (umsatz_uebersicht), Nettoertragsspanne und Abschriften
+   (ergebnis_uebersicht: metrics "Markt Gesamt", bis 13.08. Wochenwerte, ab
+   26.08. Tageswerte; Abschriften je Woche = Donnerstagswert des Wochen-
+   berichts, Spanne umsatzgewichtet; Feiertagskopien wie der 03.10. werden
+   ausgelassen). Liegt in der Datenbank der App, kein n8n noetig. */
+let mepErgebnis=null, mepErgebnisFehler=null;
+async function mepErgebnisLaden(){
+  try{ const r=await db.rpc("ergebnis_uebersicht"); if(r.error) throw r.error; mepErgebnis=r.data||[]; mepErgebnisFehler=null; }
+  catch(err){ mepErgebnis=null; mepErgebnisFehler=(err&&err.message)||String(err); }
+}
 async function mepVerwaltungLaden(){
   if(mepVerwaltungGeprueft) return;
   mepVerwaltungGeprueft=true;
@@ -10068,6 +10088,68 @@ function mepKachelPersonal(){
         ${dl.ohne_beschaeftigungsart?`<div class="vk-hinweis">Peply: ${mepZahl(dl.ohne_beschaeftigungsart)} ohne Beschäftigungsart, ${mepZahl(dl.ohne_einheit||0)} ohne Einheit (Elternzeit/Dauerkrank)</div>`:""}</div>
     </div>
     <div class="vk-fuss">Neue Lohn-Ist-Zahlen kommen mit jeder ANS-Datei aus dem LohnViewer. Namen zu den Fristen stehen im Personal-Dashboard.</div>
+    </div></div>`;
+}
+
+function mepKachelErgebnis(){
+  if(mepZugang.markt!=="Verwaltung") return "";
+  const kopf=(sub)=>`<div class="vk-kopf gelb"><div class="vk-ikon">📈</div><div><h2>Ergebnis</h2><div class="vk-sub">${sub}</div></div><span class="vk-pill">alle Märkte</span></div>`;
+  if(!mepErgebnis||!mepErgebnis.length){
+    return `<div class="box vk">${kopf("Umsatz · Nettoertragsspanne · Abschriften")}<div class="vk-body"><p class="vk-intro">${mepErgebnisFehler?"Abruf fehlgeschlagen: "+mepEsc(mepErgebnisFehler):"Noch keine Kennzahlen in der Datenbank (metrics, Markt Gesamt)."}</p></div></div>`;
+  }
+  const MK=["Billigheim-Ingenheim","Steinfeld","Freckenfeld","Gossersweiler-Stein"];
+  const E=Object.fromEntries(mepErgebnis.map(r=>[r.markt,r]));
+  const W=Object.fromEntries((mepWochenumsatz||[]).map(r=>[r.markt,r]));
+  const n=v=>v==null?null:Number(v);
+  const eurK=v=>v==null?"–":(Math.round(v/1000)).toLocaleString("de-DE")+" T€";
+  const eur=v=>v==null?"–":Math.round(v).toLocaleString("de-DE")+" €";
+  const pzt=v=>v==null?"–":String(Number(v).toFixed(1)).replace(".",",")+" %";
+  const pp=v=>v==null?"–":(v>0?"+":"")+String(Number(v).toFixed(1)).replace(".",",")+" Pp";
+  const delta=(ist,vj,fmt,gutWennHoch=true)=>{ if(ist==null||vj==null||!vj) return '<span class="d null">–</span>'; const d=(fmt==="pp")?(ist-vj):((ist/vj-1)*100); const gut=gutWennHoch?d>=0:d<=0; return `<span class="d ${Math.abs(d)<0.05?"null":gut?"plus":"minus"}">${fmt==="pp"?pp(d):((d>0?"+":"")+String(d.toFixed(1)).replace(".",",")+" %")}</span>`; };
+  const kw=E[MK[0]]&&E[MK[0]].kw_letzte, kwBis=E[MK[0]]&&E[MK[0]].kw_jahr_bis;
+  const zeile=(name,a,b,c,d_)=>`<tr${name==="Summe"?' class="summe"':''}><td>${mepEsc(name.replace("-Ingenheim","").replace("-Stein",""))}</td><td>${a}</td><td>${b}</td><td>${c}</td><td>${d_}</td></tr>`;
+  const tab=(rows)=>`<table class="vk-tab"><thead><tr><th>Markt</th><th>KW ${kw}</th><th>Vj</th><th>KW 1–${kwBis}</th><th>Vj</th></tr></thead><tbody>${rows}</tbody></table>`;
+  // Umsatz (umsatz_uebersicht: Wochenwerte je Markt, vollstaendig)
+  // Vorjahresvergleich der Summe nur ueber Maerkte MIT Vorjahr (Gossersweiler hat keins)
+  let uL=0,uLv=0,uLm=0,uJ=0,uJv=0,uJm=0,uRows="";
+  for(const m of MK){ const w=W[m]||{}; const l=n(w.umsatz_letzte), lv=n(w.vj_letzte), j=n(w.umsatz_jahr), jv=n(w.vj_jahr);
+    uL+=l||0; uJ+=j||0; if(lv){uLv+=lv;uLm+=l||0;} if(jv){uJv+=jv;uJm+=j||0;}
+    uRows+=zeile(m,eurK(l),delta(l,lv),eurK(j),delta(j,jv)); }
+  uRows+=zeile("Summe",eurK(uL),delta(uLm,uLv),eurK(uJ),delta(uJm,uJv));
+  const uTrend=uLv?(uLm/uLv-1)*100:null;
+  // Nettoertragsspanne (umsatzgewichtet)
+  let sL=0,sLw=0,sLv=0,sLvw=0,sJ=0,sJw=0,sJv=0,sJvw=0,sRows="";
+  for(const m of MK){ const e=E[m]||{}; const l=n(e.nes_letzte), lv=n(e.nes_letzte_vj), j=n(e.nes_jahr), jv=n(e.nes_jahr_vj);
+    const ul=n(e.umsatz_letzte)||0, ulv=n(e.umsatz_letzte_vj)||0, uj=n(e.umsatz_jahr)||0, ujv=n(e.umsatz_jahr_vj)||0;
+    if(l!=null){sL+=l*ul;sLw+=ul;} if(lv!=null){sLv+=lv*ulv;sLvw+=ulv;} if(j!=null){sJ+=j*uj;sJw+=uj;} if(jv!=null){sJv+=jv*ujv;sJvw+=ujv;}
+    sRows+=zeile(m,pzt(l),delta(l,lv,"pp"),pzt(j),delta(j,jv,"pp")); }
+  const nesL=sLw?sL/sLw:null, nesLv=sLvw?sLv/sLvw:null, nesJ=sJw?sJ/sJw:null, nesJv=sJvw?sJv/sJvw:null;
+  sRows+=zeile("Summe",pzt(nesL),delta(nesL,nesLv,"pp"),pzt(nesJ),delta(nesJ,nesJv,"pp"));
+  // Abschriften (VK brutto, negativ in der Quelle - hier positiv als Betrag, Anteil am Umsatz)
+  let aL=0,aLv=0,aLm=0,aJ=0,aRows="",auL=0,auJ=0;
+  for(const m of MK){ const e=E[m]||{}; const l=-n(e.abschr_letzte)||0, lv=e.abschr_letzte_vj!=null?-n(e.abschr_letzte_vj):null, j=-n(e.abschr_jahr)||0;
+    const ul=n(e.umsatz_letzte)||0, uj=n(e.umsatz_jahr)||0; aL+=l; aJ+=j; auL+=ul; auJ+=uj; if(lv!=null){aLv+=lv;aLm+=l;}
+    aRows+=zeile(m,eur(l)+` <span class="d null">${ul?pzt(l/ul*100):""}</span>`,delta(l,lv,"",false),eurK(j)+` <span class="d null">${uj?pzt(j/uj*100):""}</span>`,'<span class="d null">–</span>'); }
+  aRows+=zeile("Summe",eur(aL)+` <span class="d null">${auL?pzt(aL/auL*100):""}</span>`,delta(aLm,aLv,"",false),eurK(aJ)+` <span class="d null">${auJ?pzt(aJ/auJ*100):""}</span>`,'<span class="d null">–</span>');
+  const wochen=E[MK[0]]&&E[MK[0]].wochen_jahr;
+  return `<div class="box vk">${kopf(`Letzte Woche KW ${kw} und aufgelaufen KW 1–${kwBis} · je Markt und Summe · Vorjahr daneben`)}
+    <div class="vk-body">
+    <p class="vk-intro">Umsatz aus der Wochen-Kreuztabelle, Spanne und Abschriften aus den Tages- und Wochenberichten (Markt Gesamt). Spanne über Märkte umsatzgewichtet. Abschriften = Abschriften VK brutto, Anteil am Umsatz in Klammern.</p>
+    <div class="vk-grid">
+      <div class="vk-feld ${uTrend==null?"grau":uTrend>=0?"gruen":"rot"}"><div class="vk-titel"><span>💶</span>Umsatz</div>
+        <div class="vk-wert">${eurK(uL)} <small>KW ${kw}</small></div>
+        <div class="vk-text">gegen Vorjahr ${delta(uLm,uLv)} · aufgelaufen ${eurK(uJ)} (${delta(uJm,uJv)})</div>
+        ${tab(uRows)}</div>
+      <div class="vk-feld ${nesL==null||nesLv==null?"grau":nesL>=nesLv?"gruen":"rot"}"><div class="vk-titel"><span>📐</span>Nettoertragsspanne</div>
+        <div class="vk-wert">${pzt(nesL)} <small>KW ${kw}</small></div>
+        <div class="vk-text">gegen Vorjahr ${delta(nesL,nesLv,"pp")} · aufgelaufen ${pzt(nesJ)} (${delta(nesJ,nesJv,"pp")})</div>
+        ${tab(sRows)}</div>
+      <div class="vk-feld ${aLv&&aLm>aLv*1.05?"rot":"gelb"}"><div class="vk-titel"><span>🗑️</span>Abschriften</div>
+        <div class="vk-wert">${eur(aL)} <small>KW ${kw}</small></div>
+        <div class="vk-text">${auL?pzt(aL/auL*100)+" vom Umsatz":""} · gegen Vorjahr ${delta(aLm,aLv,"",false)} · aufgelaufen ${eurK(aJ)}${auJ?" ("+pzt(aJ/auJ*100)+")":""}</div>
+        ${tab(aRows)}</div>
+    </div>
+    <div class="vk-fuss">Aufgelaufen: ${wochen||"?"} von ${kwBis} Wochen mit Spannen-/Abschriftendaten (KW 34 fehlt – zwischen Wochen- und Tagesberichten). Abschriften-Vorjahr gibt es erst seit KW 35, deshalb kein Jahresvergleich. Gossersweiler ohne Vorjahr (eröffnet 10/2025).</div>
     </div></div>`;
 }
 
@@ -11619,7 +11701,7 @@ function mepZeichnen(){
          Die Regel vom 25.08. ("Negativbestand ganz oben") gilt damit
          weiterhin fuer Markt und Marktleitung - dort arbeitet jemand die
          Meldung ab. In der Verwaltung ist sie eine Kennzahl unter anderen. */
-      ? mepNurVerw(mepKachelVerwaltung)+mepNurVerw(mepKachelPersonal)+mepNurVerw(mepKachelUmsatzMaerkte)
+      ? mepNurVerw(mepKachelVerwaltung)+mepNurVerw(mepKachelPersonal)+mepNurVerw(mepKachelErgebnis)+mepNurVerw(mepKachelUmsatzMaerkte)
         +mepKachelBestandNegativ()+mepKachelAufgaben()
         +(mepZugang.markt==="Verwaltung" ? "" : mepKachelVerwaltung())
         +mepNurVerw(mepKachelNutzung)+mepNurVerw(mepKachelTrend)
@@ -11627,7 +11709,7 @@ function mepZeichnen(){
         +mepKachelBestand()+mepKachelBevorratung()
         +mepVerw(mepKachelDispo)+mepKachelBefunde()
       : mepKachelBestandNegativ()+mepKachelAufgaben()
-        +mepKachelVerwaltung()+mepKachelPersonal()+mepNurVerw(mepKachelTrend)+mepKachelKennzahlen()+mepKachelOffen()
+        +mepKachelVerwaltung()+mepKachelPersonal()+mepNurVerw(mepKachelErgebnis)+mepNurVerw(mepKachelTrend)+mepKachelKennzahlen()+mepKachelOffen()
         +mepKachelSpannen()+mepKachelBefunde()
         +mepKachelScanquote()+mepKachelBestand()
         +mepKachelWerbung()+mepKachelBevorratung()+mepKachelTopFlop()
