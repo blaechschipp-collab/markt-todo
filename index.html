@@ -776,7 +776,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.10.20-01"; // Kennzahlen-Importer: Index metrics(market, area, metric_date) in der Datenbank (Seq Scan je Gruppe weg), Bereinigen wiederholt bei statement timeout bis 2x, Kontrollsumme wird bei Abweichung/Fehler nach 3 s einmal neu gezaehlt (Zaehlfehler 19.10.: 2748 statt 2798 bei vollstaendiger Tabelle); sonst wie v2026.10.08-01: Meine Baeckerei: Auswahl "Verfahren" (Wie bisher | Bild (BETA)) nur in Billigheim-Ingenheim, Steinfeld ohne (Vorgabe Benedikt 08.10.); Bild = backshop-test.html im Rahmen mit festem Markt, Absprung-Knopf "Foto-Empfehlung (Test)" entfernt; sonst wie v2026.10.07-01: Ordersatz-Parser: Hinweiszeile wurde seit 01.10. nie uebernommen (pendingNotes vor dem push geleert) - behoben; neue Spalte FAG-W-Gruppe (KW 42) abgeschnitten, Legendenzeilen ignoriert; sonst wie v2026.10.01-01: Bevorratung: Artikel "nur E-Center" und fremde Werbegebiete (nicht Alle/23) ausgeschlossen (Vorgabe Benedikt 01.10.: DEIT in Steinfeld); Ordersatz-Parser liest die Hinweis-/Werbegebiet-Zeile oberhalb der Artikelzeile und wertet nur GROSS geschriebene Zeilen als Abschnitt; sonst wie v2026.09.30-02: Liquiditaetskachel je Konto: Umbuchungszeilen mit Quellkonto, veraltete Salden, heute offene Posten; Ampeltexte je Konto (Knoten Verwaltung Status Regelwerk 2026-09-30, Skript 07); sonst wie -01: Bevorratung: erster Bildschirm nach dem Oeffnen rechnete ueber alle geladenen Wochen (promo nicht auf die gewaehlte Woche eingegrenzt, Banner KW 36 bei Feld KW 41) - renderWerbung grenzt jetzt selbst ein; Reiter brach beim Oeffnen mit Statement-Timeout ab (schnitt_fuer_werbeartikel, 11 Seiten, 8 parallel, anon 3 s) - fetchAllPaged wiederholt Seiten bei Timeout (Standard 1x, RPC 3x) und holt die RPC nur noch 2 Seiten gleichzeitig; Backshop unveraendert (Vorgabe Benedikt 30.09.); sonst wie v2026.09.22-02: Baeckerei-Reiter: vierter Unterreiter-Knopf "Foto-Empfehlung (Test)" springt auf backshop-test.html (Vorgabe Benedikt 22.09.; Inhalte unveraendert); sonst wie -01: Admin-Kasten mit Link auf backshop-test.html; sonst wie v2026.09.19-04: // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
+const APP_VERSION = "v2026.10.20-02"; // Verwaltung: Kachel "Personal" (Personalkostenquote Ist/Vorschau/Plan, naechste Fristen ohne Namen, Quote je Markt, Belegschaft) aus dem Statusabruf Teil 3 (dashboard\personal_daten.json, Skript 07), Absprung Personal-Dashboard /personal (Vorgabe Benedikt 20.10.); sonst wie -01: Kennzahlen-Importer: Index metrics(market, area, metric_date) in der Datenbank (Seq Scan je Gruppe weg), Bereinigen wiederholt bei statement timeout bis 2x, Kontrollsumme wird bei Abweichung/Fehler nach 3 s einmal neu gezaehlt (Zaehlfehler 19.10.: 2748 statt 2798 bei vollstaendiger Tabelle); sonst wie v2026.10.08-01: Meine Baeckerei: Auswahl "Verfahren" (Wie bisher | Bild (BETA)) nur in Billigheim-Ingenheim, Steinfeld ohne (Vorgabe Benedikt 08.10.); Bild = backshop-test.html im Rahmen mit festem Markt, Absprung-Knopf "Foto-Empfehlung (Test)" entfernt; sonst wie v2026.10.07-01: Ordersatz-Parser: Hinweiszeile wurde seit 01.10. nie uebernommen (pendingNotes vor dem push geleert) - behoben; neue Spalte FAG-W-Gruppe (KW 42) abgeschnitten, Legendenzeilen ignoriert; sonst wie v2026.10.01-01: Bevorratung: Artikel "nur E-Center" und fremde Werbegebiete (nicht Alle/23) ausgeschlossen (Vorgabe Benedikt 01.10.: DEIT in Steinfeld); Ordersatz-Parser liest die Hinweis-/Werbegebiet-Zeile oberhalb der Artikelzeile und wertet nur GROSS geschriebene Zeilen als Abschnitt; sonst wie v2026.09.30-02: Liquiditaetskachel je Konto: Umbuchungszeilen mit Quellkonto, veraltete Salden, heute offene Posten; Ampeltexte je Konto (Knoten Verwaltung Status Regelwerk 2026-09-30, Skript 07); sonst wie -01: Bevorratung: erster Bildschirm nach dem Oeffnen rechnete ueber alle geladenen Wochen (promo nicht auf die gewaehlte Woche eingegrenzt, Banner KW 36 bei Feld KW 41) - renderWerbung grenzt jetzt selbst ein; Reiter brach beim Oeffnen mit Statement-Timeout ab (schnitt_fuer_werbeartikel, 11 Seiten, 8 parallel, anon 3 s) - fetchAllPaged wiederholt Seiten bei Timeout (Standard 1x, RPC 3x) und holt die RPC nur noch 2 Seiten gleichzeitig; Backshop unveraendert (Vorgabe Benedikt 30.09.); sonst wie v2026.09.22-02: Baeckerei-Reiter: vierter Unterreiter-Knopf "Foto-Empfehlung (Test)" springt auf backshop-test.html (Vorgabe Benedikt 22.09.; Inhalte unveraendert); sonst wie -01: Admin-Kasten mit Link auf backshop-test.html; sonst wie v2026.09.19-04: // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -9976,6 +9976,56 @@ function mepKachelVerwaltung(){
     </div>`;
 }
 
+/* ---------- Verwaltung: Personal (20.10.2026) ----------
+   Vier Felder wie bei der Liquiditaet, Quelle ist derselbe Statusabruf
+   (Knoten "Status zusammenstellen", Teil 3) aus dashboard\personal_daten.json.
+   Herausgegeben werden Prozentsaetze, Anzahlen und Fristen ohne Namen -
+   keine Betraege (Vorgabe Benedikt Paul 17.08.2026). Namen und Gehaelter
+   stehen nur im Personal-Dashboard (/personal, Anmeldung, nur Hausnetz). */
+function mepKachelPersonal(){
+  if(mepZugang.markt!=="Verwaltung"||!mepVerwaltung) return "";
+  const p=mepVerwaltung.personal;
+  const pz=v=>(v==null?"–":String(Number(v).toFixed(1)).replace(".",",")+" %");
+  const feld=(titel,wert,farbe,zusatz,absprung)=>
+    `<div style="flex:1 1 190px;border:1px solid #e6eef8;border-radius:10px;padding:12px 14px;background:#fff">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b">${titel}</div>
+      <div style="font-size:27px;font-weight:900;color:${farbe||"#08213f"};line-height:1.15;margin-top:3px">${wert}</div>
+      <div class="small" style="margin-top:2px">${zusatz||""}</div>
+      ${absprung||""}</div>`;
+  const link=`<div style="margin-top:7px"><a href="${MEP_HAUSNETZ}/personal" target="_blank"
+      style="font-size:12.5px;color:#004f9e;text-decoration:none">Personal-Dashboard ›</a></div>`;
+  if(!p){
+    return `<div class="box" style="border-left:4px solid #b45309">
+      <h2>Personal <span style="font-weight:normal;font-size:14px;color:#64748b">noch nicht eingespielt</span></h2>
+      <div class="small">Der Statusabruf kennt den Teil „Personal" noch nicht. Dazu einmal <b>07</b> starten
+        (Knoten „Status zusammenstellen" vom 20.10.2026) und prüfen, ob <code>dashboard\personal_daten.json</code> liegt.</div>
+      ${link}</div>`;
+  }
+  const monat=p.ist_monat?new Date(p.ist_monat+"-01T00:00:00").toLocaleDateString("de-DE",{month:"long",year:"numeric"}):"";
+  const qF=p.quote_ist>p.plan_quote?"#b91c1c":p.quote_ist>p.plan_quote-0.5?"#b45309":"#15803d";
+  const fristen=(p.fristen||[]).map(f=>`• ${formatDateDE(f.datum)} ${mepEsc(f.typ)}${f.name?" – <b>"+mepEsc(f.name)+"</b>":""} · ${mepEsc(f.einheit||"")}`).join("<br>");
+  const jm=(p.je_markt||[]).slice().sort((a,b)=>b.ist-a.ist);
+  const dl=p.datenluecken||{};
+  return `<div class="box" style="border-left:4px solid #004f9e">
+    <h2>Personal <span style="font-weight:normal;font-size:14px;color:#64748b">nur im Hausnetz · Lohn-Ist ${mepEsc(monat)}</span></h2>
+    <div class="small">Personalkosten aus der DATEV-Lohnauswertung, Stammdaten und Fristen aus Peply, Umsatz aus der
+      Hochrechnung. Namen und Beträge stehen bewusst nur im Personal-Dashboard.</div>
+    <div style="display:flex;gap:11px;flex-wrap:wrap;margin-top:12px">
+      ${feld("Personalkostenquote",pz(p.quote_ist),qF,
+        `Ist ${mepEsc(monat)} × 12 ÷ Jahresumsatz · Plan max. ${pz(p.plan_quote)}<br>Vorschau aus den Gehältern ${pz(p.quote_vorschau)} · ohne Verwaltung ${pz(p.quote_ist_ohne_verwaltung)} (Plan ${pz(p.plan_quote_ohne_verwaltung)})`
+        +(p.aufschlag_prozent!=null?`<br>Arbeitgeberabgaben ${pz(p.aufschlag_prozent)} auf das Brutto`:""),link)}
+      ${feld("Nächste Fristen",p.fristen_30_tage?mepZahl(p.fristen_30_tage)+" in 30 Tagen":"keine in 30 Tagen",p.fristen_30_tage?"#b45309":"#15803d",
+        fristen||"keine Befristungen oder Probezeiten offen","")}
+      ${feld("Quote je Markt",jm.length?mepEsc(jm[0].markt.replace("-Ingenheim","").replace("-Stein",""))+" "+pz(jm[0].ist):"–",jm.length&&jm[0].ist>p.plan_quote_ohne_verwaltung?"#b45309":"#08213f",
+        jm.map(m=>`• ${mepEsc(m.markt.replace("-Ingenheim","").replace("-Stein",""))}: Ist ${pz(m.ist)} · Vorschau ${pz(m.vorschau)}`).join("<br>"),"")}
+      ${feld("Belegschaft",`${mepZahl(p.koepfe)} <span style="font-size:15px;color:#64748b">/ ${String(p.vzae).replace(".",",")} VZÄ</span>`,"#08213f",
+        `${mepZahl(p.azubis)} Azubis · ${mepZahl(p.befristet)} befristet · ${mepZahl(p.probezeit)} in Probezeit`
+        +(dl.ohne_beschaeftigungsart?`<br><span style="color:#b45309">Peply: ${mepZahl(dl.ohne_beschaeftigungsart)} ohne Beschäftigungsart, ${mepZahl(dl.ohne_einheit||0)} ohne Einheit</span>`:""),"")}
+    </div>
+    <div class="small" style="margin-top:10px">Stand der Personaldaten ${p.stand?formatDateTimeDE(p.stand):"unbekannt"}. Neue Lohn-Ist-Zahlen kommen mit jeder ANS-Datei aus dem LohnViewer.</div>
+    </div>`;
+}
+
 /* ---------- Bestandsverlauf über die Woche ----------
    Der Verdacht von Benedikt Paul (18.08.2026): Montag und Dienstag wird
    Bestand aufgebaut, zum Wochenende abgebaut - schlecht für die Frische.
@@ -11524,7 +11574,7 @@ function mepZeichnen(){
          Die Regel vom 25.08. ("Negativbestand ganz oben") gilt damit
          weiterhin fuer Markt und Marktleitung - dort arbeitet jemand die
          Meldung ab. In der Verwaltung ist sie eine Kennzahl unter anderen. */
-      ? mepNurVerw(mepKachelVerwaltung)+mepNurVerw(mepKachelUmsatzMaerkte)
+      ? mepNurVerw(mepKachelVerwaltung)+mepNurVerw(mepKachelPersonal)+mepNurVerw(mepKachelUmsatzMaerkte)
         +mepKachelBestandNegativ()+mepKachelAufgaben()
         +(mepZugang.markt==="Verwaltung" ? "" : mepKachelVerwaltung())
         +mepNurVerw(mepKachelNutzung)+mepNurVerw(mepKachelTrend)
@@ -11532,7 +11582,7 @@ function mepZeichnen(){
         +mepKachelBestand()+mepKachelBevorratung()
         +mepVerw(mepKachelDispo)+mepKachelBefunde()
       : mepKachelBestandNegativ()+mepKachelAufgaben()
-        +mepKachelVerwaltung()+mepNurVerw(mepKachelTrend)+mepKachelKennzahlen()+mepKachelOffen()
+        +mepKachelVerwaltung()+mepKachelPersonal()+mepNurVerw(mepKachelTrend)+mepKachelKennzahlen()+mepKachelOffen()
         +mepKachelSpannen()+mepKachelBefunde()
         +mepKachelScanquote()+mepKachelBestand()
         +mepKachelWerbung()+mepKachelBevorratung()+mepKachelTopFlop()
