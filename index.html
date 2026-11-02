@@ -826,7 +826,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.11.02-01"; // Verwaltung: dritte Kachel "Ergebnis" (Umsatz, Nettoertragsspanne, Abschriften - letzte Woche und aufgelaufen, je Markt und Summe, Vorjahr; Datenbankfunktion ergebnis_uebersicht + umsatz_uebersicht; Vorgabe Benedikt 20.10.); sonst wie -03: Kacheln Verwaltung und Personal neu gestaltet (Kopfband mit Verlauf blau/gruen, Felder mit Akzentkante und Symbol, Quote mit Planbalken, Fristen mit Tage-Chips, Quote je Markt als Balken, Belegschaft als Kennzahlkacheln; Vorgabe Benedikt 20.10. "moderner, Verwaltung farblich absetzen"); sonst wie -02: Verwaltung: Kachel "Personal" (Personalkostenquote Ist/Vorschau/Plan, naechste Fristen ohne Namen, Quote je Markt, Belegschaft) aus dem Statusabruf Teil 3 (dashboard\personal_daten.json, Skript 07), Absprung Personal-Dashboard /personal (Vorgabe Benedikt 20.10.); sonst wie -01: Kennzahlen-Importer: Index metrics(market, area, metric_date) in der Datenbank (Seq Scan je Gruppe weg), Bereinigen wiederholt bei statement timeout bis 2x, Kontrollsumme wird bei Abweichung/Fehler nach 3 s einmal neu gezaehlt (Zaehlfehler 19.10.: 2748 statt 2798 bei vollstaendiger Tabelle); sonst wie v2026.10.08-01: Meine Baeckerei: Auswahl "Verfahren" (Wie bisher | Bild (BETA)) nur in Billigheim-Ingenheim, Steinfeld ohne (Vorgabe Benedikt 08.10.); Bild = backshop-test.html im Rahmen mit festem Markt, Absprung-Knopf "Foto-Empfehlung (Test)" entfernt; sonst wie v2026.10.07-01: Ordersatz-Parser: Hinweiszeile wurde seit 01.10. nie uebernommen (pendingNotes vor dem push geleert) - behoben; neue Spalte FAG-W-Gruppe (KW 42) abgeschnitten, Legendenzeilen ignoriert; sonst wie v2026.10.01-01: Bevorratung: Artikel "nur E-Center" und fremde Werbegebiete (nicht Alle/23) ausgeschlossen (Vorgabe Benedikt 01.10.: DEIT in Steinfeld); Ordersatz-Parser liest die Hinweis-/Werbegebiet-Zeile oberhalb der Artikelzeile und wertet nur GROSS geschriebene Zeilen als Abschnitt; sonst wie v2026.09.30-02: Liquiditaetskachel je Konto: Umbuchungszeilen mit Quellkonto, veraltete Salden, heute offene Posten; Ampeltexte je Konto (Knoten Verwaltung Status Regelwerk 2026-09-30, Skript 07); sonst wie -01: Bevorratung: erster Bildschirm nach dem Oeffnen rechnete ueber alle geladenen Wochen (promo nicht auf die gewaehlte Woche eingegrenzt, Banner KW 36 bei Feld KW 41) - renderWerbung grenzt jetzt selbst ein; Reiter brach beim Oeffnen mit Statement-Timeout ab (schnitt_fuer_werbeartikel, 11 Seiten, 8 parallel, anon 3 s) - fetchAllPaged wiederholt Seiten bei Timeout (Standard 1x, RPC 3x) und holt die RPC nur noch 2 Seiten gleichzeitig; Backshop unveraendert (Vorgabe Benedikt 30.09.); sonst wie v2026.09.22-02: Baeckerei-Reiter: vierter Unterreiter-Knopf "Foto-Empfehlung (Test)" springt auf backshop-test.html (Vorgabe Benedikt 22.09.; Inhalte unveraendert); sonst wie -01: Admin-Kasten mit Link auf backshop-test.html; sonst wie v2026.09.19-04: // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
+const APP_VERSION = "v2026.11.02-03"; // Spannenanalyse: kein "✕Infinity" mehr bei Vorjahr 0 EUR; dispo_offen_json einmal wiederholt bei Timeout; Scanquote: Gesamtzeile rechnet wie die Kassenzeilen (WG-Eingaben statt PLU-Eingaben); Artikel-Zeitraum-Abfrage erst nach den Seitenabrufen (allein 0,5-1,6 s statt Timeout im Gedraenge); Ladefehler sichtbar: bricht eine Abfrage ab (Timeout), zeigt die Ansicht Meldung + "Erneut laden" statt dauerhaft "Zahlen werden geladen"; Artikel-Zeitraum-Fehler nur noch in der Top/Flop-Kachel (Durchsicht 02.11.); sonst wie -02: Verwaltung: dritte Kachel "Ergebnis" (Umsatz, Nettoertragsspanne, Abschriften - letzte Woche und aufgelaufen, je Markt und Summe, Vorjahr; Datenbankfunktion ergebnis_uebersicht + umsatz_uebersicht; Vorgabe Benedikt 20.10.); sonst wie -03: Kacheln Verwaltung und Personal neu gestaltet (Kopfband mit Verlauf blau/gruen, Felder mit Akzentkante und Symbol, Quote mit Planbalken, Fristen mit Tage-Chips, Quote je Markt als Balken, Belegschaft als Kennzahlkacheln; Vorgabe Benedikt 20.10. "moderner, Verwaltung farblich absetzen"); sonst wie -02: Verwaltung: Kachel "Personal" (Personalkostenquote Ist/Vorschau/Plan, naechste Fristen ohne Namen, Quote je Markt, Belegschaft) aus dem Statusabruf Teil 3 (dashboard\personal_daten.json, Skript 07), Absprung Personal-Dashboard /personal (Vorgabe Benedikt 20.10.); sonst wie -01: Kennzahlen-Importer: Index metrics(market, area, metric_date) in der Datenbank (Seq Scan je Gruppe weg), Bereinigen wiederholt bei statement timeout bis 2x, Kontrollsumme wird bei Abweichung/Fehler nach 3 s einmal neu gezaehlt (Zaehlfehler 19.10.: 2748 statt 2798 bei vollstaendiger Tabelle); sonst wie v2026.10.08-01: Meine Baeckerei: Auswahl "Verfahren" (Wie bisher | Bild (BETA)) nur in Billigheim-Ingenheim, Steinfeld ohne (Vorgabe Benedikt 08.10.); Bild = backshop-test.html im Rahmen mit festem Markt, Absprung-Knopf "Foto-Empfehlung (Test)" entfernt; sonst wie v2026.10.07-01: Ordersatz-Parser: Hinweiszeile wurde seit 01.10. nie uebernommen (pendingNotes vor dem push geleert) - behoben; neue Spalte FAG-W-Gruppe (KW 42) abgeschnitten, Legendenzeilen ignoriert; sonst wie v2026.10.01-01: Bevorratung: Artikel "nur E-Center" und fremde Werbegebiete (nicht Alle/23) ausgeschlossen (Vorgabe Benedikt 01.10.: DEIT in Steinfeld); Ordersatz-Parser liest die Hinweis-/Werbegebiet-Zeile oberhalb der Artikelzeile und wertet nur GROSS geschriebene Zeilen als Abschnitt; sonst wie v2026.09.30-02: Liquiditaetskachel je Konto: Umbuchungszeilen mit Quellkonto, veraltete Salden, heute offene Posten; Ampeltexte je Konto (Knoten Verwaltung Status Regelwerk 2026-09-30, Skript 07); sonst wie -01: Bevorratung: erster Bildschirm nach dem Oeffnen rechnete ueber alle geladenen Wochen (promo nicht auf die gewaehlte Woche eingegrenzt, Banner KW 36 bei Feld KW 41) - renderWerbung grenzt jetzt selbst ein; Reiter brach beim Oeffnen mit Statement-Timeout ab (schnitt_fuer_werbeartikel, 11 Seiten, 8 parallel, anon 3 s) - fetchAllPaged wiederholt Seiten bei Timeout (Standard 1x, RPC 3x) und holt die RPC nur noch 2 Seiten gleichzeitig; Backshop unveraendert (Vorgabe Benedikt 30.09.); sonst wie v2026.09.22-02: Baeckerei-Reiter: vierter Unterreiter-Knopf "Foto-Empfehlung (Test)" springt auf backshop-test.html (Vorgabe Benedikt 22.09.; Inhalte unveraendert); sonst wie -01: Admin-Kasten mit Link auf backshop-test.html; sonst wie v2026.09.19-04: // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -9483,9 +9483,23 @@ async function mepArtikelZeitraumLaden(abt){
   if(!a.length||mepIstHausmeister()||mepAlleMaerkte()) return [];
   /* Als JSON in EINER Antwort: seitenweise wuerde die Datenbank die Summen
      je Seite neu rechnen (14 Seiten = 14 Berechnungen, gemessen 18 s Serverzeit). */
-  const {data,error}=await db.rpc("artikel_zeitraum_json",
+  /* 02.11.2026: Der App-Client laeuft als anon mit statement_timeout 3 s. Kalt braucht
+     die Funktion fuer grosse Bereiche 3,4-3,6 s (BI Getraenke, ST Bedienungstheke,
+     ganzer Markt) - der erste Aufruf bricht mit "statement timeout" ab und die ganze
+     Ansicht blieb leer. Der zweite Aufruf liegt bei 0,8 s (Puffer warm): einmal wiederholen. */
+  let {data,error}=await db.rpc("artikel_zeitraum_json",
       {p_markt:mepMk(), p_zeitraum:mepTfZeitraum, p_abteilungen:a});
-  if(error) throw error;
+  if(error && /timeout/i.test(error.message||"")){
+    console.warn("artikel_zeitraum_json: Zeitueberschreitung, zweiter Versuch");
+    ({data,error}=await db.rpc("artikel_zeitraum_json",
+      {p_markt:mepMk(), p_zeitraum:mepTfZeitraum, p_abteilungen:a}));
+  }
+  /* 02.11.2026 (Durchsicht): Bleibt auch der zweite Versuch haengen, darf das NICHT
+     mehr werfen. Vorher riss der Fehler das Promise.all in mepNeuLaden mit - die ganze
+     Ansicht blieb dauerhaft auf "Zahlen werden geladen …" stehen (BI Getraenke, ST
+     Bedienungstheke, gesehen 02.11. 13 Uhr). Jetzt: Meldung in der Top/Flop-Kachel,
+     alle anderen Kacheln erscheinen normal. */
+  if(error){ console.warn("artikel_zeitraum_json:",error); mepArtikelFehler=error.message||String(error); return []; }
   return Array.isArray(data)?data:[];
 }
 async function mepSetzeTfZeitraum(id){
@@ -9526,7 +9540,13 @@ async function mepNeuLaden(){
      und Spannen darf man ohnehin nicht mitteln. Uebergreifend sinnvoll sind
      Aufgaben und Dispo - genau die kommen. */
   const alleM=mepAlleMaerkte();
-  const [kzD,ar,dz,auf,met]=await Promise.all([
+  /* 02.11.2026 (Durchsicht): Bricht EINE der Abfragen ab (statement timeout 3 s der
+     anon-Rolle, gesehen bei dispo_offen_json und metrics, wenn 30 Seitenabrufe
+     gleichzeitig laufen), blieb die Ansicht ohne jede Meldung auf "Zahlen werden
+     geladen …" stehen. Jetzt: Meldung mit Knopf "Erneut laden". */
+  let kzD,ar,dz,auf,met;
+  try{
+  [kzD,ar,dz,auf,met]=await Promise.all([
     alleM ? Promise.resolve([]) : fetchAllPaged(()=>db.from("kennzahlen")
       /* periode_bis MUSS mit: sammle() verlangt beide Grenzen. Ohne sie blieb
          mepPerioden.kennzahlen leer, der Wochenkopf zeigte dauerhaft
@@ -9543,9 +9563,11 @@ async function mepNeuLaden(){
        Woche bzw. den Monat aus den Tagesberichten zusammen (Spannen
        umsatzgewichtet) und liefert fuer Quartal/Jahr die Quartalszeile.
        Welcher Zeitraum: mepTfZeitraum, die Wahl in der Top/Flop-Kachel. */
-    (abt.length && !mepIstHausmeister() && !alleM)
-      ? mepArtikelZeitraumLaden(abt)
-      : Promise.resolve([]),
+    /* 02.11.2026 (Durchsicht): Die Artikelfunktion laeuft NICHT mehr gleichzeitig mit
+       den bis zu 26 Seitenabrufen von kennzahlen und metrics. Allein braucht sie
+       0,5-1,6 s, im Gedraenge ueber 3 s - und das ist die Grenze der anon-Rolle.
+       Deshalb kommt sie erst nach dem Promise.all (unten). */
+    Promise.resolve([]),
     /* dispo_offen_aktuell statt dispo_zuordnung (17.08.2026): Die Rohtabelle
        enthaelt jede Woche denselben Artikel erneut und am 15.08. zusaetzlich
        einen doppelt eingelesenen Lauf. Fuer Freckenfeld standen dadurch
@@ -9553,8 +9575,12 @@ async function mepNeuLaden(){
        Die Sicht zeigt je Listenart nur den juengsten Lauf, jeden Artikel einmal. */
     /* dispo_offen_json (04.09.2026): die Sicht einmal rechnen und als JSON
        liefern - seitenweise wurde sie je Seite neu gerechnet (8 x 1 s). */
+    /* 02.11.2026 (Durchsicht): dispo_offen_json ist das haeufigste Timeout-Opfer (3 s anon)
+       - bei zwei von sechs Ansichtswechseln. Einmal wiederholen, wie bei den Artikeln. */
     mepIstHausmeister() ? Promise.resolve([])
       : db.rpc("dispo_offen_json",{p_maerkte: alleM ? mepMarktListe() : [mepMk()]})
+          .then(r=>(r.error && /timeout/i.test(r.error.message||""))
+            ? db.rpc("dispo_offen_json",{p_maerkte: alleM ? mepMarktListe() : [mepMk()]}) : r)
           .then(r=>{ if(r.error) throw r.error; return Array.isArray(r.data)?r.data:[]; }),
     /* Aufgaben: ALLE des Marktes, nicht nur die offenen. Welche gelten,
        entscheidet taskApplies je Datum - genau wie im Reiter ToDo. Der Filter
@@ -9568,6 +9594,17 @@ async function mepNeuLaden(){
       .eq("market",mepMk()).eq("metric_name","Umsatz").gte("metric_date","2026-01-01")
       .order("metric_date").order("area"))
   ]);
+  ar=(abt.length && !mepIstHausmeister() && !alleM) ? await mepArtikelZeitraumLaden(abt) : [];
+  }catch(err){
+    console.warn("mepNeuLaden:",err);
+    const msg=(err&&err.message)?err.message:String(err);
+    if(ziel) ziel.innerHTML=`<div class="box" style="background:#fef2f2;border:1px solid #fecaca">
+      <b>Die Zahlen konnten nicht geladen werden.</b>
+      <div class="small">Meldung der Datenbank: <code>${mepEsc(msg)}</code></div>
+      <div class="small">Meist ist die Datenbank nur kurz ausgelastet - bitte noch einmal versuchen.</div>
+      <button class="btn-yellow" type="button" onclick="mepNeuLaden()" style="margin-top:8px">Erneut laden</button></div>`;
+    return;
+  }
   /* Regalzuordnung getrennt laden statt in artikel_kennzahlen zu schreiben.
      Grund: sie aendert sich taeglich und gilt fuer alle Zeitraeume gleich.
      Waere sie in die Kennzahlenzeilen kopiert, muesste man bei jedem neuen
@@ -10990,7 +11027,11 @@ function mepKachelScanquote(){
     ? mitPos.reduce((s,x)=>s+(x.pos_scan||0),0)   // wird unten nicht gebraucht, nur Platzhalter
     : 0;
   const gesamtPos=mepScan.reduce((s,x)=>s+(x.positionen||0),0);
-  const gesamtMan=mepScan.reduce((s,x)=>s+(x.pos_manuell||0),0);
+  /* 02.11.2026 (Durchsicht): Die Gesamtzeile rechnete mit pos_manuell (PLU-Eingaben),
+     die Zeilen je Kasse mit pos_wg (Warengruppen-Eingaben ohne Artikelbezug). Ergebnis:
+     Freckenfeld "insgesamt 92,52 %", beide Kassen darunter 99,7 und 99,9 %. Jetzt beide
+     gleich: Anteil der Positionen mit Artikelbezug, also ohne WG-Eingaben. */
+  const gesamtMan=mepScan.reduce((s,x)=>s+(x.pos_wg||0),0);
   const gesamtQuote=gesamtPos?100-(gesamtMan*100/gesamtPos):null;
   const farbe=q=>q==null?"#08213f":q>=99.8?"#15803d":q>=99.4?"#b45309":"#b91c1c";
   return `<div class="box"><h2>Scanquote${mepAlleMaerkte()?" · alle Märkte":""}
@@ -11000,7 +11041,7 @@ function mepKachelScanquote(){
     <div class="small">Anteil der Positionen mit Artikelbezug. Die fünf schwächsten Kassen.
       Wenige Positionen heißt: die Quote schwankt stark – solche Kassen stehen in Grau.
       ${gesamtQuote!=null?`Insgesamt <b>${mepPrz(gesamtQuote)}</b> bei
-      ${mepZahl(gesamtMan)} Handeingaben auf ${mepZahl(gesamtPos)} Positionen.`:""}</div>
+      ${mepZahl(gesamtMan)} Warengruppen-Eingaben ohne Artikelbezug auf ${mepZahl(gesamtPos)} Positionen.`:""}</div>
     <table style="width:100%;border-collapse:collapse;font-size:13.5px;margin-top:10px">
       <thead><tr style="text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">
         ${mepAlleMaerkte()?"<th style=\"padding:8px\">Markt</th>":""}
@@ -12054,8 +12095,10 @@ function mepKachelSpannen(){
   const per=t[0].periode_von?`${t[0].periode_von.split("-").reverse().join(".")} bis ${t[0].periode_bis.split("-").reverse().join(".")}`:"";
   const vgl=(i,v)=>i==null?"":v==null?`<span style="color:#94a3b8">kein Vj</span>`
     :(Math.abs(i)>Math.abs(v)*1.5&&Math.abs(i)>100)
-      ?`<span style="color:#c62828">${mepEur(v)} ✕${Math.abs(i/v).toFixed(1)}</span>`
+      ?`<span style="color:#c62828">${mepEur(v)}${Math.abs(v)>=1?` ✕${Math.abs(i/v).toFixed(1)}`:" (Vj 0 €)"}</span>`
       :`<span style="color:#94a3b8">${mepEur(v)}</span>`;
+  /* 02.11.2026 (Durchsicht): Vorjahr 0 EUR ergab "0 € ✕Infinity" (BI, ST, FR mehrfach).
+     Jetzt steht dort "0 € (Vj 0 €)" ohne Faktor. */
   return `<div class="box"><h2>Spannenanalyse · wohin die Spanne geht
     ${mepAbsprung("mepZeigeSpannen()","mehr")}</h2>
     ${mepZeitraumHinweis("spannen")}
