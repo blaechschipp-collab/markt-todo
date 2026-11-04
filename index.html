@@ -826,7 +826,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.11.02-03"; // Spannenanalyse: kein "✕Infinity" mehr bei Vorjahr 0 EUR; dispo_offen_json einmal wiederholt bei Timeout; Scanquote: Gesamtzeile rechnet wie die Kassenzeilen (WG-Eingaben statt PLU-Eingaben); Artikel-Zeitraum-Abfrage erst nach den Seitenabrufen (allein 0,5-1,6 s statt Timeout im Gedraenge); Ladefehler sichtbar: bricht eine Abfrage ab (Timeout), zeigt die Ansicht Meldung + "Erneut laden" statt dauerhaft "Zahlen werden geladen"; Artikel-Zeitraum-Fehler nur noch in der Top/Flop-Kachel (Durchsicht 02.11.); sonst wie -02: Verwaltung: dritte Kachel "Ergebnis" (Umsatz, Nettoertragsspanne, Abschriften - letzte Woche und aufgelaufen, je Markt und Summe, Vorjahr; Datenbankfunktion ergebnis_uebersicht + umsatz_uebersicht; Vorgabe Benedikt 20.10.); sonst wie -03: Kacheln Verwaltung und Personal neu gestaltet (Kopfband mit Verlauf blau/gruen, Felder mit Akzentkante und Symbol, Quote mit Planbalken, Fristen mit Tage-Chips, Quote je Markt als Balken, Belegschaft als Kennzahlkacheln; Vorgabe Benedikt 20.10. "moderner, Verwaltung farblich absetzen"); sonst wie -02: Verwaltung: Kachel "Personal" (Personalkostenquote Ist/Vorschau/Plan, naechste Fristen ohne Namen, Quote je Markt, Belegschaft) aus dem Statusabruf Teil 3 (dashboard\personal_daten.json, Skript 07), Absprung Personal-Dashboard /personal (Vorgabe Benedikt 20.10.); sonst wie -01: Kennzahlen-Importer: Index metrics(market, area, metric_date) in der Datenbank (Seq Scan je Gruppe weg), Bereinigen wiederholt bei statement timeout bis 2x, Kontrollsumme wird bei Abweichung/Fehler nach 3 s einmal neu gezaehlt (Zaehlfehler 19.10.: 2748 statt 2798 bei vollstaendiger Tabelle); sonst wie v2026.10.08-01: Meine Baeckerei: Auswahl "Verfahren" (Wie bisher | Bild (BETA)) nur in Billigheim-Ingenheim, Steinfeld ohne (Vorgabe Benedikt 08.10.); Bild = backshop-test.html im Rahmen mit festem Markt, Absprung-Knopf "Foto-Empfehlung (Test)" entfernt; sonst wie v2026.10.07-01: Ordersatz-Parser: Hinweiszeile wurde seit 01.10. nie uebernommen (pendingNotes vor dem push geleert) - behoben; neue Spalte FAG-W-Gruppe (KW 42) abgeschnitten, Legendenzeilen ignoriert; sonst wie v2026.10.01-01: Bevorratung: Artikel "nur E-Center" und fremde Werbegebiete (nicht Alle/23) ausgeschlossen (Vorgabe Benedikt 01.10.: DEIT in Steinfeld); Ordersatz-Parser liest die Hinweis-/Werbegebiet-Zeile oberhalb der Artikelzeile und wertet nur GROSS geschriebene Zeilen als Abschnitt; sonst wie v2026.09.30-02: Liquiditaetskachel je Konto: Umbuchungszeilen mit Quellkonto, veraltete Salden, heute offene Posten; Ampeltexte je Konto (Knoten Verwaltung Status Regelwerk 2026-09-30, Skript 07); sonst wie -01: Bevorratung: erster Bildschirm nach dem Oeffnen rechnete ueber alle geladenen Wochen (promo nicht auf die gewaehlte Woche eingegrenzt, Banner KW 36 bei Feld KW 41) - renderWerbung grenzt jetzt selbst ein; Reiter brach beim Oeffnen mit Statement-Timeout ab (schnitt_fuer_werbeartikel, 11 Seiten, 8 parallel, anon 3 s) - fetchAllPaged wiederholt Seiten bei Timeout (Standard 1x, RPC 3x) und holt die RPC nur noch 2 Seiten gleichzeitig; Backshop unveraendert (Vorgabe Benedikt 30.09.); sonst wie v2026.09.22-02: Baeckerei-Reiter: vierter Unterreiter-Knopf "Foto-Empfehlung (Test)" springt auf backshop-test.html (Vorgabe Benedikt 22.09.; Inhalte unveraendert); sonst wie -01: Admin-Kasten mit Link auf backshop-test.html; sonst wie v2026.09.19-04: // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
+const APP_VERSION = "v2026.11.02-04"; // Kennzahlen-Kachel: Bereichsansicht zeigt jetzt auch die letzte Woche (Abteilungssumme des Bereichs aus dem Wochenbericht), Ganzer Markt rechnet mit der Zeile Gesamtergebnis (Oe Bon war Abteilungssumme, 6,75 statt ~20 EUR); Abschriften je Abteilung bei Woche/Monat/Quartal aus der Spannenanalyse (EK, mit Vorjahr und Inventur) statt der Jahreslieferung vom 17.08. (Vorgabe Benedikt 02.11.); sonst wie -03: Spannenanalyse: kein "✕Infinity" mehr bei Vorjahr 0 EUR; dispo_offen_json einmal wiederholt bei Timeout; Scanquote: Gesamtzeile rechnet wie die Kassenzeilen (WG-Eingaben statt PLU-Eingaben); Artikel-Zeitraum-Abfrage erst nach den Seitenabrufen (allein 0,5-1,6 s statt Timeout im Gedraenge); Ladefehler sichtbar: bricht eine Abfrage ab (Timeout), zeigt die Ansicht Meldung + "Erneut laden" statt dauerhaft "Zahlen werden geladen"; Artikel-Zeitraum-Fehler nur noch in der Top/Flop-Kachel (Durchsicht 02.11.); sonst wie -02: Verwaltung: dritte Kachel "Ergebnis" (Umsatz, Nettoertragsspanne, Abschriften - letzte Woche und aufgelaufen, je Markt und Summe, Vorjahr; Datenbankfunktion ergebnis_uebersicht + umsatz_uebersicht; Vorgabe Benedikt 20.10.); sonst wie -03: Kacheln Verwaltung und Personal neu gestaltet (Kopfband mit Verlauf blau/gruen, Felder mit Akzentkante und Symbol, Quote mit Planbalken, Fristen mit Tage-Chips, Quote je Markt als Balken, Belegschaft als Kennzahlkacheln; Vorgabe Benedikt 20.10. "moderner, Verwaltung farblich absetzen"); sonst wie -02: Verwaltung: Kachel "Personal" (Personalkostenquote Ist/Vorschau/Plan, naechste Fristen ohne Namen, Quote je Markt, Belegschaft) aus dem Statusabruf Teil 3 (dashboard\personal_daten.json, Skript 07), Absprung Personal-Dashboard /personal (Vorgabe Benedikt 20.10.); sonst wie -01: Kennzahlen-Importer: Index metrics(market, area, metric_date) in der Datenbank (Seq Scan je Gruppe weg), Bereinigen wiederholt bei statement timeout bis 2x, Kontrollsumme wird bei Abweichung/Fehler nach 3 s einmal neu gezaehlt (Zaehlfehler 19.10.: 2748 statt 2798 bei vollstaendiger Tabelle); sonst wie v2026.10.08-01: Meine Baeckerei: Auswahl "Verfahren" (Wie bisher | Bild (BETA)) nur in Billigheim-Ingenheim, Steinfeld ohne (Vorgabe Benedikt 08.10.); Bild = backshop-test.html im Rahmen mit festem Markt, Absprung-Knopf "Foto-Empfehlung (Test)" entfernt; sonst wie v2026.10.07-01: Ordersatz-Parser: Hinweiszeile wurde seit 01.10. nie uebernommen (pendingNotes vor dem push geleert) - behoben; neue Spalte FAG-W-Gruppe (KW 42) abgeschnitten, Legendenzeilen ignoriert; sonst wie v2026.10.01-01: Bevorratung: Artikel "nur E-Center" und fremde Werbegebiete (nicht Alle/23) ausgeschlossen (Vorgabe Benedikt 01.10.: DEIT in Steinfeld); Ordersatz-Parser liest die Hinweis-/Werbegebiet-Zeile oberhalb der Artikelzeile und wertet nur GROSS geschriebene Zeilen als Abschnitt; sonst wie v2026.09.30-02: Liquiditaetskachel je Konto: Umbuchungszeilen mit Quellkonto, veraltete Salden, heute offene Posten; Ampeltexte je Konto (Knoten Verwaltung Status Regelwerk 2026-09-30, Skript 07); sonst wie -01: Bevorratung: erster Bildschirm nach dem Oeffnen rechnete ueber alle geladenen Wochen (promo nicht auf die gewaehlte Woche eingegrenzt, Banner KW 36 bei Feld KW 41) - renderWerbung grenzt jetzt selbst ein; Reiter brach beim Oeffnen mit Statement-Timeout ab (schnitt_fuer_werbeartikel, 11 Seiten, 8 parallel, anon 3 s) - fetchAllPaged wiederholt Seiten bei Timeout (Standard 1x, RPC 3x) und holt die RPC nur noch 2 Seiten gleichzeitig; Backshop unveraendert (Vorgabe Benedikt 30.09.); sonst wie v2026.09.22-02: Baeckerei-Reiter: vierter Unterreiter-Knopf "Foto-Empfehlung (Test)" springt auf backshop-test.html (Vorgabe Benedikt 22.09.; Inhalte unveraendert); sonst wie -01: Admin-Kasten mit Link auf backshop-test.html; sonst wie v2026.09.19-04: // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -11925,8 +11925,16 @@ function mepVerlaufsreihe(){
    Der Vorjahreswert wird beim Jahreslauf auf gleiche Zeitraumlaenge gerechnet -
    der Bericht filtert 01.01.-31.12., enthaelt aber nur Daten bis zum Exporttag. */
 function mepWerte(periodeVon, skalieren){
+  /* 02.11.2026 (Benedikt: "mache eine Berichts-Wochen-Summe"): Der Wochenbericht traegt
+     KEINEN Bereich an den Abteilungszeilen (bereich null) - deshalb stand in jeder
+     Bereichsansicht "letzte Woche: -". Jetzt zaehlen bei leerem Bereich die Abteilungen
+     des Bereichs (mepAbteilungen). Ganzer Markt: die Zeile "Gesamtergebnis" statt der
+     Summe aller Abteilungen - die Kunden je Abteilung addieren sich auf das Dreifache
+     der Marktkunden, der "Oe Bon" stand dadurch bei 6,75 statt rund 20 EUR (BI). */
+  const B=mepBl(), abt=B?new Set(mepAbteilungen()):null;
   const z=mepKz.filter(x=>x.periode_von===periodeVon && x.wochentag==="Ergebnis"
-    && (mepBl()?x.bereich===mepBl():x.bereich!=="Gesamt"));
+    && (B ? (x.bereich===B || (x.bereich==null && abt.has(x.abteilung)))
+          : x.abteilung==="Gesamtergebnis"));
   const a=skalieren?mepJahresanteil():1;
   const S=k=>{const t=z.filter(x=>x.kennzahl===k&&x.wert!=null);
     return t.length?t.reduce((s,x)=>s+Number(x.wert),0):null;};
@@ -12240,6 +12248,31 @@ function mepFlopWerte(x){
    wochentag "Ergebnis" ist die Summenzeile ueber alle Wochentage. */
 function mepAbschriftenAbteilung(){
   const abt=new Set(mepAbteilungen());
+  /* 02.11.2026 (Benedikt: "Summiere die Abschriften je Abteilung"): "Abschriften VK [br]" je
+     Abteilung liefert nur die Jahreslieferung (01.01.-31.12.). Die Tagesberichte je Artikel
+     enthalten KEINE Abschriften (geprueft: 684.340 Tageszeilen, 0 mit abschr_vk_br), die
+     Wochenberichte je Abteilung auch nicht. Was es je Woche gibt: die Spannenanalyse mit
+     Abschriften und Inventur je Abteilung in EK, dazu der Wochenumsatz je Abteilung aus dem
+     Umsatzbericht. Passt die Jahreslieferung nicht zum gewaehlten Zeitraum (Woche, Monat,
+     Quartal), kommt die Tabelle deshalb aus der Spannenanalyse (ek:true) - vorher stand dort
+     monatelang die Jahreslieferung vom 17.08. mit rotem Hinweis. */
+  const pj=mepPassendePeriode("abschriften",mepTfZeitraum);
+  if(!pj.schluessel||pj.hinweis){
+    const ps=mepPassendePeriode("spannen",mepTfZeitraum);
+    if(!ps.schluessel) return [];
+    const um={};
+    mepKz.filter(x=>x.wochentag==="Ergebnis"&&x.kennzahl==="Umsatz"&&mepZeitPasst(x,"kennzahlen",mepTfZeitraum))
+      .forEach(x=>{ um[x.abteilung]=Math.abs(Number(x.wert)); });
+    return mepSpanne.filter(x=>x.markt===mepMk()&&x.abteilung!=="Gesamtergebnis"
+        &&(!mepBl()||abt.has(x.abteilung))&&mepZeitPasst(x,"spannen",mepTfZeitraum)
+        &&x.abschr_ek!=null&&Math.abs(Number(x.abschr_ek))>0)
+      .map(x=>{const a=Math.abs(Number(x.abschr_ek)), u=um[x.abteilung];
+        return {abteilung:x.abteilung, ek:true, abschr:a,
+          abschrVj:x.abschr_ek_vj!=null?Math.abs(Number(x.abschr_ek_vj)):null,
+          inventur:x.inventur_ek!=null?Number(x.inventur_ek):null,
+          umsatz:u||null, anteil:u>0?a*100/u:null, von:x.periode_von, bis:x.periode_bis};})
+      .sort((x,y)=>(y.anteil??-1)-(x.anteil??-1)||y.abschr-x.abschr);
+  }
   const roh=mepKz.filter(x=>x.wochentag==="Ergebnis"&&(!mepBl()||abt.has(x.abteilung))
     &&mepZeitPasst(x,"abschriften",mepTfZeitraum));
   const m={};
@@ -12425,7 +12458,30 @@ function mepKachelTopFlop(){
     ${(mepSort==="abschrift"&&mepFlopMass==="anteil")||mepSort==="nettoertrag"?`<div class="small" style="margin-top:6px">Artikel unter ${MEP_FLOP_HINWEIS_UMSATZ} € Umsatz
       stehen am Ende der Liste und in Grau – ein Prozentwert bei winzigem Umsatz sagt wenig. Ausgeblendet wird nichts.</div>`:""}
 
-    ${mepSort==="abschrift"?`
+    ${mepSort==="abschrift"&&abschr.length&&abschr[0].ek?`
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b;margin:14px 0 0">
+      Abschriften je Abteilung · aus der Spannenanalyse (Einstandspreise)</div>
+    ${mepZeitraumHinweis("spannen",mepTfZeitraum)}
+    <table style="width:100%;border-collapse:collapse;font-size:13.5px">
+      <thead><tr style="text-align:left;color:#64748b;font-size:11px;text-transform:uppercase">
+        <th style="padding:7px">Abteilung</th>
+        <th style="text-align:right;padding:7px">Anteil am Umsatz</th>
+        <th style="text-align:right;padding:7px">Abschriften EK</th>
+        <th style="text-align:right;padding:7px">Vorjahr EK</th>
+        <th style="text-align:right;padding:7px">Inventur EK</th></tr></thead><tbody>
+      ${abschr.map(a=>`<tr style="border-top:1px solid #eef3f9">
+        <td style="padding:7px">${mepEsc(a.abteilung)}</td>
+        <td style="text-align:right"><b style="color:${a.anteil==null?"#94a3b8":a.anteil>2?"#b91c1c":a.anteil>1?"#b45309":"#08213f"}">${
+          a.anteil!=null?mepPrz(a.anteil):"–"}</b></td>
+        <td style="text-align:right">${mepEur(a.abschr)}</td>
+        <td style="text-align:right;color:${a.abschrVj!=null&&a.abschr>a.abschrVj*1.5&&a.abschr>100?"#b91c1c":"#64748b"}">${a.abschrVj!=null?mepEur(a.abschrVj):"–"}</td>
+        <td style="text-align:right;color:#64748b">${a.inventur!=null?mepEur(a.inventur):"–"}</td></tr>`).join("")}
+      </tbody></table>
+    <div class="small" style="margin-top:6px">Abschriften und Inventur zu Einstandspreisen aus der
+      Spannenanalyse der Woche; der Anteil bezieht sie auf den Wochenumsatz der Abteilung (brutto) und ist
+      deshalb etwas niedriger als die EDEKA-Kennzahl zu Verkaufspreisen. Vollabschriften und Umbewertung
+      liefert nur der Jahresbericht (Zeitraum „laufendes Jahr“).</div>`
+    :mepSort==="abschrift"?`
     <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b;margin:14px 0 0">
       Gemeldete Abschriften je Abteilung</div>
     ${mepZeitraumHinweis("abschriften",mepTfZeitraum)}
