@@ -299,7 +299,7 @@
        sonst stuenden die Reiter beim Laden einen Wimpernschlag lang
        untereinander und springen dann. -->
   <div class="tabs drei">
-    <button id="backshopTab" class="tab active backshop-tab" onclick="showTab('backshop')">🥐 Meine Bäckerei</button><button id="mepTab" class="tab mep-tab" onclick="showTab('mep')">🍏 Mein EDEKA Paul</button><button id="adminTab" class="tab admin-tab" onclick="openAdminPin()">🔒 Admin</button><button id="todoTab" class="tab todo-tab" onclick="showTab('todo')" style="display:none" title="Alte ToDo-Ansicht, seit 22.08.2026 ausser Betrieb">☑ ToDo</button><button id="dispoTab" class="tab dispo-tab alt-reiter" onclick="showTab('dispo')">📦 Dispo</button><button id="werbungTab" class="tab werbung-tab alt-reiter" onclick="showTab('werbung')">💰 Bevorratung</button><button id="analyticsTab" class="tab analytics-tab alt-reiter" onclick="showTab('analytics')">📊 Auswertungen</button><button id="personalkostenTab" class="tab personalkosten-tab" onclick="showTab('personalkosten')" style="display:none" title="Nur nach Admin-Anmeldung sichtbar">💶 Personalkosten</button>
+    <button id="backshopTab" class="tab active backshop-tab" onclick="showTab('backshop')">🥐 Meine Bäckerei</button><button id="mepTab" class="tab mep-tab" onclick="showTab('mep')">🍏 Mein EDEKA Paul</button><button id="adminTab" class="tab admin-tab" onclick="openAdminPin()">🔒 Admin</button><button id="todoTab" class="tab todo-tab" onclick="showTab('todo')" style="display:none" title="Alte ToDo-Ansicht, seit 22.08.2026 ausser Betrieb">☑ ToDo</button><button id="dispoTab" class="tab dispo-tab alt-reiter" onclick="showTab('dispo')">📦 Dispo</button><button id="werbungTab" class="tab werbung-tab alt-reiter" onclick="showTab('werbung')">💰 Bevorratung</button><button id="analyticsTab" class="tab analytics-tab alt-reiter" onclick="showTab('analytics')">📊 Auswertungen</button>
   </div>
   <section id="todoSection">
     <div class="box"><div class="control-grid"><div><label>Dein Name</label><input id="name" placeholder="Dein Name"></div><div><label>Markt</label><select id="marketFilter" onchange="handleMarketChange()"><option value="ALLE">Alle Märkte</option><option>Freckenfeld</option><option>Gossersweiler-Stein</option><option>Billigheim-Ingenheim</option><option>Steinfeld</option></select></div><div><label>Bereich</label><select id="areaFilter" onchange="handleAreaChange()"><option value="">Alle Bereiche außer Hausmeister</option></select></div><div id="dayControl"><label>Tag</label><select id="day" onchange="loadTasks()"></select></div><div id="monthControl" style="display:none"><label>Monat</label><input id="monthFilter" type="month" onchange="loadTasks()"></div><div><label>Erledigte</label><select id="todoDoneFilter" onchange="handleDoneFilterChange()"><option value="hide">Ausblenden</option><option value="show">Anzeigen</option><option value="only">Nur erledigte</option></select></div><div><label>&nbsp;</label><button class="btn-yellow" onclick="loadTasks()">Aktualisieren</button></div></div></div>
@@ -823,62 +823,10 @@
     </div>
     <div id="mepInhalt" style="display:none"></div>
   </section>
-  <!-- Personalkosten (09.11.2026, Vorgabe Benedikt Paul: "Wir muessen das aber
-       online bekommen"). Nur nach Admin-Anmeldung: der Reiter oben wird erst
-       durch pkReiterFreischalten() sichtbar, und die Datenbank gibt die
-       Sichten personalkosten_vorschau / _person per RLS nur an Sitzungen der
-       Rolle admin oder dienst heraus (sitzung_rolle_in). Ohne Ausweis kommt
-       eine leere Antwort - die Seite zeigt dann "Keine Berechtigung".
-       Code dazu: eigener Skriptblock am Ende der Datei (Funktionen pk*). -->
-  <style>
-    .personalkosten-tab{flex:1 1 30%}
-    .pk-tabelle{width:100%;border-collapse:collapse;background:#fff;font-size:13px}
-    .pk-tabelle th,.pk-tabelle td{border:1px solid #e1e8f0;padding:7px 8px;text-align:left;font-size:13px;white-space:nowrap}
-    .pk-tabelle th{background:#f1f5f9;color:#1e293b;position:sticky;top:0;z-index:1}
-    .pk-tabelle td.pk-zahl,.pk-tabelle th.pk-zahl{text-align:right}
-    .pk-tabelle tr.pk-gesamt td{font-weight:bold;background:#fffbe6;border-top:2px solid var(--blue-dark)}
-    .pk-tabelle td.pk-vermerk{white-space:normal;max-width:260px;color:#475569}
-    .pk-scroll{overflow:auto;max-height:70vh;border:1px solid #e1e8f0;border-radius:8px}
-    .pk-neg{color:#b91c1c}
-    .pk-pos{color:#166534}
-    .pk-kopf{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:baseline;font-size:13px;color:#475569}
-  </style>
-  <section id="personalkostenSection" style="display:none">
-    <div class="box">
-      <h2 style="margin-top:0">💶 Personalkosten</h2>
-      <div class="pk-kopf" id="pkKopf">
-        <span id="pkDatenstand">Datenstand wird geladen …</span>
-      </div>
-      <div class="small">Vorschau aus Peply (Gehälter, Soll-Stunden, Sachbezüge), Firmenwagen aus DATEV, Soll-Satz aus dem Lohnmodell. Arbeitgeberkosten = Brutto/Jahr × 1,19. Die Zahlen sind nur mit Admin-Anmeldung abrufbar.</div>
-      <div id="pkMeldung" class="small" style="margin-top:8px"></div>
-    </div>
-    <div class="box" id="pkMarktBox" style="display:none">
-      <h2 style="margin-top:0">Je Markt</h2>
-      <div class="pk-scroll"><table class="pk-tabelle" id="pkMarktTabelle"></table></div>
-    </div>
-    <div class="box" id="pkPersonBox" style="display:none">
-      <h2 style="margin-top:0">Je Person</h2>
-      <div class="control-grid">
-        <div><label>Markt</label><select id="pkFilterMarkt" onchange="pkPersonenZeichnen()">
-          <option value="">Alle Märkte</option>
-          <option value="BI">Billigheim-Ingenheim</option>
-          <option value="ST">Steinfeld</option>
-          <option value="FR">Freckenfeld</option>
-          <option value="GS">Gossersweiler-Stein</option>
-          <option value="VW">Verwaltung</option>
-        </select></div>
-        <div><label>Name</label><input id="pkSuche" placeholder="Nachname oder Vorname" oninput="pkPersonenZeichnen()"></div>
-        <div><label>&nbsp;</label><button class="btn-blue" onclick="pkCsvSpeichern()">Als CSV speichern</button></div>
-        <div><label>&nbsp;</label><button class="btn-yellow" onclick="pkLaden(true)">Aktualisieren</button></div>
-      </div>
-      <div id="pkPersonHinweis" class="small" style="margin-top:8px"></div>
-      <div class="pk-scroll" style="margin-top:8px"><table class="pk-tabelle" id="pkPersonTabelle"></table></div>
-    </div>
-  </section>
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.11.09-01"; // Reiter Personalkosten (nur Admin) aus den Supabase-Sichten personalkosten_vorschau/_person; sonst wie v2026.11.04-01: Block "Woher der Verlust kommt" fehlte seit -04 unter der neuen Abschriften-Tabelle (Verschachtelung) - zurueck; sonst wie v2026.11.02-04: Kennzahlen-Kachel: Bereichsansicht zeigt jetzt auch die letzte Woche (Abteilungssumme des Bereichs aus dem Wochenbericht), Ganzer Markt rechnet mit der Zeile Gesamtergebnis (Oe Bon war Abteilungssumme, 6,75 statt ~20 EUR); Abschriften je Abteilung bei Woche/Monat/Quartal aus der Spannenanalyse (EK, mit Vorjahr und Inventur) statt der Jahreslieferung vom 17.08. (Vorgabe Benedikt 02.11.); sonst wie -03: Spannenanalyse: kein "✕Infinity" mehr bei Vorjahr 0 EUR; dispo_offen_json einmal wiederholt bei Timeout; Scanquote: Gesamtzeile rechnet wie die Kassenzeilen (WG-Eingaben statt PLU-Eingaben); Artikel-Zeitraum-Abfrage erst nach den Seitenabrufen (allein 0,5-1,6 s statt Timeout im Gedraenge); Ladefehler sichtbar: bricht eine Abfrage ab (Timeout), zeigt die Ansicht Meldung + "Erneut laden" statt dauerhaft "Zahlen werden geladen"; Artikel-Zeitraum-Fehler nur noch in der Top/Flop-Kachel (Durchsicht 02.11.); sonst wie -02: Verwaltung: dritte Kachel "Ergebnis" (Umsatz, Nettoertragsspanne, Abschriften - letzte Woche und aufgelaufen, je Markt und Summe, Vorjahr; Datenbankfunktion ergebnis_uebersicht + umsatz_uebersicht; Vorgabe Benedikt 20.10.); sonst wie -03: Kacheln Verwaltung und Personal neu gestaltet (Kopfband mit Verlauf blau/gruen, Felder mit Akzentkante und Symbol, Quote mit Planbalken, Fristen mit Tage-Chips, Quote je Markt als Balken, Belegschaft als Kennzahlkacheln; Vorgabe Benedikt 20.10. "moderner, Verwaltung farblich absetzen"); sonst wie -02: Verwaltung: Kachel "Personal" (Personalkostenquote Ist/Vorschau/Plan, naechste Fristen ohne Namen, Quote je Markt, Belegschaft) aus dem Statusabruf Teil 3 (dashboard\personal_daten.json, Skript 07), Absprung Personal-Dashboard /personal (Vorgabe Benedikt 20.10.); sonst wie -01: Kennzahlen-Importer: Index metrics(market, area, metric_date) in der Datenbank (Seq Scan je Gruppe weg), Bereinigen wiederholt bei statement timeout bis 2x, Kontrollsumme wird bei Abweichung/Fehler nach 3 s einmal neu gezaehlt (Zaehlfehler 19.10.: 2748 statt 2798 bei vollstaendiger Tabelle); sonst wie v2026.10.08-01: Meine Baeckerei: Auswahl "Verfahren" (Wie bisher | Bild (BETA)) nur in Billigheim-Ingenheim, Steinfeld ohne (Vorgabe Benedikt 08.10.); Bild = backshop-test.html im Rahmen mit festem Markt, Absprung-Knopf "Foto-Empfehlung (Test)" entfernt; sonst wie v2026.10.07-01: Ordersatz-Parser: Hinweiszeile wurde seit 01.10. nie uebernommen (pendingNotes vor dem push geleert) - behoben; neue Spalte FAG-W-Gruppe (KW 42) abgeschnitten, Legendenzeilen ignoriert; sonst wie v2026.10.01-01: Bevorratung: Artikel "nur E-Center" und fremde Werbegebiete (nicht Alle/23) ausgeschlossen (Vorgabe Benedikt 01.10.: DEIT in Steinfeld); Ordersatz-Parser liest die Hinweis-/Werbegebiet-Zeile oberhalb der Artikelzeile und wertet nur GROSS geschriebene Zeilen als Abschnitt; sonst wie v2026.09.30-02: Liquiditaetskachel je Konto: Umbuchungszeilen mit Quellkonto, veraltete Salden, heute offene Posten; Ampeltexte je Konto (Knoten Verwaltung Status Regelwerk 2026-09-30, Skript 07); sonst wie -01: Bevorratung: erster Bildschirm nach dem Oeffnen rechnete ueber alle geladenen Wochen (promo nicht auf die gewaehlte Woche eingegrenzt, Banner KW 36 bei Feld KW 41) - renderWerbung grenzt jetzt selbst ein; Reiter brach beim Oeffnen mit Statement-Timeout ab (schnitt_fuer_werbeartikel, 11 Seiten, 8 parallel, anon 3 s) - fetchAllPaged wiederholt Seiten bei Timeout (Standard 1x, RPC 3x) und holt die RPC nur noch 2 Seiten gleichzeitig; Backshop unveraendert (Vorgabe Benedikt 30.09.); sonst wie v2026.09.22-02: Baeckerei-Reiter: vierter Unterreiter-Knopf "Foto-Empfehlung (Test)" springt auf backshop-test.html (Vorgabe Benedikt 22.09.; Inhalte unveraendert); sonst wie -01: Admin-Kasten mit Link auf backshop-test.html; sonst wie v2026.09.19-04: // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
+const APP_VERSION = "v2026.11.09-02"; // 09.11.2026: Reiter Personalkosten (v2026.11.09-01, nur wenige Stunden online) auf Anordnung Benedikt wieder entfernt - Personalkosten gehoeren ins Personal-Dashboard (/personal), nicht in den Admin; Stand sonst = v2026.11.04-01. // Block "Woher der Verlust kommt" fehlte seit -04 unter der neuen Abschriften-Tabelle (Verschachtelung) - zurueck; sonst wie v2026.11.02-04: Kennzahlen-Kachel: Bereichsansicht zeigt jetzt auch die letzte Woche (Abteilungssumme des Bereichs aus dem Wochenbericht), Ganzer Markt rechnet mit der Zeile Gesamtergebnis (Oe Bon war Abteilungssumme, 6,75 statt ~20 EUR); Abschriften je Abteilung bei Woche/Monat/Quartal aus der Spannenanalyse (EK, mit Vorjahr und Inventur) statt der Jahreslieferung vom 17.08. (Vorgabe Benedikt 02.11.); sonst wie -03: Spannenanalyse: kein "✕Infinity" mehr bei Vorjahr 0 EUR; dispo_offen_json einmal wiederholt bei Timeout; Scanquote: Gesamtzeile rechnet wie die Kassenzeilen (WG-Eingaben statt PLU-Eingaben); Artikel-Zeitraum-Abfrage erst nach den Seitenabrufen (allein 0,5-1,6 s statt Timeout im Gedraenge); Ladefehler sichtbar: bricht eine Abfrage ab (Timeout), zeigt die Ansicht Meldung + "Erneut laden" statt dauerhaft "Zahlen werden geladen"; Artikel-Zeitraum-Fehler nur noch in der Top/Flop-Kachel (Durchsicht 02.11.); sonst wie -02: Verwaltung: dritte Kachel "Ergebnis" (Umsatz, Nettoertragsspanne, Abschriften - letzte Woche und aufgelaufen, je Markt und Summe, Vorjahr; Datenbankfunktion ergebnis_uebersicht + umsatz_uebersicht; Vorgabe Benedikt 20.10.); sonst wie -03: Kacheln Verwaltung und Personal neu gestaltet (Kopfband mit Verlauf blau/gruen, Felder mit Akzentkante und Symbol, Quote mit Planbalken, Fristen mit Tage-Chips, Quote je Markt als Balken, Belegschaft als Kennzahlkacheln; Vorgabe Benedikt 20.10. "moderner, Verwaltung farblich absetzen"); sonst wie -02: Verwaltung: Kachel "Personal" (Personalkostenquote Ist/Vorschau/Plan, naechste Fristen ohne Namen, Quote je Markt, Belegschaft) aus dem Statusabruf Teil 3 (dashboard\personal_daten.json, Skript 07), Absprung Personal-Dashboard /personal (Vorgabe Benedikt 20.10.); sonst wie -01: Kennzahlen-Importer: Index metrics(market, area, metric_date) in der Datenbank (Seq Scan je Gruppe weg), Bereinigen wiederholt bei statement timeout bis 2x, Kontrollsumme wird bei Abweichung/Fehler nach 3 s einmal neu gezaehlt (Zaehlfehler 19.10.: 2748 statt 2798 bei vollstaendiger Tabelle); sonst wie v2026.10.08-01: Meine Baeckerei: Auswahl "Verfahren" (Wie bisher | Bild (BETA)) nur in Billigheim-Ingenheim, Steinfeld ohne (Vorgabe Benedikt 08.10.); Bild = backshop-test.html im Rahmen mit festem Markt, Absprung-Knopf "Foto-Empfehlung (Test)" entfernt; sonst wie v2026.10.07-01: Ordersatz-Parser: Hinweiszeile wurde seit 01.10. nie uebernommen (pendingNotes vor dem push geleert) - behoben; neue Spalte FAG-W-Gruppe (KW 42) abgeschnitten, Legendenzeilen ignoriert; sonst wie v2026.10.01-01: Bevorratung: Artikel "nur E-Center" und fremde Werbegebiete (nicht Alle/23) ausgeschlossen (Vorgabe Benedikt 01.10.: DEIT in Steinfeld); Ordersatz-Parser liest die Hinweis-/Werbegebiet-Zeile oberhalb der Artikelzeile und wertet nur GROSS geschriebene Zeilen als Abschnitt; sonst wie v2026.09.30-02: Liquiditaetskachel je Konto: Umbuchungszeilen mit Quellkonto, veraltete Salden, heute offene Posten; Ampeltexte je Konto (Knoten Verwaltung Status Regelwerk 2026-09-30, Skript 07); sonst wie -01: Bevorratung: erster Bildschirm nach dem Oeffnen rechnete ueber alle geladenen Wochen (promo nicht auf die gewaehlte Woche eingegrenzt, Banner KW 36 bei Feld KW 41) - renderWerbung grenzt jetzt selbst ein; Reiter brach beim Oeffnen mit Statement-Timeout ab (schnitt_fuer_werbeartikel, 11 Seiten, 8 parallel, anon 3 s) - fetchAllPaged wiederholt Seiten bei Timeout (Standard 1x, RPC 3x) und holt die RPC nur noch 2 Seiten gleichzeitig; Backshop unveraendert (Vorgabe Benedikt 30.09.); sonst wie v2026.09.22-02: Baeckerei-Reiter: vierter Unterreiter-Knopf "Foto-Empfehlung (Test)" springt auf backshop-test.html (Vorgabe Benedikt 22.09.; Inhalte unveraendert); sonst wie -01: Admin-Kasten mit Link auf backshop-test.html; sonst wie v2026.09.19-04: // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -2035,7 +1983,6 @@ function showTab(tab){
   document.getElementById("analyticsSection").style.display=tab==="analytics"?"block":"none";
   document.getElementById("mepSection").style.display=tab==="mep"?"block":"none";
   document.getElementById("adminSection").style.display=tab==="admin"?"block":"none";
-  { const pkS=document.getElementById("personalkostenSection"); if(pkS) pkS.style.display=tab==="personalkosten"?"block":"none"; } // Personalkosten 09.11.2026
   document.getElementById("todoTab").classList.toggle("active",tab==="todo");
   document.getElementById("dispoTab").classList.toggle("active",tab==="dispo");
   document.getElementById("backshopTab").classList.toggle("active",tab==="backshop");
@@ -2043,9 +1990,7 @@ function showTab(tab){
   document.getElementById("analyticsTab").classList.toggle("active",tab==="analytics");
   document.getElementById("mepTab").classList.toggle("active",tab==="mep");
   document.getElementById("adminTab").classList.toggle("active",tab==="admin");
-  { const pkT=document.getElementById("personalkostenTab"); if(pkT) pkT.classList.toggle("active",tab==="personalkosten"); } // Personalkosten 09.11.2026
   if(tab==="admin"){ if(adminUnlocked) showAdminSubTab("todopflege"); }
-  else if(tab==="personalkosten"){ if(typeof pkLaden === "function") pkLaden(); } // Personalkosten 09.11.2026
   else if(tab==="mep"){mepStart()}
   else if(tab==="analytics"){prepareAnalytics()}
   else if(tab==="dispo"){loadDispo()}
@@ -2111,7 +2056,6 @@ async function loginAdmin(){
   }
   adminUnlocked = true;
   sitzungMerken(ausweis, 7);
-  if(typeof pkReiterFreischalten === "function") pkReiterFreischalten(); // Personalkosten 09.11.2026
 
   /* "Auf diesem Gerät angemeldet bleiben" - ohne Ablauf, ergaenzt 15.08.2026.
      Gespeichert wird NICHT die PIN, sondern ihr Fingerabdruck. Den bildet
@@ -2161,7 +2105,6 @@ async function adminGeraetPruefen(){
     if(data && data.length){
       adminUnlocked = true;
       sitzungMerken(data[0], 30);
-      if(typeof pkReiterFreischalten === "function") pkReiterFreischalten(); // Personalkosten 09.11.2026
     } else {
       // PIN wurde geaendert - Merker ist wertlos und kommt weg
       try{ localStorage.removeItem("markt_admin_geraet"); }catch(e){}
@@ -2172,7 +2115,6 @@ async function adminGeraetPruefen(){
 /* Abmelden und den Merker loeschen - erreichbar ueber den Knopf im Adminbereich. */
 function adminAbmelden(){
   adminUnlocked = false;
-  if(typeof pkReiterVerbergen === "function") pkReiterVerbergen(); // Personalkosten 09.11.2026
   try{ localStorage.removeItem("markt_admin_geraet"); }catch(e){}
   const loginBox = document.getElementById("adminLoginBox");
   const content = document.getElementById("adminContent");
@@ -13178,256 +13120,6 @@ window.rauchtest = async function(opt){
   return { gesamt, zeit: new Date().toISOString(), dauer_s: Math.round((Date.now()-T0)/1000), pruefungen: p.sort((a,b)=>a.nr-b.nr) };
 };
 
-</script>
-<script>
-/* ===== Reiter Personalkosten (09.11.2026) =====================================
-   Vorgabe Benedikt Paul: "Wir muessen das aber online bekommen." Ersetzt die
-   Excel Personalkosten_Vorschau.xlsx als Anzeige; gerechnet wird in der
-   Datenbank (Sichten personalkosten_vorschau und personalkosten_vorschau_person),
-   hier wird nur dargestellt.
-
-   ZUGRIFF: Der Reiter wird erst nach erfolgreicher Admin-Anmeldung eingeblendet
-   (pkReiterFreischalten() aus loginAdmin / adminGeraetPruefen). Das allein ist
-   nur Oberflaeche - entscheidend ist die Datenbank: Die zugrunde liegenden
-   Tabellen (peply_lohn, zuschlag, lohnmodell, fahrzeuge_datev, datev_lohn)
-   geben ihre Zeilen per RLS nur an Sitzungen der Rolle admin oder dienst
-   heraus (sitzung_rolle_in), die Sichten sind security_invoker. Die
-   Admin-Anmeldung legt eine Sitzung der Rolle admin an (anmelden_admin ->
-   sitzung_anlegen('admin', ...)); das db-Objekt schickt den Ausweis als
-   Kopfzeile x-sitzung mit. Ohne passende Sitzung kommt KEIN Fehler, sondern
-   eine leere Antwort - deshalb gilt "keine Zeilen" hier als "keine Berechtigung".
-
-   Alle Kennungen und Funktionen tragen das Praefix pk, damit nichts mit dem
-   Bestand kollidiert. Nichts hier schreibt in die Datenbank. */
-const PK_MARKT_REIHE = ["BI","ST","FR","GS","VW"];
-const PK_MARKT_NAME = {BI:"Billigheim-Ingenheim", ST:"Steinfeld", FR:"Freckenfeld", GS:"Gossersweiler-Stein", VW:"Verwaltung"};
-const PK_FAKTOR_AG = 1.19;
-let pkDaten = null;          // {maerkte:[], personen:[], vermerk:{pn:text}, datevMonat, peplyStand}
-let pkLaedt = false;
-
-function pkReiterFreischalten(){
-  // Nur Oberflaeche: Reiter zeigen. Im Baeckerei-Modus (#backshop) bleibt alles wie es ist.
-  if(typeof APP_VIEW !== "undefined" && APP_VIEW === "backshop") return;
-  const b = document.getElementById("personalkostenTab");
-  if(b) b.style.display = "";
-}
-function pkReiterVerbergen(){
-  const b = document.getElementById("personalkostenTab");
-  if(b) b.style.display = "none";
-  const s = document.getElementById("personalkostenSection");
-  if(s && s.style.display !== "none"){ s.style.display = "none"; try{ showTab("backshop"); }catch(e){} }
-  pkDaten = null;
-}
-
-/* Zahlen deutsch: 1.234,56 - ohne Einheit, Einheit haengt der Aufrufer an. */
-const pkFmt2 = new Intl.NumberFormat("de-DE", {minimumFractionDigits:2, maximumFractionDigits:2});
-const pkFmt1 = new Intl.NumberFormat("de-DE", {minimumFractionDigits:1, maximumFractionDigits:1});
-const pkFmt0 = new Intl.NumberFormat("de-DE", {maximumFractionDigits:0});
-function pkZahl(v){ return (v === null || v === undefined || v === "") ? null : Number(v); }
-function pkEuro(v){ const z = pkZahl(v); return z === null || isNaN(z) ? "–" : pkFmt2.format(z) + " €"; }
-function pkDez(v, n){ const z = pkZahl(v); if(z === null || isNaN(z)) return "–"; return (n === 0 ? pkFmt0 : n === 1 ? pkFmt1 : pkFmt2).format(z); }
-function pkVorz(v){ const z = pkZahl(v); if(z === null || isNaN(z)) return "–"; return (z > 0 ? "+" : "") + pkFmt2.format(z); }
-function pkKlasse(v){ const z = pkZahl(v); if(z === null || isNaN(z) || Math.abs(z) < 0.005) return ""; return z < 0 ? "pk-neg" : "pk-pos"; }
-function pkMonat(iso){ // "2026-10-01" -> "10/2026"
-  if(!iso) return "–"; const m = String(iso).match(/^(\d{4})-(\d{2})/); return m ? m[2] + "/" + m[1] : String(iso);
-}
-function pkDatum(iso){ // ISO-Zeitstempel -> "07.11.2026"
-  if(!iso) return null; const d = new Date(iso); if(isNaN(d)) return null;
-  return String(d.getDate()).padStart(2,"0") + "." + String(d.getMonth()+1).padStart(2,"0") + "." + d.getFullYear();
-}
-function pkMarktName(code){ return PK_MARKT_NAME[code] || (code || "ohne Markt"); }
-function pkMarktRang(code){ const i = PK_MARKT_REIHE.indexOf(code); return i < 0 ? 99 : i; }
-function pkIstSatz(p){
-  const basis = pkZahl(p.gehalt_basis), std = pkZahl(p.soll_std_monat);
-  if(basis === null || std === null || !(std > 0)) return null;
-  return Math.round(basis / std * 100) / 100;
-}
-function pkAbweichung(p){
-  const ist = pkIstSatz(p), soll = pkZahl(p.soll_satz_lohnmodell);
-  if(ist === null || soll === null) return null;
-  return Math.round((ist - soll) * 100) / 100;
-}
-function pkBerechtigungFehlt(err){
-  if(!err) return false;
-  const code = String(err.code || ""), status = Number(err.status || err.statusCode || 0);
-  const text = String(err.message || "");
-  return status === 401 || status === 403 || code === "42501" || code === "PGRST301" || code === "PGRST302" || /permission denied|JWT|row-level security/i.test(text);
-}
-
-async function pkLaden(neu){
-  const meld = document.getElementById("pkMeldung");
-  const stand = document.getElementById("pkDatenstand");
-  const boxM = document.getElementById("pkMarktBox"), boxP = document.getElementById("pkPersonBox");
-  if(!meld || !stand) return;
-  if(!adminUnlocked){
-    meld.innerHTML = '<span class="pk-neg">Keine Berechtigung – bitte als Admin anmelden</span>';
-    stand.textContent = "";
-    if(boxM) boxM.style.display = "none"; if(boxP) boxP.style.display = "none";
-    return;
-  }
-  if(pkDaten && !neu){ pkZeichnen(); return; }
-  if(pkLaedt) return;
-  pkLaedt = true;
-  meld.textContent = "Daten werden geladen …";
-  try{
-    const [m, p, z, s] = await Promise.all([
-      db.from("personalkosten_vorschau").select("*"),
-      db.from("personalkosten_vorschau_person").select("*"),
-      db.from("zuschlag").select("personalnummer,kommentar,hauptmarkt"),
-      db.from("peply_mitarbeiter").select("stand").order("stand", {ascending:false}).limit(1)
-    ]);
-    const fehler = m.error || p.error || z.error;
-    if(fehler && pkBerechtigungFehlt(fehler)) throw {berechtigung:true};
-    if(fehler) throw fehler;
-    const maerkte = m.data || [], personen = p.data || [];
-    // RLS liefert ohne passende Sitzung keine Fehlermeldung, sondern nichts.
-    if(!maerkte.length && !personen.length) throw {berechtigung:true};
-    const vermerk = {};
-    (z.data || []).forEach(r => { if(r && r.kommentar && String(r.kommentar).trim()) vermerk[String(r.personalnummer)] = String(r.kommentar).trim(); });
-    personen.sort((a,b) => (pkMarktRang(a.markt) - pkMarktRang(b.markt))
-      || String(a.nachname||"").localeCompare(String(b.nachname||""), "de")
-      || String(a.vorname||"").localeCompare(String(b.vorname||""), "de"));
-    const datevMonat = (maerkte.find(x => x.datev_monat) || {}).datev_monat || (personen.find(x => x.datev_monat) || {}).datev_monat || null;
-    let peplyStand = null;
-    if(s && !s.error && s.data && s.data.length) peplyStand = pkDatum(s.data[0].stand);
-    pkDaten = {maerkte, personen, vermerk, datevMonat, peplyStand};
-    meld.textContent = "";
-    pkZeichnen();
-  }catch(e){
-    pkDaten = null;
-    if(boxM) boxM.style.display = "none"; if(boxP) boxP.style.display = "none";
-    stand.textContent = "";
-    if(e && e.berechtigung){
-      meld.innerHTML = '<span class="pk-neg">Keine Berechtigung – bitte als Admin anmelden</span>';
-    } else {
-      meld.innerHTML = '<span class="pk-neg">Fehler beim Laden: ' + escapeHtml((e && e.message) ? e.message : JSON.stringify(e)) + '</span>';
-    }
-  }finally{
-    pkLaedt = false;
-  }
-}
-
-function pkZeichnen(){
-  if(!pkDaten) return;
-  const stand = document.getElementById("pkDatenstand");
-  const peply = pkDaten.peplyStand ? "Peply-Stand " + pkDaten.peplyStand : "Peply-Stand 07.11.2026";
-  stand.innerHTML = "<strong>Datenstand:</strong> " + escapeHtml(peply)
-    + " · DATEV-Lohn " + escapeHtml(pkMonat(pkDaten.datevMonat))
-    + " · " + pkDaten.personen.length + " Personen";
-  document.getElementById("pkMarktBox").style.display = "block";
-  document.getElementById("pkPersonBox").style.display = "block";
-  pkMarktZeichnen();
-  pkPersonenZeichnen();
-}
-
-function pkMarktZeichnen(){
-  const t = document.getElementById("pkMarktTabelle");
-  if(!t || !pkDaten) return;
-  const dm = pkMonat(pkDaten.datevMonat);
-  const zeilen = pkDaten.maerkte.slice().sort((a,b) => pkMarktRang(a.markt) - pkMarktRang(b.markt));
-  const felder = ["personen","vzae","monat_brutto","jahr_brutto","jahr_arbeitgeber","datev_brutto","diff_datev"];
-  const sum = {}; felder.forEach(f => sum[f] = 0);
-  let h = '<thead><tr><th>Markt</th><th class="pk-zahl">Personen</th><th class="pk-zahl">VZÄ</th><th class="pk-zahl">Brutto/Monat</th><th class="pk-zahl">Brutto/Jahr</th><th class="pk-zahl">Arbeitgeberkosten/Jahr (×1,19)</th><th class="pk-zahl">DATEV Brutto ' + escapeHtml(dm) + '</th><th class="pk-zahl">Differenz DATEV − Vorschau</th></tr></thead><tbody>';
-  zeilen.forEach(r => {
-    felder.forEach(f => { const z = pkZahl(r[f]); if(z !== null && !isNaN(z)) sum[f] += z; });
-    h += '<tr><td>' + escapeHtml(pkMarktName(r.markt)) + '</td>'
-      + '<td class="pk-zahl">' + pkDez(r.personen, 0) + '</td>'
-      + '<td class="pk-zahl">' + pkDez(r.vzae, 1) + '</td>'
-      + '<td class="pk-zahl">' + pkEuro(r.monat_brutto) + '</td>'
-      + '<td class="pk-zahl">' + pkEuro(r.jahr_brutto) + '</td>'
-      + '<td class="pk-zahl">' + pkEuro(r.jahr_arbeitgeber) + '</td>'
-      + '<td class="pk-zahl">' + pkEuro(r.datev_brutto) + '</td>'
-      + '<td class="pk-zahl ' + pkKlasse(r.diff_datev) + '">' + pkVorz(r.diff_datev) + (pkZahl(r.diff_datev) === null ? "" : " €") + '</td></tr>';
-  });
-  h += '<tr class="pk-gesamt"><td>Gesamt</td>'
-    + '<td class="pk-zahl">' + pkDez(sum.personen, 0) + '</td>'
-    + '<td class="pk-zahl">' + pkDez(sum.vzae, 1) + '</td>'
-    + '<td class="pk-zahl">' + pkEuro(sum.monat_brutto) + '</td>'
-    + '<td class="pk-zahl">' + pkEuro(sum.jahr_brutto) + '</td>'
-    + '<td class="pk-zahl">' + pkEuro(sum.jahr_arbeitgeber) + '</td>'
-    + '<td class="pk-zahl">' + pkEuro(sum.datev_brutto) + '</td>'
-    + '<td class="pk-zahl ' + pkKlasse(sum.diff_datev) + '">' + pkVorz(sum.diff_datev) + ' €</td></tr>';
-  h += '</tbody>';
-  t.innerHTML = h;
-}
-
-function pkPersonenGefiltert(){
-  if(!pkDaten) return [];
-  const markt = (document.getElementById("pkFilterMarkt") || {}).value || "";
-  const such = String((document.getElementById("pkSuche") || {}).value || "").trim().toLowerCase();
-  return pkDaten.personen.filter(p => {
-    if(markt && p.markt !== markt) return false;
-    if(such){
-      const name = (String(p.nachname||"") + " " + String(p.vorname||"") + " " + String(p.personalnummer||"")).toLowerCase();
-      if(name.indexOf(such) < 0) return false;
-    }
-    return true;
-  });
-}
-
-function pkPersonenZeichnen(){
-  const t = document.getElementById("pkPersonTabelle");
-  const hin = document.getElementById("pkPersonHinweis");
-  if(!t || !pkDaten) return;
-  const zeilen = pkPersonenGefiltert();
-  const dm = pkMonat(pkDaten.datevMonat);
-  let h = '<thead><tr><th>Markt</th><th>Name</th><th>Beschäftigung</th><th class="pk-zahl">Soll-Std/Monat</th><th class="pk-zahl">Gehalt-Basis</th><th class="pk-zahl">Sachbezug</th><th class="pk-zahl">Firmenwagen</th><th class="pk-zahl">Brutto/Monat</th><th class="pk-zahl">Arbeitgeberkosten/Jahr</th><th class="pk-zahl">Ist-Satz €/Std</th><th class="pk-zahl">Soll-Satz Lohnmodell</th><th class="pk-zahl">Abweichung €/Std</th><th class="pk-zahl">DATEV-Diff ' + escapeHtml(dm) + '</th><th>Vermerk</th></tr></thead><tbody>';
-  let sumMonat = 0, sumJahrAg = 0;
-  zeilen.forEach(p => {
-    const ist = pkIstSatz(p), abw = pkAbweichung(p);
-    const v = pkDaten.vermerk[String(p.personalnummer)] || "";
-    sumMonat += pkZahl(p.monat_brutto) || 0; sumJahrAg += pkZahl(p.jahr_arbeitgeber) || 0;
-    h += '<tr><td>' + escapeHtml(pkMarktName(p.markt)) + '</td>'
-      + '<td>' + escapeHtml((p.nachname||"") + ", " + (p.vorname||"")) + ' <span style="color:#94a3b8;font-size:11px">' + escapeHtml(p.personalnummer) + '</span></td>'
-      + '<td>' + escapeHtml(p.beschaeftigung || "–") + '</td>'
-      + '<td class="pk-zahl">' + pkDez(p.soll_std_monat, 2) + '</td>'
-      + '<td class="pk-zahl">' + pkEuro(p.gehalt_basis) + '</td>'
-      + '<td class="pk-zahl">' + pkEuro(p.sachbezug_peply) + '</td>'
-      + '<td class="pk-zahl">' + pkEuro(p.firmenwagen_datev) + '</td>'
-      + '<td class="pk-zahl">' + pkEuro(p.monat_brutto) + '</td>'
-      + '<td class="pk-zahl">' + pkEuro(p.jahr_arbeitgeber) + '</td>'
-      + '<td class="pk-zahl">' + (ist === null ? "–" : pkFmt2.format(ist)) + '</td>'
-      + '<td class="pk-zahl">' + pkDez(p.soll_satz_lohnmodell, 2) + '</td>'
-      + '<td class="pk-zahl ' + pkKlasse(abw) + '">' + pkVorz(abw) + '</td>'
-      + '<td class="pk-zahl ' + pkKlasse(p.diff_datev_monat) + '">' + pkVorz(p.diff_datev_monat) + (pkZahl(p.diff_datev_monat) === null ? "" : " €") + '</td>'
-      + '<td class="pk-vermerk">' + escapeHtml(v) + '</td></tr>';
-  });
-  h += '<tr class="pk-gesamt"><td>Summe</td><td>' + zeilen.length + ' Personen</td><td></td><td></td><td></td><td></td><td></td>'
-    + '<td class="pk-zahl">' + pkEuro(sumMonat) + '</td><td class="pk-zahl">' + pkEuro(sumJahrAg) + '</td><td></td><td></td><td></td><td></td><td></td></tr>';
-  h += '</tbody>';
-  t.innerHTML = h;
-  if(hin) hin.textContent = zeilen.length + " von " + pkDaten.personen.length + " Personen · Ist-Satz = Gehalt-Basis ÷ Soll-Std · Abweichung = Ist-Satz − Soll-Satz · DATEV-Diff = DATEV-Brutto − Brutto/Monat";
-}
-
-/* CSV der Personentabelle, so wie sie gerade gefiltert ist. Semikolon, UTF-8
-   mit BOM, Dezimalkomma - damit oeffnet Excel sie direkt richtig. */
-function pkCsvSpeichern(){
-  if(!pkDaten){ alert("Keine Daten geladen."); return; }
-  const zeilen = pkPersonenGefiltert();
-  const dm = pkMonat(pkDaten.datevMonat);
-  const z = v => { const n = pkZahl(v); return (n === null || isNaN(n)) ? "" : n.toFixed(2).replace(".", ","); };
-  const txt = v => { const s = String(v == null ? "" : v); return /[;"\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-  const kopf = ["Markt","Personalnummer","Nachname","Vorname","Beschaeftigung","Soll-Std/Monat","Gehalt-Basis","Sachbezug","Firmenwagen","Brutto/Monat","Brutto/Jahr","Arbeitgeberkosten/Jahr","Ist-Satz EUR/Std","Soll-Satz Lohnmodell","Abweichung EUR/Std","DATEV-Brutto " + dm,"DATEV-Diff " + dm,"Vermerk"];
-  const rows = [kopf.join(";")];
-  zeilen.forEach(p => {
-    const ist = pkIstSatz(p), abw = pkAbweichung(p);
-    rows.push([
-      txt(pkMarktName(p.markt)), txt(p.personalnummer), txt(p.nachname), txt(p.vorname), txt(p.beschaeftigung),
-      z(p.soll_std_monat), z(p.gehalt_basis), z(p.sachbezug_peply), z(p.firmenwagen_datev), z(p.monat_brutto),
-      z(p.jahr_brutto), z(p.jahr_arbeitgeber), z(ist), z(p.soll_satz_lohnmodell), z(abw), z(p.datev_brutto), z(p.diff_datev_monat),
-      txt(pkDaten.vermerk[String(p.personalnummer)] || "")
-    ].join(";"));
-  });
-  const blob = new Blob(["﻿" + rows.join("\r\n")], {type:"text/csv;charset=utf-8"});
-  const a = document.createElement("a");
-  const heute = new Date();
-  const datum = heute.getFullYear() + "-" + String(heute.getMonth()+1).padStart(2,"0") + "-" + String(heute.getDate()).padStart(2,"0");
-  const markt = (document.getElementById("pkFilterMarkt") || {}).value || "alle";
-  a.href = URL.createObjectURL(blob);
-  a.download = "Personalkosten_" + markt + "_" + datum + ".csv";
-  document.body.appendChild(a); a.click();
-  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
-}
 </script>
 </body>
 </html>
