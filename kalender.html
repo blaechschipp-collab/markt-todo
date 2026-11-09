@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Kalenderausgabe · EDEKA Paul</title>
+<style>
+  :root { --blau:#00315f; --gelb:#ffdd00; --grau:#f4f6f8; --rand:#d9dee5; --gruen:#1b7f3b; --rot:#b00020; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size:16px; color:#111; background:var(--grau); }
+  header { background:var(--blau); color:#fff; padding:14px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  header h1 { font-size:19px; margin:0; font-weight:600; flex:1 1 auto; }
+  header .stand { font-size:13px; opacity:.85; }
+  main { max-width:900px; margin:0 auto; padding:14px 12px 60px; }
+  .karte { background:#fff; border:1px solid var(--rand); border-radius:10px; padding:14px; margin-bottom:14px; }
+  .tor { max-width:380px; margin:40px auto; text-align:center; }
+  .tor input { font-size:24px; letter-spacing:6px; text-align:center; width:180px; padding:10px; border:1px solid var(--rand); border-radius:8px; }
+  .knopf { background:var(--gelb); color:var(--blau); border:none; border-radius:8px; padding:12px 18px; font-size:16px; font-weight:600; cursor:pointer; }
+  .knopf.leise { background:#eef1f5; color:#333; font-weight:500; }
+  .fehler { color:var(--rot); min-height:22px; margin-top:8px; }
+  .leiste { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .leiste select, .leiste input[type=search] { font-size:16px; padding:10px; border:1px solid var(--rand); border-radius:8px; }
+  .leiste input[type=search] { flex:1 1 180px; }
+  .zaehler { font-size:14px; color:#555; margin:6px 0 0; }
+  .fort { height:8px; background:#e7ebf0; border-radius:4px; overflow:hidden; margin-top:6px; }
+  .fort > div { height:100%; background:var(--gruen); width:0; transition:width .3s; }
+  h2.markt { font-size:17px; color:var(--blau); margin:18px 0 8px; display:flex; justify-content:space-between; align-items:baseline; }
+  h2.markt small { font-size:13px; color:#555; font-weight:400; }
+  .zeile { display:flex; align-items:center; gap:12px; padding:12px 10px; border-top:1px solid var(--rand); background:#fff; }
+  .zeile:first-of-type { border-top:none; }
+  .zeile.erhalten { background:#f3f7f3; color:#4a6b4a; }
+  .zeile.erhalten .name { text-decoration:line-through; text-decoration-color:#9ab; }
+  .zeile input[type=checkbox] { width:26px; height:26px; flex:0 0 26px; accent-color:var(--gruen); cursor:pointer; }
+  .zeile .text { flex:1 1 auto; min-width:0; }
+  .zeile .name { font-size:17px; font-weight:600; }
+  .zeile .info { font-size:13px; color:#666; }
+  .zeile .wann { font-size:13px; color:var(--gruen); white-space:nowrap; }
+  .vermerk { display:inline-block; background:#fff4d6; color:#7a4e00; border-radius:6px; padding:1px 6px; font-size:12px; margin-left:6px; }
+  .hinweis { font-size:13px; color:#666; }
+  .toast { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); background:#222; color:#fff; padding:10px 16px; border-radius:8px; font-size:14px; opacity:0; transition:opacity .2s; pointer-events:none; }
+  .toast.zeigen { opacity:.95; }
+  .ausblenden { display:none !important; }
+  @media (max-width:480px){ .zeile .name{font-size:16px} header h1{font-size:17px} }
+</style>
+</head>
+<body>
+<header>
+  <h1>Kalenderausgabe 2027</h1>
+  <span class="stand" id="kopfStand"></span>
+  <button class="knopf leise ausblenden" id="abmelden" title="Abmelden">Abmelden</button>
+</header>
+<main>
+  <section class="karte tor" id="tor">
+    <p>Bitte PIN eingeben.</p>
+    <form id="torForm" autocomplete="off">
+      <input id="pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="one-time-code" aria-label="PIN">
+      <div style="margin-top:12px"><button class="knopf" type="submit">Öffnen</button></div>
+      <label style="display:block;margin-top:10px;font-size:14px"><input type="checkbox" id="merken" checked> auf diesem Gerät angemeldet bleiben</label>
+    </form>
+    <div class="fehler" id="torFehler"></div>
+  </section>
+
+  <section id="app" class="ausblenden">
+    <div class="karte">
+      <div class="leiste">
+        <select id="fMarkt" aria-label="Markt">
+          <option value="">Alle Märkte</option>
+        </select>
+        <input id="fSuche" type="search" placeholder="Name suchen …" aria-label="Name suchen">
+        <label style="font-size:14px"><input type="checkbox" id="fOffen"> nur offene</label>
+      </div>
+      <div class="zaehler" id="zaehler"></div>
+      <div class="fort"><div id="fortschritt"></div></div>
+      <p class="hinweis" style="margin:10px 0 0">Haken setzen = Kalender übergeben. Abgehakte rutschen in ihrem Markt nach unten; der Haken lässt sich jederzeit wieder entfernen. Jede Änderung wird sofort gespeichert.</p>
+    </div>
+    <div id="liste"></div>
+    <p class="hinweis" id="fussStand"></p>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+/* Kalenderausgabe 2027 – Seite fuer Michaela Paul (Benedikt Paul, 09.11.2026).
+   Daten: Supabase-Sicht kalender_liste (alle aktuellen Peply-Mitarbeitenden, Markt aus markt_zuordnung,
+   FR und GS getrennt) und Tabelle kalender_ausgabe (Haken). Zugang: PIN -> RPC anmelden -> Ausweis
+   (x-sitzung); die Datenbank gibt die Liste nur fuer Sitzungen der Rollen verwaltung/admin/dienst. */
+const SB_URL = "https://iexcjfyxujdxnwfcfdim.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlleGNqZnl4dWpkeG53ZmNmZGltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMjc1NTIsImV4cCI6MjA5MjkwMzU1Mn0.EDMxLbiloqCAKRJA-gLUOiQiZmpagl1OeOpFjJtT5us";
+const MARKT_REIHE = ["Billigheim-Ingenheim", "Steinfeld", "Freckenfeld", "Gossersweiler-Stein", "Verwaltung"];
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+let AUSWEIS = "", PERSON = "", DATEN = [];
+
+function kopf(mitJson) {
+  const h = { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY };
+  if (AUSWEIS) h["x-sitzung"] = AUSWEIS;
+  if (mitJson) h["Content-Type"] = "application/json";
+  return h;
+}
+function toast(t) { const e = $("toast"); e.textContent = t; e.classList.add("zeigen"); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove("zeigen"), 1800); }
+function deZeit(iso) { if (!iso) return ""; const d = new Date(iso); return d.toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit" }) + " " + d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" }); }
+
+/* Sitzung merken */
+try {
+  const roh = localStorage.getItem("kalender_sitzung") || sessionStorage.getItem("kalender_sitzung");
+  if (roh) { const s = JSON.parse(roh); if (s && s.token && s.bis && Date.now() < s.bis) { AUSWEIS = s.token; PERSON = s.person || ""; } }
+} catch (x) {}
+
+async function anmelden(pin, merken) {
+  const r = await fetch(SB_URL + "/rest/v1/rpc/anmelden", { method: "POST", headers: kopf(true), body: JSON.stringify({ p_pin: pin, p_tage: merken ? 30 : 1 }) });
+  if (!r.ok) throw new Error("Anmeldung nicht möglich (" + r.status + ")");
+  const d = await r.json();
+  const s = Array.isArray(d) ? d[0] : d;
+  if (!s || !s.token) throw new Error("Diese PIN stimmt nicht.");
+  AUSWEIS = s.token; PERSON = s.person || s.rolle || "";
+  const bis = s.gueltig_bis ? new Date(s.gueltig_bis).getTime() : Date.now() + 86400000;
+  try { (merken ? localStorage : sessionStorage).setItem("kalender_sitzung", JSON.stringify({ token: s.token, bis: bis, person: PERSON })); } catch (x) {}
+}
+
+async function laden() {
+  const r = await fetch(SB_URL + "/rest/v1/kalender_liste?select=*&order=markt.asc,nachname.asc,vorname.asc", { headers: kopf(false) });
+  if (!r.ok) throw new Error("Liste nicht ladbar (" + r.status + ")");
+  DATEN = await r.json();
+  if (!DATEN.length) throw new Error("Keine Berechtigung – bitte neu anmelden.");
+  const maerkte = Array.from(new Set(DATEN.map(x => x.markt))).sort((a, b) => (MARKT_REIHE.indexOf(a) + 1 || 99) - (MARKT_REIHE.indexOf(b) + 1 || 99));
+  const sel = $("fMarkt"); const alt = sel.value;
+  sel.innerHTML = '<option value="">Alle Märkte</option>' + maerkte.map(m => '<option value="' + esc(m) + '">' + esc(m) + '</option>').join("");
+  sel.value = alt;
+  zeichnen();
+  $("kopfStand").textContent = DATEN.length + " Mitarbeitende";
+  $("fussStand").textContent = "Stand der Mitarbeiterliste: Peply · angemeldet als " + (PERSON || "Verwaltung");
+}
+
+function zeichnen() {
+  const fm = $("fMarkt").value, fs = $("fSuche").value.trim().toLowerCase(), nurOffen = $("fOffen").checked;
+  const gruppen = {};
+  for (const p of DATEN) {
+    if (fm && p.markt !== fm) continue;
+    if (fs && !((p.nachname + " " + p.vorname + " " + p.vorname + " " + p.nachname).toLowerCase().includes(fs))) continue;
+    if (nurOffen && p.erhalten_am) continue;
+    (gruppen[p.markt] = gruppen[p.markt] || []).push(p);
+  }
+  const reihe = Object.keys(gruppen).sort((a, b) => (MARKT_REIHE.indexOf(a) + 1 || 99) - (MARKT_REIHE.indexOf(b) + 1 || 99));
+  let html = "";
+  for (const m of reihe) {
+    const liste = gruppen[m].slice().sort((a, b) => {
+      // Abgehakte nach unten, sonst nach Name
+      if (!!a.erhalten_am !== !!b.erhalten_am) return a.erhalten_am ? 1 : -1;
+      return (a.nachname + a.vorname).localeCompare(b.nachname + b.vorname, "de");
+    });
+    const fertig = gruppen[m].filter(p => p.erhalten_am).length;
+    html += '<h2 class="markt">' + esc(m) + '<small>' + fertig + ' von ' + gruppen[m].length + ' übergeben</small></h2><div class="karte" style="padding:0;overflow:hidden">';
+    for (const p of liste) {
+      const info = [p.einheit && p.einheit !== m ? p.einheit : "", p.bereich || "", p.beschaeftigung || ""].filter(Boolean).join(" · ");
+      html += '<label class="zeile' + (p.erhalten_am ? " erhalten" : "") + '">' +
+        '<input type="checkbox" data-pn="' + p.personalnummer + '"' + (p.erhalten_am ? " checked" : "") + '>' +
+        '<span class="text"><span class="name">' + esc(p.nachname) + ', ' + esc(p.vorname) + '</span>' + (p.vermerk ? '<span class="vermerk">' + esc(p.vermerk.split("|")[0].trim()) + '</span>' : "") +
+        '<div class="info">' + esc(info) + '</div></span>' +
+        '<span class="wann">' + (p.erhalten_am ? "✓ " + deZeit(p.erhalten_am) : "") + '</span></label>';
+    }
+    html += "</div>";
+  }
+  $("liste").innerHTML = html || '<div class="karte">Nichts gefunden.</div>';
+  const alle = DATEN.length, fertig = DATEN.filter(p => p.erhalten_am).length;
+  $("zaehler").textContent = fertig + " von " + alle + " Kalender übergeben" + (alle - fertig ? " – " + (alle - fertig) + " offen" : " – alles erledigt");
+  $("fortschritt").style.width = (alle ? Math.round(fertig / alle * 100) : 0) + "%";
+}
+
+async function haken(pn, an) {
+  const p = DATEN.find(x => x.personalnummer === pn);
+  if (!p) return;
+  const vorher = p.erhalten_am;
+  p.erhalten_am = an ? new Date().toISOString() : null; p.von = an ? (PERSON || "Verwaltung") : null;
+  zeichnen();
+  try {
+    const r = await fetch(SB_URL + "/rest/v1/kalender_ausgabe?on_conflict=personalnummer", {
+      method: "POST", headers: Object.assign(kopf(true), { "Prefer": "resolution=merge-duplicates,return=minimal" }),
+      body: JSON.stringify({ personalnummer: pn, erhalten_am: p.erhalten_am, von: p.von, stand: new Date().toISOString() })
+    });
+    if (!r.ok) throw new Error(r.status);
+    toast(an ? "Gespeichert: " + p.nachname + " ✓" : "Haken entfernt: " + p.nachname);
+  } catch (x) {
+    p.erhalten_am = vorher; zeichnen();
+    toast("Nicht gespeichert – bitte noch einmal (" + x.message + ")");
+  }
+}
+
+function zeigeApp() { $("tor").classList.add("ausblenden"); $("app").classList.remove("ausblenden"); $("abmelden").classList.remove("ausblenden"); }
+function zeigeTor() { $("app").classList.add("ausblenden"); $("abmelden").classList.add("ausblenden"); $("tor").classList.remove("ausblenden"); }
+
+$("torForm").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  $("torFehler").textContent = "";
+  const pin = $("pin").value.trim();
+  if (!pin) { $("torFehler").textContent = "Bitte die PIN eingeben."; return; }
+  try { await anmelden(pin, $("merken").checked); await laden(); zeigeApp(); }
+  catch (x) { $("torFehler").textContent = x.message; $("pin").value = ""; }
+});
+$("abmelden").addEventListener("click", () => { AUSWEIS = ""; try { localStorage.removeItem("kalender_sitzung"); sessionStorage.removeItem("kalender_sitzung"); } catch (x) {} zeigeTor(); });
+$("fMarkt").addEventListener("change", zeichnen);
+$("fSuche").addEventListener("input", zeichnen);
+$("fOffen").addEventListener("change", zeichnen);
+$("liste").addEventListener("change", ev => { const cb = ev.target; if (cb && cb.matches("input[type=checkbox][data-pn]")) haken(Number(cb.dataset.pn), cb.checked); });
+
+(async () => {
+  if (AUSWEIS) { try { await laden(); zeigeApp(); return; } catch (x) { AUSWEIS = ""; } }
+  zeigeTor();
+})();
+</script>
+</body>
+</html>
