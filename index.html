@@ -826,7 +826,7 @@
 
 </main><div class="footer">EDEKA Paul – Regional. Frisch. Freundlich.</div>
 <script>
-const APP_VERSION = "v2026.11.10-01"; // 10.11.2026: Spannenanalyse (Kachel + "mehr") rechnet letzter Monat/Quartal/Jahr jetzt aus den Tagesdaten (Datenbankfunktion spannen_zeitraum, Materialized View spannen_tag_mv ueber artikel_kennzahlen; Quartal aus der Quartalszeile) statt der juengsten Woche mit orangem Hinweis; "letzte Woche" weiter aus spannenanalyse (Vorjahr, Inventur). Zeile "aus Tagesberichten gerechnet von-bis, x/y Tage, ohne Vorjahr"; ohne Tagesdaten ehrlich "Tagesdaten erst ab 20.08.2026"; Zeilen mit unter 80 % Umsatz mit Artikelspanne (Bedienung, O+G, Baeckerei) mit * markiert (Vorgabe Benedikt 10.11.: "rollierende Zahlen ... ueberall eine Datenbank aufbauen"); sonst wie v2026.11.09-02: Reiter Personalkosten (v2026.11.09-01, nur wenige Stunden online) auf Anordnung Benedikt wieder entfernt - Personalkosten gehoeren ins Personal-Dashboard (/personal), nicht in den Admin; Stand sonst = v2026.11.04-01. // Block "Woher der Verlust kommt" fehlte seit -04 unter der neuen Abschriften-Tabelle (Verschachtelung) - zurueck; sonst wie v2026.11.02-04: Kennzahlen-Kachel: Bereichsansicht zeigt jetzt auch die letzte Woche (Abteilungssumme des Bereichs aus dem Wochenbericht), Ganzer Markt rechnet mit der Zeile Gesamtergebnis (Oe Bon war Abteilungssumme, 6,75 statt ~20 EUR); Abschriften je Abteilung bei Woche/Monat/Quartal aus der Spannenanalyse (EK, mit Vorjahr und Inventur) statt der Jahreslieferung vom 17.08. (Vorgabe Benedikt 02.11.); sonst wie -03: Spannenanalyse: kein "✕Infinity" mehr bei Vorjahr 0 EUR; dispo_offen_json einmal wiederholt bei Timeout; Scanquote: Gesamtzeile rechnet wie die Kassenzeilen (WG-Eingaben statt PLU-Eingaben); Artikel-Zeitraum-Abfrage erst nach den Seitenabrufen (allein 0,5-1,6 s statt Timeout im Gedraenge); Ladefehler sichtbar: bricht eine Abfrage ab (Timeout), zeigt die Ansicht Meldung + "Erneut laden" statt dauerhaft "Zahlen werden geladen"; Artikel-Zeitraum-Fehler nur noch in der Top/Flop-Kachel (Durchsicht 02.11.); sonst wie -02: Verwaltung: dritte Kachel "Ergebnis" (Umsatz, Nettoertragsspanne, Abschriften - letzte Woche und aufgelaufen, je Markt und Summe, Vorjahr; Datenbankfunktion ergebnis_uebersicht + umsatz_uebersicht; Vorgabe Benedikt 20.10.); sonst wie -03: Kacheln Verwaltung und Personal neu gestaltet (Kopfband mit Verlauf blau/gruen, Felder mit Akzentkante und Symbol, Quote mit Planbalken, Fristen mit Tage-Chips, Quote je Markt als Balken, Belegschaft als Kennzahlkacheln; Vorgabe Benedikt 20.10. "moderner, Verwaltung farblich absetzen"); sonst wie -02: Verwaltung: Kachel "Personal" (Personalkostenquote Ist/Vorschau/Plan, naechste Fristen ohne Namen, Quote je Markt, Belegschaft) aus dem Statusabruf Teil 3 (dashboard\personal_daten.json, Skript 07), Absprung Personal-Dashboard /personal (Vorgabe Benedikt 20.10.); sonst wie -01: Kennzahlen-Importer: Index metrics(market, area, metric_date) in der Datenbank (Seq Scan je Gruppe weg), Bereinigen wiederholt bei statement timeout bis 2x, Kontrollsumme wird bei Abweichung/Fehler nach 3 s einmal neu gezaehlt (Zaehlfehler 19.10.: 2748 statt 2798 bei vollstaendiger Tabelle); sonst wie v2026.10.08-01: Meine Baeckerei: Auswahl "Verfahren" (Wie bisher | Bild (BETA)) nur in Billigheim-Ingenheim, Steinfeld ohne (Vorgabe Benedikt 08.10.); Bild = backshop-test.html im Rahmen mit festem Markt, Absprung-Knopf "Foto-Empfehlung (Test)" entfernt; sonst wie v2026.10.07-01: Ordersatz-Parser: Hinweiszeile wurde seit 01.10. nie uebernommen (pendingNotes vor dem push geleert) - behoben; neue Spalte FAG-W-Gruppe (KW 42) abgeschnitten, Legendenzeilen ignoriert; sonst wie v2026.10.01-01: Bevorratung: Artikel "nur E-Center" und fremde Werbegebiete (nicht Alle/23) ausgeschlossen (Vorgabe Benedikt 01.10.: DEIT in Steinfeld); Ordersatz-Parser liest die Hinweis-/Werbegebiet-Zeile oberhalb der Artikelzeile und wertet nur GROSS geschriebene Zeilen als Abschnitt; sonst wie v2026.09.30-02: Liquiditaetskachel je Konto: Umbuchungszeilen mit Quellkonto, veraltete Salden, heute offene Posten; Ampeltexte je Konto (Knoten Verwaltung Status Regelwerk 2026-09-30, Skript 07); sonst wie -01: Bevorratung: erster Bildschirm nach dem Oeffnen rechnete ueber alle geladenen Wochen (promo nicht auf die gewaehlte Woche eingegrenzt, Banner KW 36 bei Feld KW 41) - renderWerbung grenzt jetzt selbst ein; Reiter brach beim Oeffnen mit Statement-Timeout ab (schnitt_fuer_werbeartikel, 11 Seiten, 8 parallel, anon 3 s) - fetchAllPaged wiederholt Seiten bei Timeout (Standard 1x, RPC 3x) und holt die RPC nur noch 2 Seiten gleichzeitig; Backshop unveraendert (Vorgabe Benedikt 30.09.); sonst wie v2026.09.22-02: Baeckerei-Reiter: vierter Unterreiter-Knopf "Foto-Empfehlung (Test)" springt auf backshop-test.html (Vorgabe Benedikt 22.09.; Inhalte unveraendert); sonst wie -01: Admin-Kasten mit Link auf backshop-test.html; sonst wie v2026.09.19-04: // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
+const APP_VERSION = "v2026.11.10-02"; // 10.11.2026: Top/Flop ohne Eingrenzung (Vorgabe Benedikt 10.11.: "In Top/Flop werden nicht alle Artikel angezeigt ... mache diese weg ... immer 8 Artikel ... Ausklappen - alles anzeigen"): Kachel zeigt 8 Zeilen und darunter den gelben Knopf "Ausklappen - alles anzeigen (n Artikel)" - danach ALLE Artikel der Auswahl in derselben Kachel, Barcodes ab Zeile 9 erst beim Sichtbarwerden (bis 22.000 Zeilen); weg sind: 12-Zeilen-Grenze der Kachel, 600-Zeilen-Grenze im "mehr"-Fenster, Umsortieren der Prozentwerte unter 250 EUR ans Ende (bleibt nur grau markiert), Herausfallen der Artikel ohne bestimmbaren Wert (stehen jetzt am Ende; bei "Abschrift" zaehlt "kein Verlust" als 0); Renner = Beste oben, Schlechteste ganz unten, Penner umgekehrt; Zustand faellt bei Wechsel von Kennzahl/Richtung/Zeitraum/Abteilung/Regal auf 8 zurueck; sonst wie -01: Spannenanalyse (Kachel + "mehr") rechnet letzter Monat/Quartal/Jahr jetzt aus den Tagesdaten (Datenbankfunktion spannen_zeitraum, Materialized View spannen_tag_mv ueber artikel_kennzahlen; Quartal aus der Quartalszeile) statt der juengsten Woche mit orangem Hinweis; "letzte Woche" weiter aus spannenanalyse (Vorjahr, Inventur). Zeile "aus Tagesberichten gerechnet von-bis, x/y Tage, ohne Vorjahr"; ohne Tagesdaten ehrlich "Tagesdaten erst ab 20.08.2026"; Zeilen mit unter 80 % Umsatz mit Artikelspanne (Bedienung, O+G, Baeckerei) mit * markiert (Vorgabe Benedikt 10.11.: "rollierende Zahlen ... ueberall eine Datenbank aufbauen"); sonst wie v2026.11.09-02: Reiter Personalkosten (v2026.11.09-01, nur wenige Stunden online) auf Anordnung Benedikt wieder entfernt - Personalkosten gehoeren ins Personal-Dashboard (/personal), nicht in den Admin; Stand sonst = v2026.11.04-01. // Block "Woher der Verlust kommt" fehlte seit -04 unter der neuen Abschriften-Tabelle (Verschachtelung) - zurueck; sonst wie v2026.11.02-04: Kennzahlen-Kachel: Bereichsansicht zeigt jetzt auch die letzte Woche (Abteilungssumme des Bereichs aus dem Wochenbericht), Ganzer Markt rechnet mit der Zeile Gesamtergebnis (Oe Bon war Abteilungssumme, 6,75 statt ~20 EUR); Abschriften je Abteilung bei Woche/Monat/Quartal aus der Spannenanalyse (EK, mit Vorjahr und Inventur) statt der Jahreslieferung vom 17.08. (Vorgabe Benedikt 02.11.); sonst wie -03: Spannenanalyse: kein "✕Infinity" mehr bei Vorjahr 0 EUR; dispo_offen_json einmal wiederholt bei Timeout; Scanquote: Gesamtzeile rechnet wie die Kassenzeilen (WG-Eingaben statt PLU-Eingaben); Artikel-Zeitraum-Abfrage erst nach den Seitenabrufen (allein 0,5-1,6 s statt Timeout im Gedraenge); Ladefehler sichtbar: bricht eine Abfrage ab (Timeout), zeigt die Ansicht Meldung + "Erneut laden" statt dauerhaft "Zahlen werden geladen"; Artikel-Zeitraum-Fehler nur noch in der Top/Flop-Kachel (Durchsicht 02.11.); sonst wie -02: Verwaltung: dritte Kachel "Ergebnis" (Umsatz, Nettoertragsspanne, Abschriften - letzte Woche und aufgelaufen, je Markt und Summe, Vorjahr; Datenbankfunktion ergebnis_uebersicht + umsatz_uebersicht; Vorgabe Benedikt 20.10.); sonst wie -03: Kacheln Verwaltung und Personal neu gestaltet (Kopfband mit Verlauf blau/gruen, Felder mit Akzentkante und Symbol, Quote mit Planbalken, Fristen mit Tage-Chips, Quote je Markt als Balken, Belegschaft als Kennzahlkacheln; Vorgabe Benedikt 20.10. "moderner, Verwaltung farblich absetzen"); sonst wie -02: Verwaltung: Kachel "Personal" (Personalkostenquote Ist/Vorschau/Plan, naechste Fristen ohne Namen, Quote je Markt, Belegschaft) aus dem Statusabruf Teil 3 (dashboard\personal_daten.json, Skript 07), Absprung Personal-Dashboard /personal (Vorgabe Benedikt 20.10.); sonst wie -01: Kennzahlen-Importer: Index metrics(market, area, metric_date) in der Datenbank (Seq Scan je Gruppe weg), Bereinigen wiederholt bei statement timeout bis 2x, Kontrollsumme wird bei Abweichung/Fehler nach 3 s einmal neu gezaehlt (Zaehlfehler 19.10.: 2748 statt 2798 bei vollstaendiger Tabelle); sonst wie v2026.10.08-01: Meine Baeckerei: Auswahl "Verfahren" (Wie bisher | Bild (BETA)) nur in Billigheim-Ingenheim, Steinfeld ohne (Vorgabe Benedikt 08.10.); Bild = backshop-test.html im Rahmen mit festem Markt, Absprung-Knopf "Foto-Empfehlung (Test)" entfernt; sonst wie v2026.10.07-01: Ordersatz-Parser: Hinweiszeile wurde seit 01.10. nie uebernommen (pendingNotes vor dem push geleert) - behoben; neue Spalte FAG-W-Gruppe (KW 42) abgeschnitten, Legendenzeilen ignoriert; sonst wie v2026.10.01-01: Bevorratung: Artikel "nur E-Center" und fremde Werbegebiete (nicht Alle/23) ausgeschlossen (Vorgabe Benedikt 01.10.: DEIT in Steinfeld); Ordersatz-Parser liest die Hinweis-/Werbegebiet-Zeile oberhalb der Artikelzeile und wertet nur GROSS geschriebene Zeilen als Abschnitt; sonst wie v2026.09.30-02: Liquiditaetskachel je Konto: Umbuchungszeilen mit Quellkonto, veraltete Salden, heute offene Posten; Ampeltexte je Konto (Knoten Verwaltung Status Regelwerk 2026-09-30, Skript 07); sonst wie -01: Bevorratung: erster Bildschirm nach dem Oeffnen rechnete ueber alle geladenen Wochen (promo nicht auf die gewaehlte Woche eingegrenzt, Banner KW 36 bei Feld KW 41) - renderWerbung grenzt jetzt selbst ein; Reiter brach beim Oeffnen mit Statement-Timeout ab (schnitt_fuer_werbeartikel, 11 Seiten, 8 parallel, anon 3 s) - fetchAllPaged wiederholt Seiten bei Timeout (Standard 1x, RPC 3x) und holt die RPC nur noch 2 Seiten gleichzeitig; Backshop unveraendert (Vorgabe Benedikt 30.09.); sonst wie v2026.09.22-02: Baeckerei-Reiter: vierter Unterreiter-Knopf "Foto-Empfehlung (Test)" springt auf backshop-test.html (Vorgabe Benedikt 22.09.; Inhalte unveraendert); sonst wie -01: Admin-Kasten mit Link auf backshop-test.html; sonst wie v2026.09.19-04: // Bevorratungskachel der MEP-Ansicht rechnete gegen die groesste statt der aktuellen Werbewoche (seit 06.09. KW 36) - mepWerbungWocheSetzen() waehlt jetzt dieselbe Woche wie der Reiter; sonst wie v2026.09.16-01: Seitentitel auf "meinMarkt" (Namensentscheidung Benedikt 16.09.2026, vorher "Markt ToDo"); sonst wie v2026.09.15-01: Bevorratung: promo_articles wird jetzt seitenweise und sortiert geholt (vorher max. 1.000 Zeilen ohne ORDER BY - die Wochenauswahl zeigte die abgelaufene KW 36 statt der laufenden Woche); sonst wie v2026.09.12-01: Wertpruefung Spannenanalyse: absolute Mindestabweichung 25 EUR (MIND_ABW_EUR) zusaetzlich zur Ein-Prozent-Schwelle - zwei Euro Zeilenrundung auf einen Wert nahe null hatten die Datei am 11.09. zwei Tage blockiert; sonst wie -01: Dispo-Dateinamen mit Sekundenstempel (2026-09-08_144604_046336_...) werden wieder erkannt; sonst wie -03: Top/Flop in einer Kachel (Zeit/Abteilung/Regal, Renner/Penner, Kennzahl); Ladezeit: Seiten parallel, Artikel je Zeitraum aus der Datenbank, Werbe-Schnitt nur fuer Werbeartikel, Dispo-Sicht mit Index
 const APP_VERSION_DATE = "20.08.2026";
 const SUPABASE_URL="https://iexcjfyxujdxnwfcfdim.supabase.co"; const SUPABASE_KEY="sb_publishable_N4jDmA0AazQW3Xihi-DMzw_GYHKie8s";
 
@@ -9348,7 +9348,7 @@ function mepAbmelden(){
   mepWerbungErledigt={}; mepWerbungKW=null; mepScanWochen=[];
   mepPerioden={kennzahlen:[],artikel:[],spannen:[],abschriften:[]};
   mepErledigtHeute=new Set(); mepStand=null;
-  mepArtAbteilung=""; mepArtRegal=""; mepTfZeitraum="woche"; mepRichtung="flop"; mepSort="abschrift";
+  mepArtAbteilung=""; mepArtRegal=""; mepTfZeitraum="woche"; mepRichtung="flop"; mepSort="abschrift"; mepTfAlle=false;
   document.getElementById("mepTor").style.display="block";
   document.getElementById("mepInhalt").style.display="none";
 }
@@ -9505,7 +9505,7 @@ async function mepArtikelZeitraumLaden(abt){
   return Array.isArray(data)?data:[];
 }
 async function mepSetzeTfZeitraum(id){
-  mepTfZeitraum=id;
+  mepTfZeitraum=id; mepTfAlle=false;
   const ziel=document.getElementById("mepTopFlopListe");
   if(ziel) ziel.innerHTML=`<div class="small">Artikel werden geladen …</div>`;
   try{
@@ -12268,10 +12268,21 @@ let mepSort="abschrift";      // umsatz | menge | nettoertrag | abschrift
    mit der GERINGSTEN Abschrift - das will morgens niemand sehen. Falls doch:
    hier "top" eintragen. */
 let mepArtAbteilung="", mepArtRegal="";
-function mepSetzeRichtung(r){ mepRichtung=r; mepZeichnen(); }
-function mepSetzeSort(s){ mepSort=s; mepZeichnen(); }
-function mepSetzeArtAbteilung(a){ mepArtAbteilung=a; mepZeichnen(); }
-function mepSetzeArtRegal(r){ mepArtRegal=r; mepZeichnen(); }
+/* 10.11.2026 (Vorgabe Benedikt Paul: "nicht alle Artikel angezeigt ... Eingrenzungen weg ...
+   immer 8 Artikel ... darunter deutlich 'Ausklappen - alles anzeigen'"): Die Kachel zeigt
+   zunaechst MEP_TF_SICHTBAR Zeilen, nach dem Knopf ALLE Artikel der Auswahl in derselben
+   Kachel. Jeder Wechsel von Richtung, Kennzahl, Zeitraum, Abteilung, Regal oder Mass
+   klappt wieder auf 8 zusammen. */
+const MEP_TF_SICHTBAR=8;
+let mepTfAlle=false;
+function mepTfAusklappen(alle){
+  mepTfAlle=!!alle; mepZeichnen();
+  if(!mepTfAlle){ const k=document.getElementById("mepTopFlop"); if(k) k.scrollIntoView({block:"start"}); }
+}
+function mepSetzeRichtung(r){ mepRichtung=r; mepTfAlle=false; mepZeichnen(); }
+function mepSetzeSort(s){ mepSort=s; mepTfAlle=false; mepZeichnen(); }
+function mepSetzeArtAbteilung(a){ mepArtAbteilung=a; mepTfAlle=false; mepZeichnen(); }
+function mepSetzeArtRegal(r){ mepArtRegal=r; mepTfAlle=false; mepZeichnen(); }
 /* Die Regalauswahl erscheint erst, wenn im Artikelbericht wirklich
    Regalnummern stehen. Solange die Spalte leer ist, waere ein leeres
    Auswahlfeld nur irrefuehrend. Die Spalten regal_nr und regal_folge sind in
@@ -12315,7 +12326,7 @@ function mepRegalWahl(regale,aktiv,fn){
    Der gerechnete Wert umfasst Abschriften, Inventur UND Rechnungspruefung
    zusammen. Deshalb steht dort "Spannenverlust" und nicht "Abschriften". */
 let mepFlopMass="anteil";     // "anteil" = Anteil am VK brutto (Vorgabe 18.08.), "euro" = Betrag
-function mepSetzeFlopMass(m){ mepFlopMass=m; mepZeichnen(); }
+function mepSetzeFlopMass(m){ mepFlopMass=m; mepTfAlle=false; mepZeichnen(); }
 /* Kein Mindestumsatz mehr (Vorgabe Benedikt Paul 18.08.2026): Die Liste
    zeigt immer, egal wie klein der Umsatz ist. Dass ein Prozentwert bei
    winzigem Umsatz wenig aussagt, steht als Hinweis an der Zeile - ausblenden
@@ -12433,27 +12444,30 @@ const MEP_TF_KENNZAHLEN=[
 ];
 const mepTfKennzahl=()=>MEP_TF_KENNZAHLEN.find(k=>k.id===mepSort)||MEP_TF_KENNZAHLEN[3];
 /* Grundmenge: alle Artikel des berechtigten Bereichs im gewaehlten Zeitraum,
-   dazu die Auswahl Abteilung und Regal. Fuer die Kennzahl unbestimmbare
-   Artikel (etwa ohne Spannenverlust bei "Abschrift") fallen aus der Liste,
-   werden aber gezaehlt. */
+   dazu die Auswahl Abteilung und Regal.
+   10.11.2026 (Vorgabe Benedikt Paul: "nicht alle Artikel angezeigt ... Eingrenzungen weg"):
+   Die Liste enthaelt ALLE Artikel der Auswahl, rein nach der Kennzahl sortiert.
+   Bis dahin fielen Artikel ohne bestimmbaren Wert heraus (bei "Abschrift" alle ohne
+   Spannenverlust) und Prozentwerte unter 250 EUR Umsatz wurden ans Ende sortiert.
+   Jetzt: bei "Abschrift" zaehlt "kein Verlust" als 0 (die Besten bei Renner oben,
+   bei Penner ganz unten); nur Artikel, deren Wert wirklich nicht bestimmbar ist
+   (Umsatz 0, keine Spanne), stehen am Ende. Kleinstumsatz wird nur noch grau
+   markiert, nicht umsortiert - ein Ausreisser wie G&G Mineralwasser (0,30 EUR,
+   -2.496 %, 27.08.) kann damit wieder oben stehen; das ist so gewollt. */
 function mepTfListe(){
   const k=mepTfKennzahl();
   const roh=(mepArtikel||[]).filter(x=>(!mepArtAbteilung||x.abteilung===mepArtAbteilung)
                                      &&(!mepArtRegal||x.regal_nr===mepArtRegal));
-  const mit=roh.map(x=>({...x, w:k.wert(x)})).filter(x=>x.w!=null&&isFinite(x.w));
-  // Renner = die Besten oben. Bei "hoch ist gut" absteigend, sonst aufsteigend.
+  const mit=roh.map(x=>{
+    let w=k.wert(x);
+    if((w==null||!isFinite(w))&&k.id==="abschrift"&&Number(x.umsatz)>0) w=0;   // kein Verlust = Abschrift 0
+    return {...x, w:(w!=null&&isFinite(w))?w:null};
+  });
+  // Renner = die Besten oben. Bei "hoch ist gut" absteigend, sonst aufsteigend. Unbestimmbare zuletzt.
   const besteOben=(mepRichtung==="top")===(k.hochIstGut!==false);
-  /* Prozentwerte bei Kleinstumsatz ans ENDE, nicht ausblenden (04.09.2026).
-     Auf Wochenbasis gibt es Artikel mit 0,30 EUR Umsatz und -2.496 %
-     Nettoertragsspanne (G&G Mineralwasser, 27.08.: Pfand- und
-     Korrekturbuchungen). Nach Anteil sortiert standen die ganz oben und
-     verdeckten alles. Die Vorgabe vom 18.08. - kein Mindestumsatz, nichts
-     ausblenden - bleibt: sie stehen unten, grau, und im "mehr"-Fenster. */
-  const prozent=(k.id==="abschrift"&&mepFlopMass==="anteil")||k.id==="nettoertrag";
-  const klein=x=>prozent&&(Number(x.umsatz)||0)<MEP_FLOP_HINWEIS_UMSATZ;
   mit.sort((a,b)=>{
-    const ka=klein(a), kb=klein(b);
-    if(ka!==kb) return ka?1:-1;
+    if((a.w==null)!==(b.w==null)) return a.w==null?1:-1;
+    if(a.w==null) return 0;
     return besteOben ? b.w-a.w : a.w-b.w;
   });
   return {alle:roh, liste:mit, kennzahl:k};
@@ -12473,13 +12487,13 @@ function mepKachelTopFlop(){
   const abteilungen=[...new Set((mepArtikel||[]).map(x=>x.abteilung).filter(Boolean))].sort();
   const regale=[...new Set((mepArtikel||[]).map(x=>x.regal_nr).filter(Boolean))].sort();
   const {alle,liste,kennzahl}=mepTfListe();
-  const zeig=liste.slice(0,12);
+  const zeig=mepTfAlle?liste:liste.slice(0,MEP_TF_SICHTBAR);   // 10.11.2026: 8 Zeilen oder alle
   const top=mepRichtung==="top";
   /* Gemeldet oder gerechnet - je Artikel, nicht je Liste (04.09.2026): der
      Quartalsbericht liefert Abschriften nur fuer einen Teil der Artikel
      (Billigheim 2.419 von 22.356), die Tagesberichte fuer keinen. */
-  const nGem=mepSort==="abschrift"?liste.filter(x=>{const f=mepFlopWerte(x); return f&&f.gemeldet;}).length:0;
-  const nGer=mepSort==="abschrift"?liste.length-nGem:0;
+  let nGem=0, nGer=0;
+  if(mepSort==="abschrift") liste.forEach(x=>{const f=mepFlopWerte(x); if(f){ if(f.gemeldet) nGem++; else nGer++; }});
   const gemeldet=nGem>0&&nGer===0;
   /* Kacheln zum Anklicken (Vorgabe 04.09.2026) - keine Auswahlfelder fuer
      Richtung und Kennzahl. Aktiv: blau (Renner) bzw. rot (Penner) gefuellt. */
@@ -12495,9 +12509,14 @@ function mepKachelTopFlop(){
     border-radius:13px;padding:3px 10px;font-size:11.5px;cursor:pointer;font-weight:bold">${text}</button>`;
   const abschr=mepSort==="abschrift"?mepAbschriftenAbteilung():[];
   const auf=mepSort==="abschrift"?mepVerlustAufteilung():null;
-  return `<div class="box" style="border-left:4px solid ${farbe}">
+  /* Knopf Ausklappen/Einklappen (10.11.2026): volle Breite, EDEKA-Gelb (btn-yellow) - der
+     Text-Absprung "mehr" bleibt daneben. Ausgeklappt steht der Einklappen-Knopf oben UND unten. */
+  const klapp=liste.length>MEP_TF_SICHTBAR?`<button class="btn-yellow" onclick="mepTfAusklappen(${mepTfAlle?"false":"true"})"
+      style="margin:10px 0 4px;padding:13px 12px;font-size:15px;border:2px solid #004f9e;border-radius:10px">${
+      mepTfAlle?`▲ Einklappen – nur ${MEP_TF_SICHTBAR} zeigen`:`▼ Ausklappen – alles anzeigen (${mepZahl(liste.length)} Artikel)`}</button>`:"";
+  return `<div class="box" id="mepTopFlop" style="border-left:4px solid ${farbe}">
     <h2>Top/Flop-Artikel
-      <span style="font-weight:normal;font-size:14px;color:#64748b">${top?"Renner":"Penner"} · ${kennzahl.text} · ${mepZahl(liste.length)} von ${mepZahl(alle.length)} Artikeln</span>
+      <span style="font-weight:normal;font-size:14px;color:#64748b">${top?"Renner":"Penner"} · ${kennzahl.text} · ${mepZahl(liste.length)} Artikel${mepTfAlle?"":`, ${mepZahl(zeig.length)} sichtbar`}</span>
       ${mepAbsprung("mepZeigeTopFlop()","mehr")}</h2>
     <div class="small" style="margin:6px 0 2px">${mepTfZeitraumText()}</div>
     ${mepArtikelFehler?`<div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 10px;margin:6px 0">
@@ -12532,13 +12551,14 @@ function mepKachelTopFlop(){
         ? `<b>${mepZahl(nGem)} gemeldet, ${mepZahl(nGer)} gerechnet (mit „~“):</b> der Quartalsbericht liefert Abschriften nur für einen Teil der Artikel; für die übrigen wird der Spannenverlust gerechnet (Umsatz- minus Nettoertragsspanne).`
         : "<b>Gerechnet, nicht gemeldet:</b> die Tagesberichte liefern keine Abschriften je Artikel. Gezeigt wird der Spannenverlust (Umsatz- minus Nettoertragsspanne) – er enthält Abschriften, Inventur und Rechnungsprüfung zusammen."}</span>
     </div>`:""}
+    ${mepTfAlle?klapp:""}
     <div id="mepTopFlopListe">
-    ${zeig.length?zeig.map(x=>{
+    ${zeig.length?zeig.map((x,i)=>{
       const dp=mepDispo.find(d=>d.artikelnr===String(x.sap_artnr));
-      const klein=((mepSort==="abschrift"&&mepFlopMass==="anteil")||mepSort==="nettoertrag")&&(Number(x.umsatz)||0)<MEP_FLOP_HINWEIS_UMSATZ;
+      const klein=x.w==null||(((mepSort==="abschrift"&&mepFlopMass==="anteil")||mepSort==="nettoertrag")&&(Number(x.umsatz)||0)<MEP_FLOP_HINWEIS_UMSATZ);
       return `<div style="display:flex;gap:12px;align-items:center;padding:9px 0;
         border-bottom:1px solid #f1f5f9;flex-wrap:wrap">
-      <svg class="mepbc" data-code="${mepEsc(x.sap_artnr)}" style="width:112px;height:40px;flex:none"></svg>
+      <svg class="${i<MEP_TF_SICHTBAR?"mepbc":"mepbcl"}" data-code="${mepEsc(x.sap_artnr)}" style="width:112px;height:40px;flex:none"></svg>
       <div style="flex:1 1 220px;min-width:0;font-size:13.5px;line-height:1.35">${mepEsc(x.bezeichnung)}
         <span style="display:block;font-size:10.5px;color:#94a3b8;margin-top:2px">${mepEsc(x.abteilung)} ·
           Art.-Nr. ${mepEsc(x.sap_artnr)}${mepRegalText(x)}${
@@ -12547,11 +12567,11 @@ function mepKachelTopFlop(){
         <div style="font-weight:bold;font-size:15px;color:${klein?"#94a3b8":farbe}">${kennzahl.gross(x)}</div>
         <div style="font-size:11px;color:#94a3b8">${kennzahl.klein(x)}</div>
       </div></div>`;}).join("")
-      :`<div class="small" style="padding:10px 0;font-style:italic">Für diese Auswahl liegen keine Artikel mit
-        bestimmbarem Wert vor.</div>`}
+      :`<div class="small" style="padding:10px 0;font-style:italic">Für diese Auswahl liegen keine Artikel vor.</div>`}
     </div>
+    ${klapp}
     ${(mepSort==="abschrift"&&mepFlopMass==="anteil")||mepSort==="nettoertrag"?`<div class="small" style="margin-top:6px">Artikel unter ${MEP_FLOP_HINWEIS_UMSATZ} € Umsatz
-      stehen am Ende der Liste und in Grau – ein Prozentwert bei winzigem Umsatz sagt wenig. Ausgeblendet wird nichts.</div>`:""}
+      sind grau – ein Prozentwert bei winzigem Umsatz sagt wenig. Ausgeblendet oder umsortiert wird nichts; Artikel ohne bestimmbaren Wert („–“) stehen am Ende.</div>`:""}
 
     ${mepSort==="abschrift"?`${abschr.length&&abschr[0].ek?`
     <div style="font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:#64748b;margin:14px 0 0">
@@ -12640,8 +12660,7 @@ function mepKachelTopFlop(){
    entscheiden koennen). Sortiert wie die Kachel; unbestimmbare zuletzt. */
 function mepZeigeTopFlop(){
   const {alle,liste,kennzahl}=mepTfListe();
-  const ohne=alle.filter(x=>!liste.some(y=>y.sap_artnr===x.sap_artnr));
-  const l=liste.concat(ohne.map(x=>({...x,w:null})));
+  const l=liste;   // 10.11.2026: liste enthaelt bereits alle Artikel, unbestimmbare (w null) am Ende
   const top=mepRichtung==="top";
   const zeit=MEP_ZEITRAEUME.map(z=>{const an=z.id===mepTfZeitraum;
       return `<button onclick="mepSetzeTfZeitraumModal('${z.id}')"
@@ -12651,11 +12670,11 @@ function mepZeigeTopFlop(){
   let h=`<div style="display:flex;gap:7px;align-items:center;margin-bottom:8px;flex-wrap:wrap">${zeit}</div>
     <div class="small" style="margin-bottom:10px">${mepTfZeitraumText()} ${mepMk()}${mepBl()?" · "+mepBl():""}${
     mepArtAbteilung?" · "+mepEsc(mepArtAbteilung):""}${mepArtRegal?" · Regal "+mepEsc(mepArtRegal):""} ·
-    ${mepZahl(alle.length)} Artikel, davon ${mepZahl(liste.length)} mit bestimmbarem Wert.
+    ${mepZahl(alle.length)} Artikel, davon ${mepZahl(liste.filter(x=>x.w!=null).length)} mit bestimmbarem Wert.
     Sortiert: <b>${top?"Renner":"Penner"} nach ${kennzahl.text}</b>.</div>
     <table style="width:100%;border-collapse:collapse;font-size:13px">${
     mepTh("Art.-Nr.","Bezeichnung","Abteilung","Regal","Umsatz br.","Menge","Umsatzsp.","Nettoertrag","Abschrift/Verlust €","Anteil am VK")}<tbody>`;
-  l.slice(0,600).forEach(x=>{ const f=mepFlopWerte(x);
+  l.forEach(x=>{ const f=mepFlopWerte(x);   // 10.11.2026: ohne 600er-Grenze, alle Zeilen
     h+=`<tr style="border-top:1px solid #eef3f9"><td style="padding:8px;white-space:nowrap">${mepEsc(x.sap_artnr)}</td>
     <td>${mepEsc(x.bezeichnung)}</td><td style="color:#64748b">${mepEsc(x.abteilung||"–")}</td>
     <td style="color:#64748b">${x.regal_nr?mepEsc(x.regal_nr):"–"}</td>
@@ -12667,7 +12686,6 @@ function mepZeigeTopFlop(){
     <td style="text-align:right">${f?mepPrz(f.anteil):"–"}</td></tr>`; });
   mepModal(`Top/Flop · ${top?"Renner":"Penner"} · ${kennzahl.text} · ${mepMk()}${mepBl()?" · "+mepBl():""}`,
     h+`</tbody></table>
-    ${l.length>600?`<div class="small" style="margin-top:8px">Angezeigt sind die ersten 600 von ${mepZahl(l.length)}.</div>`:""}
     <div class="small" style="margin-top:8px">„~“ = Spannenverlust gerechnet, nicht gemeldet.</div>`);
 }
 async function mepSetzeTfZeitraumModal(id){
@@ -13066,11 +13084,20 @@ function mepZeigeDispo(){
 /* Code 128 auf der Artikelnummer - sie liegt zu 100 Prozent vor, eine EAN
    nur bei 3.598 von 20.920 Artikeln (Vorgabe Benedikt Paul 17.08.). */
 function mepBarcodes(){
-  document.querySelectorAll("svg.mepbc").forEach(el=>{
+  const zeichne=el=>{
     const c=el.getAttribute("data-code"); if(!c) return;
     try{ JsBarcode(el,c,{format:"CODE128",height:30,displayValue:true,fontSize:11,margin:0,width:1.1}); }
     catch(e){ el.outerHTML=`<span style="font-size:11px;color:#64748b">${c}</span>`; }
-  });
+  };
+  document.querySelectorAll("svg.mepbc").forEach(zeichne);
+  /* 10.11.2026: Die ausgeklappte Top/Flop-Liste hat bis 22.000 Zeilen (Billigheim, Quartal).
+     JsBarcode fuer alle auf einmal hielte den Browser sekundenlang an - Klasse mepbcl
+     (ab Zeile 9) wird erst gezeichnet, wenn die Zeile in die Naehe des Bildschirms rollt. */
+  const spaet=document.querySelectorAll("svg.mepbcl");
+  if(!spaet.length) return;
+  if(!("IntersectionObserver" in window)){ spaet.forEach(zeichne); return; }
+  const io=new IntersectionObserver(es=>{ es.forEach(e=>{ if(e.isIntersecting){ io.unobserve(e.target); zeichne(e.target); } }); },{rootMargin:"400px"});
+  spaet.forEach(el=>io.observe(el));
 }
 </script>
 
