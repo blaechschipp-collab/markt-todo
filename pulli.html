@@ -239,7 +239,8 @@ function aufGroesse(pn, sel) {
 function aufAnzahl(pn, v) {
   const p = DATEN.find(x => x.personalnummer === pn);
   if (!p) return;
-  p.anzahl = Math.max(1, Math.min(20, Number(v) || 2));
+  const n = Number(v);
+  p.anzahl = (v === "" || isNaN(n)) ? null : n;   // getippten Wert (auch 0) stehen lassen; Mindestmenge erst beim Speichern
 }
 async function aufSpeichern(pn, btn) {
   const p = DATEN.find(x => x.personalnummer === pn);
@@ -249,7 +250,7 @@ async function aufSpeichern(pn, btn) {
   if (!sel.value) { sel.classList.add("leer"); sel.focus(); toast("Bitte Größe wählen"); return; }
   p.groesse = sel.value;
   const anz = row.querySelector("input.anz");
-  p.anzahl = Math.max(1, Math.min(20, Number(anz.value) || 2));
+  p.anzahl = Math.max(1, Math.min(20, Number(anz.value) || 1));
   BEARBEITEN.delete(pn);
   await speichern(pn, true);
 }
