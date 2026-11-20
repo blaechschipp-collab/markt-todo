@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Weihnachtspullis · EDEKA Paul</title>
+<style>
+  :root { --blau:#00315f; --gelb:#ffdd00; --grau:#f4f6f8; --rand:#d9dee5; --gruen:#1b7f3b; --rot:#b00020; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size:16px; color:#111; background:var(--grau); }
+  header { background:var(--blau); color:#fff; padding:14px 16px; display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+  header h1 { font-size:19px; margin:0; font-weight:600; flex:1 1 auto; }
+  header .stand { font-size:13px; opacity:.85; }
+  main { max-width:620px; margin:0 auto; padding:14px 12px 60px; }
+  .karte { background:#fff; border:1px solid var(--rand); border-radius:10px; padding:16px; margin-bottom:14px; }
+  .tor { max-width:380px; margin:40px auto; text-align:center; }
+  .tor input { font-size:20px; text-align:center; width:220px; padding:10px; border:1px solid var(--rand); border-radius:8px; }
+  label.feld { display:block; margin:14px 0 0; font-size:14px; color:#333; font-weight:600; }
+  input[type=text], select { width:100%; font-size:17px; padding:11px; border:1px solid var(--rand); border-radius:8px; margin-top:6px; background:#fff; }
+  .knopf { background:var(--gelb); color:var(--blau); border:none; border-radius:8px; padding:13px 18px; font-size:16px; font-weight:600; cursor:pointer; }
+  .knopf.breit { width:100%; }
+  .knopf.leise { background:#eef1f5; color:#333; font-weight:500; }
+  .knopf:disabled { opacity:.5; cursor:default; }
+  .fehler { color:var(--rot); min-height:22px; margin-top:8px; font-size:14px; }
+  .groessen { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+  .groessen button { flex:1 1 60px; min-width:60px; padding:14px 0; font-size:17px; font-weight:600; border:1px solid var(--rand); border-radius:8px; background:#fff; color:#222; cursor:pointer; }
+  .groessen button.aktiv { background:var(--blau); color:#fff; border-color:var(--blau); }
+  .intro { font-size:15px; color:#333; margin:0 0 4px; }
+  .danke { background:#f3f7f3; border:1px solid #bcd9c4; color:#2d5c3b; border-radius:8px; padding:12px 14px; margin-top:14px; font-size:15px; }
+  .zaehler { font-size:13px; color:#666; margin-top:12px; text-align:center; }
+  .ausblenden { display:none !important; }
+  .toast { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); background:#222; color:#fff; padding:10px 16px; border-radius:8px; font-size:14px; opacity:0; transition:opacity .2s; pointer-events:none; }
+  .toast.zeigen { opacity:.95; }
+  @media (max-width:480px){ header h1{font-size:17px} }
+</style>
+</head>
+<body>
+<header>
+  <h1>Weihnachtspullis 2026</h1>
+  <span class="stand">EDEKA Paul</span>
+  <button class="knopf leise ausblenden" id="abmelden" title="Abmelden">Abmelden</button>
+</header>
+<main>
+  <section class="karte tor" id="tor">
+    <p>Bitte geben Sie das Passwort ein.</p>
+    <form id="torForm" autocomplete="off">
+      <input id="pass" type="password" autocomplete="off" aria-label="Passwort" placeholder="Passwort">
+      <div style="margin-top:12px"><button class="knopf" type="submit">Weiter</button></div>
+    </form>
+    <div class="fehler" id="torFehler"></div>
+  </section>
+
+  <section id="app" class="ausblenden">
+    <div class="karte">
+      <p class="intro">Bitte tragen Sie Ihre Pulli-Größe ein. Damit bestellen wir die Weihnachtspullis für alle in den richtigen Größen.</p>
+      <form id="form" autocomplete="off">
+        <label class="feld" for="markt">Markt</label>
+        <select id="markt" required>
+          <option value="">bitte wählen …</option>
+          <option>Billigheim-Ingenheim</option>
+          <option>Steinfeld</option>
+          <option>Freckenfeld</option>
+          <option>Gossersweiler-Stein</option>
+          <option>Verwaltung</option>
+        </select>
+        <label class="feld" for="vorname">Vorname</label>
+        <input id="vorname" type="text" autocomplete="off" maxlength="40" required>
+        <label class="feld" for="nachname">Nachname</label>
+        <input id="nachname" type="text" autocomplete="off" maxlength="40" required>
+        <label class="feld">Größe</label>
+        <div class="groessen" id="groessen">
+          <button type="button" data-g="XS">XS</button>
+          <button type="button" data-g="S">S</button>
+          <button type="button" data-g="M">M</button>
+          <button type="button" data-g="L">L</button>
+          <button type="button" data-g="XL">XL</button>
+          <button type="button" data-g="XXL">XXL</button>
+          <button type="button" data-g="XXXL">XXXL</button>
+        </div>
+        <div class="fehler" id="formFehler"></div>
+        <div style="margin-top:16px"><button class="knopf breit" type="submit" id="speichern">Speichern</button></div>
+      </form>
+      <div class="danke ausblenden" id="danke"></div>
+      <div class="zaehler" id="zaehler"></div>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+/* Weihnachtspullis 2026 – Selbsteintrag der Groesse (Benedikt Paul, 20.11.2026).
+   Passwort Pulli2026 wird serverseitig geprueft: RPC pulli_eintragen / pulli_anzahl (SECURITY DEFINER).
+   Tabelle public.pulli_groesse (RLS an, keine Policy) – nur ueber die Funktionen erreichbar. */
+const SB_URL = "https://iexcjfyxujdxnwfcfdim.supabase.co";
+const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlleGNqZnl4dWpkeG53ZmNmZGltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzczMjc1NTIsImV4cCI6MjA5MjkwMzU1Mn0.EDMxLbiloqCAKRJA-gLUOiQiZmpagl1OeOpFjJtT5us";
+const $ = id => document.getElementById(id);
+let PASS = "", GROESSE = "";
+
+function kopf() { return { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY, "Content-Type": "application/json" }; }
+function toast(t) { const e = $("toast"); e.textContent = t; e.classList.add("zeigen"); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove("zeigen"), 1800); }
+
+async function rpc(name, body) {
+  const r = await fetch(SB_URL + "/rest/v1/rpc/" + name, { method: "POST", headers: kopf(), body: JSON.stringify(body) });
+  if (!r.ok) throw new Error("Server " + r.status);
+  return r.json();
+}
+
+async function zaehlerLaden() {
+  try { const n = await rpc("pulli_anzahl", { p_pass: PASS }); if (typeof n === "number" && n >= 0) $("zaehler").textContent = n + (n === 1 ? " Eintrag" : " Einträge") + " bisher"; } catch (x) {}
+}
+
+function waehleGroesse(g) {
+  GROESSE = g;
+  for (const b of document.querySelectorAll("#groessen button")) b.classList.toggle("aktiv", b.dataset.g === g);
+}
+
+function vorbelegen() {
+  try {
+    const roh = localStorage.getItem("pulli_eintrag");
+    if (!roh) return;
+    const d = JSON.parse(roh);
+    if (d.markt) $("markt").value = d.markt;
+    if (d.vorname) $("vorname").value = d.vorname;
+    if (d.nachname) $("nachname").value = d.nachname;
+    if (d.groesse) waehleGroesse(d.groesse);
+    if (d.groesse) zeigeDanke(d.groesse, true);
+  } catch (x) {}
+}
+
+function zeigeDanke(g, schon) {
+  $("danke").textContent = (schon ? "Ihre eingetragene Größe: " : "Danke, gespeichert ✓  Ihre Größe: ") + g + ". Sie können sie jederzeit ändern und erneut speichern.";
+  $("danke").classList.remove("ausblenden");
+}
+
+function zeigeApp() {
+  $("tor").classList.add("ausblenden"); $("app").classList.remove("ausblenden"); $("abmelden").classList.remove("ausblenden");
+  vorbelegen(); zaehlerLaden();
+}
+function zeigeTor() { $("app").classList.add("ausblenden"); $("abmelden").classList.add("ausblenden"); $("tor").classList.remove("ausblenden"); }
+
+$("torForm").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  $("torFehler").textContent = "";
+  const p = $("pass").value.trim();
+  if (!p) { $("torFehler").textContent = "Bitte das Passwort eingeben."; return; }
+  try {
+    const n = await rpc("pulli_anzahl", { p_pass: p });
+    if (typeof n === "number" && n >= 0) { PASS = p; try { localStorage.setItem("pulli_pass", p); } catch (x) {} zeigeApp(); }
+    else { $("torFehler").textContent = "Dieses Passwort stimmt nicht."; $("pass").value = ""; }
+  } catch (x) { $("torFehler").textContent = "Gerade nicht erreichbar – bitte erneut versuchen."; }
+});
+
+$("abmelden").addEventListener("click", () => { PASS = ""; try { localStorage.removeItem("pulli_pass"); } catch (x) {} $("pass").value = ""; zeigeTor(); });
+
+$("groessen").addEventListener("click", ev => { const b = ev.target.closest("button[data-g]"); if (b) { waehleGroesse(b.dataset.g); $("formFehler").textContent = ""; } });
+
+$("form").addEventListener("submit", async ev => {
+  ev.preventDefault();
+  $("formFehler").textContent = "";
+  const markt = $("markt").value, vorname = $("vorname").value.trim(), nachname = $("nachname").value.trim();
+  if (!markt) { $("formFehler").textContent = "Bitte den Markt wählen."; return; }
+  if (!vorname || !nachname) { $("formFehler").textContent = "Bitte Vor- und Nachname eingeben."; return; }
+  if (!GROESSE) { $("formFehler").textContent = "Bitte eine Größe wählen."; return; }
+  $("speichern").disabled = true;
+  try {
+    const erg = await rpc("pulli_eintragen", { p_pass: PASS, p_markt: markt, p_vorname: vorname, p_nachname: nachname, p_groesse: GROESSE });
+    if (erg === "ok") {
+      try { localStorage.setItem("pulli_eintrag", JSON.stringify({ markt, vorname, nachname, groesse: GROESSE })); } catch (x) {}
+      zeigeDanke(GROESSE, false); zaehlerLaden(); toast("Gespeichert ✓");
+    } else if (erg === "passwort") { $("formFehler").textContent = "Passwort abgelaufen – bitte neu anmelden."; zeigeTor(); }
+    else { $("formFehler").textContent = "Bitte Eingaben prüfen (" + erg + ")."; }
+  } catch (x) {
+    $("formFehler").textContent = "Nicht gespeichert – bitte noch einmal versuchen.";
+  } finally { $("speichern").disabled = false; }
+});
+
+(async () => {
+  let p = "";
+  try { p = localStorage.getItem("pulli_pass") || ""; } catch (x) {}
+  if (p) { try { const n = await rpc("pulli_anzahl", { p_pass: p }); if (typeof n === "number" && n >= 0) { PASS = p; zeigeApp(); return; } } catch (x) {} }
+  zeigeTor();
+})();
+</script>
+</body>
+</html>
