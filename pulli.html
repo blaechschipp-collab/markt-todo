@@ -171,7 +171,7 @@ function zeichnen() {
         '<div class="info">' + esc(info) + '</div></span>' +
         '<span class="ausg">' +
           '<select class="gr' + grLeer + '" data-pn="' + p.personalnummer + '" aria-label="Größe"><option value="">Größe…</option>' + grOpts + '</select>' +
-          '<input type="number" class="anz" data-pn="' + p.personalnummer + '" min="1" max="20" value="' + (p.anzahl || 2) + '" aria-label="Anzahl"><span class="x">Stück</span>' +
+          '<input type="number" class="anz" data-pn="' + p.personalnummer + '" min="1" max="20" value="' + (p.anzahl || 1) + '" aria-label="Anzahl"><span class="x">Stück</span>' +
           '<button type="button" class="sp" data-pn="' + p.personalnummer + '">Speichern</button>' +
         '</span>' +
         '<span class="wann">' + (p.erhalten_am ? "✓ " + deZeit(p.erhalten_am) : "") + '</span>' +
@@ -217,7 +217,7 @@ function aufHaken(pn, an, cb) {
     BEARBEITEN.add(pn);
     row.classList.add("erhalten");
     const anz = row.querySelector("input.anz");
-    if (anz && (!anz.value || Number(anz.value) < 1)) { anz.value = 2; p.anzahl = 2; }
+    if (anz && (!anz.value || Number(anz.value) < 1)) { anz.value = 1; p.anzahl = 1; }
     const sel = row.querySelector("select.gr");
     sel.classList.add("leer"); sel.focus();
   } else if (p.erhalten_am) {
