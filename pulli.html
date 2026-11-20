@@ -42,6 +42,7 @@
   .ausg input.anz { width:54px; text-align:center; }
   .ausg .x { font-size:12px; color:#777; }
   .ausg select.leer { border-color:var(--rot); background:#fff6f6; }
+  .ausg .sp { font-size:14px; padding:6px 12px; border:none; border-radius:7px; background:var(--gelb); color:var(--blau); font-weight:600; cursor:pointer; }
   .vermerk { display:inline-block; background:#fff4d6; color:#7a4e00; border-radius:6px; padding:1px 6px; font-size:12px; margin-left:6px; }
   .hinweis { font-size:13px; color:#666; }
   .toast { position:fixed; left:50%; bottom:18px; transform:translateX(-50%); background:#222; color:#fff; padding:10px 16px; border-radius:8px; font-size:14px; opacity:0; transition:opacity .2s; pointer-events:none; }
@@ -99,6 +100,7 @@ const PULLI_GR = ["XS", "S", "M", "L", "XL", "XXL", "XXXL"];
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 let AUSWEIS = "", PERSON = "", DATEN = [];
+const BEARBEITEN = new Set();
 
 function kopf(mitJson) {
   const h = { "apikey": SB_KEY, "Authorization": "Bearer " + SB_KEY };
@@ -160,14 +162,17 @@ function zeichnen() {
     for (const p of liste) {
       const info = [p.einheit && p.einheit !== m ? p.einheit : "", p.bereich || "", p.beschaeftigung || ""].filter(Boolean).join(" · ");
       const grOpts = PULLI_GR.map(g => '<option value="' + g + '"' + (p.groesse === g ? ' selected' : '') + '>' + g + '</option>').join("");
-      const grLeer = (p.erhalten_am && !p.groesse) ? ' leer' : '';
-      html += '<div class="zeile' + (p.erhalten_am ? " erhalten" : "") + '" data-pn="' + p.personalnummer + '">' +
-        '<input type="checkbox" data-pn="' + p.personalnummer + '"' + (p.erhalten_am ? " checked" : "") + '>' +
+      const bearb = BEARBEITEN.has(p.personalnummer);
+      const anHaken = p.erhalten_am || bearb;
+      const grLeer = (anHaken && !p.groesse) ? ' leer' : '';
+      html += '<div class="zeile' + (anHaken ? " erhalten" : "") + '" data-pn="' + p.personalnummer + '">' +
+        '<input type="checkbox" data-pn="' + p.personalnummer + '"' + (anHaken ? " checked" : "") + '>' +
         '<span class="text"><span class="name">' + esc(p.nachname) + ', ' + esc(p.vorname) + '</span>' + (p.vermerk ? '<span class="vermerk">' + esc(p.vermerk.split("|")[0].trim()) + '</span>' : "") +
         '<div class="info">' + esc(info) + '</div></span>' +
         '<span class="ausg">' +
           '<select class="gr' + grLeer + '" data-pn="' + p.personalnummer + '" aria-label="Größe"><option value="">Größe…</option>' + grOpts + '</select>' +
-          '<input type="number" class="anz" data-pn="' + p.personalnummer + '" min="1" max="20" value="' + (p.anzahl || 1) + '" aria-label="Anzahl"><span class="x">Stück</span>' +
+          '<input type="number" class="anz" data-pn="' + p.personalnummer + '" min="1" max="20" value="' + (p.anzahl || 2) + '" aria-label="Anzahl"><span class="x">Stück</span>' +
+          '<button type="button" class="sp" data-pn="' + p.personalnummer + '">Speichern</button>' +
         '</span>' +
         '<span class="wann">' + (p.erhalten_am ? "✓ " + deZeit(p.erhalten_am) : "") + '</span>' +
         '</div>';
@@ -183,6 +188,7 @@ function zeichnen() {
 async function speichern(pn, an) {
   const p = DATEN.find(x => x.personalnummer === pn);
   if (!p) return;
+  BEARBEITEN.delete(pn);
   const vorher = { erhalten_am: p.erhalten_am, anzahl: p.anzahl, groesse: p.groesse, von: p.von };
   p.erhalten_am = an ? (p.erhalten_am || new Date().toISOString()) : null;
   p.von = an ? (PERSON || "Verwaltung") : null;
@@ -205,30 +211,47 @@ async function speichern(pn, an) {
 function aufHaken(pn, an, cb) {
   const p = DATEN.find(x => x.personalnummer === pn);
   if (!p) return;
+  const row = cb.closest(".zeile");
   if (an) {
     if (p.erhalten_am) return;
-    const row = cb.closest(".zeile");
+    BEARBEITEN.add(pn);
     row.classList.add("erhalten");
+    const anz = row.querySelector("input.anz");
+    if (anz && (!anz.value || Number(anz.value) < 1)) { anz.value = 2; p.anzahl = 2; }
     const sel = row.querySelector("select.gr");
-    sel.classList.add("leer");
-    sel.focus();
-    toast("Bitte Größe wählen");
-  } else {
+    sel.classList.add("leer"); sel.focus();
+  } else if (p.erhalten_am) {
     speichern(pn, false);
+  } else {
+    BEARBEITEN.delete(pn);
+    p.groesse = null;
+    row.classList.remove("erhalten");
+    const sel = row.querySelector("select.gr");
+    if (sel) { sel.value = ""; sel.classList.remove("leer"); }
   }
 }
-function aufGroesse(pn, g) {
+function aufGroesse(pn, sel) {
   const p = DATEN.find(x => x.personalnummer === pn);
-  if (!p || !g) return;
-  p.groesse = g;
-  if (!p.anzahl) p.anzahl = 1;
-  speichern(pn, true);
+  if (!p) return;
+  p.groesse = sel.value || null;
+  if (sel.value) sel.classList.remove("leer");
 }
 function aufAnzahl(pn, v) {
   const p = DATEN.find(x => x.personalnummer === pn);
   if (!p) return;
-  p.anzahl = Math.max(1, Math.min(20, Number(v) || 1));
-  if (p.erhalten_am && p.groesse) speichern(pn, true);
+  p.anzahl = Math.max(1, Math.min(20, Number(v) || 2));
+}
+async function aufSpeichern(pn, btn) {
+  const p = DATEN.find(x => x.personalnummer === pn);
+  if (!p) return;
+  const row = btn.closest(".zeile");
+  const sel = row.querySelector("select.gr");
+  if (!sel.value) { sel.classList.add("leer"); sel.focus(); toast("Bitte Größe wählen"); return; }
+  p.groesse = sel.value;
+  const anz = row.querySelector("input.anz");
+  p.anzahl = Math.max(1, Math.min(20, Number(anz.value) || 2));
+  BEARBEITEN.delete(pn);
+  await speichern(pn, true);
 }
 
 function zeigeApp() { $("tor").classList.add("ausblenden"); $("app").classList.remove("ausblenden"); $("abmelden").classList.remove("ausblenden"); }
@@ -249,8 +272,12 @@ $("fOffen").addEventListener("change", zeichnen);
 $("liste").addEventListener("change", ev => {
   const t = ev.target;
   if (t.matches("input[type=checkbox][data-pn]")) aufHaken(Number(t.dataset.pn), t.checked, t);
-  else if (t.matches("select.gr[data-pn]")) aufGroesse(Number(t.dataset.pn), t.value);
+  else if (t.matches("select.gr[data-pn]")) aufGroesse(Number(t.dataset.pn), t);
   else if (t.matches("input.anz[data-pn]")) aufAnzahl(Number(t.dataset.pn), t.value);
+});
+$("liste").addEventListener("click", ev => {
+  const t = ev.target;
+  if (t.matches("button.sp[data-pn]")) aufSpeichern(Number(t.dataset.pn), t);
 });
 
 (async () => {
